@@ -1,0 +1,147 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: LightMapper
+# Runs the LightMapper service
+# ==============================================================================
+
+echo "🔧 S6 service starting LightMapper..."
+bashio::log.info "Starting LightMapper..."
+
+# Debug environment variables for ingress detection
+echo "🔍 Environment variables debug:"
+echo "  SUPERVISOR_TOKEN: ${SUPERVISOR_TOKEN:+SET (hidden)}"
+echo "  HASSIO_TOKEN: ${HASSIO_TOKEN:+SET (hidden)}"
+echo "  INGRESS_ENTRY: ${INGRESS_ENTRY:-NOT SET}"
+echo "  INGRESS_URL: ${INGRESS_URL:-NOT SET}"
+echo "  PWD: ${PWD}"
+echo "  PATH: ${PATH}"
+
+# Detect Home Assistant API endpoint
+bashio::log.info "Detecting Home Assistant API endpoint..."
+echo "🔗 Testing Home Assistant API connection..."
+echo "🕒 Start time: $(date)"
+
+# List of possible HA addresses to try (in order of preference)
+HA_ADDRESSES=(
+    "supervisor"     # Standard HA Supervisor proxy (production add-on)
+    "localhost"      # Same server fallback
+    "127.0.0.1"      # Same server fallback
+    "host.docker.internal"  # Docker development
+)
+
+# Auto-detect additional addresses
+echo "🔍 Auto-detecting Home Assistant address..."
+if command -v nslookup >/dev/null 2>&1; then
+    # Try to resolve homeassistant.local
+    HA_LOCAL_IP=$(nslookup homeassistant.local 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}')
+    if [ -n "$HA_LOCAL_IP" ] && [ "$HA_LOCAL_IP" != "127.0.0.1" ]; then
+        echo "  Found homeassistant.local at: $HA_LOCAL_IP"
+        HA_ADDRESSES+=("$HA_LOCAL_IP")
+    fi
+fi
+
+# Check for HASSIO environment variables that might hint at the address
+if [ -n "$SUPERVISOR_TOKEN" ]; then
+    echo "  Running in Home Assistant Supervisor environment"
+    echo "  Will use supervisor proxy for API access"
+    
+    # In supervisor environment, test supervisor connectivity
+    echo "🔌 Testing supervisor connectivity..."
+    if nc -z -w 2 supervisor 80 2>/dev/null; then
+        echo "✅ Supervisor is reachable"
+        export HA_BASE_URL="http://supervisor/core"
+        bashio::log.info "Using Home Assistant supervisor proxy at $HA_BASE_URL"
+    else
+        echo "⚠️ Supervisor not reachable, will try fallbacks"
+        export HA_BASE_URL="http://supervisor/core"
+    fi
+else
+    echo "  Running in development mode - will auto-detect HA address"
+    
+    API_AVAILABLE=false
+    HA_HOST=""
+    HA_PORT=8123
+    START_TIME=$(date +%s)
+    
+    # Try each address for development
+    for address in "${HA_ADDRESSES[@]}"; do
+        # Skip supervisor in development mode
+        if [ "$address" = "supervisor" ]; then
+            continue
+        fi
+        
+        echo "🔌 Trying Home Assistant at $address:$HA_PORT..."
+        
+        # Quick connectivity test
+        if nc -z -w 2 "$address" "$HA_PORT" 2>/dev/null; then
+            echo "✅ Home Assistant API found at $address:$HA_PORT"
+            HA_HOST="$address"
+            API_AVAILABLE=true
+            break
+        else
+            echo "  ❌ No response from $address:$HA_PORT"
+        fi
+    done
+    
+    TOTAL_TIME=$(( $(date +%s) - START_TIME ))
+    echo "🕒 Total API detection time: ${TOTAL_TIME} seconds"
+    
+    if [ "$API_AVAILABLE" = "true" ]; then
+        echo "✅ Home Assistant API confirmed at $HA_HOST:$HA_PORT in ${TOTAL_TIME}s"
+        export HA_BASE_URL="http://$HA_HOST:$HA_PORT"
+        bashio::log.info "Using Home Assistant at $HA_BASE_URL"
+    else
+        echo "⚠️ Could not detect Home Assistant API endpoint"
+        echo "  Tried addresses: ${HA_ADDRESSES[*]}"
+        bashio::log.warning "Could not connect to any Home Assistant API endpoint after ${TOTAL_TIME}s"
+        echo "⚠️ Continuing startup anyway - app will handle connection errors"
+        # Set default for the app to try
+        export HA_BASE_URL="http://localhost:8123"
+    fi
+fi
+
+# Create data directory if it doesn't exist
+echo "📁 Creating data directory..."
+mkdir -p /data
+echo "✅ Data directory ready: $(ls -la /data)"
+
+# Set default options
+echo "⚙️ Loading configuration options..."
+export LOG_LEVEL=$(bashio::config 'log_level')
+export GRID_SIZE=$(bashio::config 'grid_size')
+export DEFAULT_BRIGHTNESS=$(bashio::config 'default_brightness')
+export DEFAULT_COLOR_TEMP=$(bashio::config 'default_color_temp')
+export DEFAULT_HUE=$(bashio::config 'default_hue')
+export DEFAULT_SATURATION=$(bashio::config 'default_saturation')
+
+# Home Assistant configuration  
+export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
+# HA_BASE_URL now handled in server.js with proper fallback logic
+
+echo "✅ Configuration options loaded"
+
+bashio::log.info "Configuration loaded:"
+bashio::log.info "  Log level: ${LOG_LEVEL}"
+bashio::log.info "  Grid size: ${GRID_SIZE}"
+bashio::log.info "  Default brightness: ${DEFAULT_BRIGHTNESS}%"
+
+# Change to app directory
+echo "📁 Changing to app directory..."
+echo "  Current directory: $(pwd)"
+echo "  Target directory: /app"
+echo "  Directory contents:"
+ls -la /app
+cd /app || bashio::exit.nok "Could not change directory to /app"
+echo "✅ Changed to directory: $(pwd)"
+
+# Check Node.js and file availability
+echo "🔧 Pre-flight checks:"
+echo "  Node.js version: $(node --version)"
+echo "  NPM version: $(npm --version)"
+echo "  server.js exists: $(test -f server.js && echo 'YES' || echo 'NO')"
+echo "  server.js permissions: $(ls -la server.js)"
+
+# Start the application
+bashio::log.info "Starting LightMapper server..."
+echo "🚀 Executing: node server.js"
+exec node server.js 

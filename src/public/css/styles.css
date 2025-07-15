@@ -1,0 +1,2307 @@
+/* ========================================
+   LightMapper CAD - Professional Interface
+   ======================================== */
+
+/* CSS Variables - Professional CAD Theme */
+:root {
+  /* Primary CAD Colors */
+  --cad-bg-primary: #2b2b2b;
+  --cad-bg-secondary: #3c3c3c;
+  --cad-bg-tertiary: #4a4a4a;
+  --cad-bg-accent: #1e1e1e;
+  --cad-bg-canvas: #1a1a1a;
+  
+  /* Professional Blue Accent */
+  --cad-blue-primary: #0078d4;
+  --cad-blue-secondary: #106ebe;
+  --cad-blue-light: #40a9ff;
+  --cad-blue-dark: #004578;
+  
+  /* Text Colors */
+  --cad-text-primary: #ffffff;
+  --cad-text-secondary: #cccccc;
+  --cad-text-muted: #999999;
+  --cad-text-accent: #40a9ff;
+  
+  /* Border Colors */
+  --cad-border-primary: #555555;
+  --cad-border-secondary: #666666;
+  --cad-border-accent: #0078d4;
+  
+  /* Status Colors */
+  --cad-success: #52c41a;
+  --cad-warning: #faad14;
+  --cad-error: #ff4d4f;
+  --cad-info: #1890ff;
+  
+  /* Interactive States */
+  --cad-hover: #404040;
+  --cad-active: #0078d4;
+  --cad-selected: #1e4d72;
+  
+  /* Shadows */
+  --cad-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --cad-shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --cad-shadow-heavy: 0 8px 16px rgba(0, 0, 0, 0.2);
+  
+  /* Typography */
+  --cad-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --cad-font-size-xs: 10px;
+  --cad-font-size-sm: 11px;
+  --cad-font-size-base: 12px;
+  --cad-font-size-md: 13px;
+  --cad-font-size-lg: 14px;
+  --cad-font-size-xl: 16px;
+  
+  /* Dimensions */
+  --cad-header-height: 28px;
+  --cad-ribbon-height: 80px;
+  --cad-status-height: 24px;
+  --cad-command-height: 28px;
+  --cad-panel-width: 280px;
+  --cad-border-radius: 2px;
+  --cad-border-radius-sm: 1px;
+  
+  /* Animation */
+  --cad-transition: all 0.15s ease;
+  --cad-transition-fast: all 0.1s ease;
+}
+
+/* ========================================
+   Global Styles
+   ======================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--cad-font-family);
+  font-size: var(--cad-font-size-base);
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ========================================
+   CAD Interface Layout
+   ======================================== */
+.cad-interface {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ========================================
+   Application Header
+   ======================================== */
+.cad-header {
+  height: var(--cad-header-height);
+  background: var(--cad-bg-accent);
+  border-bottom: 1px solid var(--cad-border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+}
+
+.app-title i {
+  color: var(--cad-blue-light);
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  border-radius: var(--cad-border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--cad-transition-fast);
+}
+
+.header-btn:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+/* ========================================
+   Ribbon Interface
+   ======================================== */
+.ribbon-container {
+  background: var(--cad-bg-secondary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  flex-shrink: 0;
+}
+
+.ribbon-tabs {
+  display: flex;
+  background: var(--cad-bg-primary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  padding: 0 8px;
+}
+
+.ribbon-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--cad-transition);
+  border-radius: var(--cad-border-radius) var(--cad-border-radius) 0 0;
+  margin-right: 2px;
+}
+
+.ribbon-tab:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.ribbon-tab.active {
+  background: var(--cad-bg-secondary);
+  color: var(--cad-text-primary);
+  border-bottom: 2px solid var(--cad-blue-primary);
+}
+
+.ribbon-content {
+  height: var(--cad-ribbon-height);
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.ribbon-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: 16px;
+}
+
+.ribbon-panel.active {
+  display: flex;
+}
+
+.ribbon-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-right: 1px solid var(--cad-border-primary);
+}
+
+.ribbon-group:last-child {
+  border-right: none;
+}
+
+.ribbon-group-title {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ribbon-tools {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.ribbon-tool {
+  width: 48px;
+  height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  border-radius: var(--cad-border-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: var(--cad-transition);
+  font-size: var(--cad-font-size-xs);
+}
+
+.ribbon-tool i {
+  font-size: 16px;
+}
+
+.ribbon-tool span {
+  font-size: var(--cad-font-size-xs);
+  font-weight: 500;
+}
+
+.ribbon-tool:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+  border-color: var(--cad-border-secondary);
+}
+
+.ribbon-tool.active {
+  background: var(--cad-blue-primary);
+  color: white;
+  border-color: var(--cad-blue-primary);
+}
+
+.ribbon-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ribbon-tool:disabled:hover {
+  background: transparent;
+  color: var(--cad-text-secondary);
+  border-color: transparent;
+}
+
+/* Area Ribbon Section */
+.ribbon-tools-vertical {
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.area-selector {
+  width: 100%;
+}
+
+.area-dropdown {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  font-family: var(--cad-font-family);
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.area-dropdown:hover {
+  border-color: var(--cad-border-secondary);
+  background: var(--cad-hover);
+}
+
+.area-dropdown:focus {
+  outline: none;
+  border-color: var(--cad-blue-primary);
+  box-shadow: 0 0 0 1px var(--cad-blue-primary);
+}
+
+.area-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ribbon-tool-small {
+  padding: 4px 8px;
+  border: none;
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-xs);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--cad-transition);
+  flex: 1;
+  justify-content: center;
+  border: 1px solid var(--cad-border-primary);
+}
+
+.ribbon-tool-small:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+  border-color: var(--cad-border-secondary);
+}
+
+.ribbon-tool-small:active {
+  background: var(--cad-active);
+  color: var(--cad-text-primary);
+}
+
+.ribbon-tool-small i {
+  font-size: 12px;
+}
+
+.ribbon-tool-small span {
+  font-size: var(--cad-font-size-xs);
+}
+
+/* ========================================
+   Main Interface Layout
+   ======================================== */
+.main-interface {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ========================================
+   Left Panel
+   ======================================== */
+.left-panel {
+  width: var(--cad-panel-width);
+  background: var(--cad-bg-secondary);
+  border-right: 1px solid var(--cad-border-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.panel-tabs {
+  display: flex;
+  background: var(--cad-bg-primary);
+  border-bottom: 1px solid var(--cad-border-primary);
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-muted);
+  cursor: pointer;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: var(--cad-transition);
+  border-bottom: 2px solid transparent;
+}
+
+.panel-tab:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-secondary);
+}
+
+.panel-tab.active {
+  background: var(--cad-bg-secondary);
+  color: var(--cad-text-primary);
+  border-bottom-color: var(--cad-blue-primary);
+  font-weight: 600;
+}
+
+.panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section.active {
+  display: flex;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-primary);
+}
+
+.panel-header h3 {
+  font-size: var(--cad-font-size-md);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+}
+
+.panel-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--cad-border-primary);
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  border-radius: var(--cad-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--cad-transition);
+}
+
+.panel-btn:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+  border-color: var(--cad-border-secondary);
+}
+
+/* ========================================
+   Lights Panel
+   ======================================== */
+.lights-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.lights-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.light-card {
+  aspect-ratio: 1;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  cursor: pointer;
+  transition: var(--cad-transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.light-card:hover {
+  background: var(--cad-hover);
+  border-color: var(--cad-border-secondary);
+}
+
+.light-card.selected {
+  background: var(--cad-selected);
+  border-color: var(--cad-blue-primary);
+}
+
+.light-card.selected-from-floorplan {
+  background: var(--cad-blue-primary);
+  border-color: var(--cad-blue-light);
+  color: white;
+}
+
+.light-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.light-info {
+  text-align: center;
+}
+
+.light-label {
+  font-size: var(--cad-font-size-xs);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+}
+
+.light-entity-id {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+.property-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.property-chip {
+  background: var(--cad-bg-tertiary);
+  color: var(--cad-text-muted);
+  padding: 1px 4px;
+  border-radius: var(--cad-border-radius-sm);
+  font-size: var(--cad-font-size-xs);
+  font-weight: 500;
+  transition: var(--cad-transition);
+}
+
+.property-chip.active {
+  background: var(--cad-blue-primary);
+  color: white;
+}
+
+/* ========================================
+   Sleek Photoshop-Style Lights List
+   ======================================== */
+
+/* Override grid-based styles for scene lights list */
+.lights-container .light-card {
+  aspect-ratio: unset;
+  background: var(--cad-bg-secondary);
+  border: none;
+  border-bottom: 1px solid var(--cad-border-primary);
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.lights-container .light-card:hover {
+  background: var(--cad-hover);
+}
+
+.lights-container .light-card:last-child {
+  border-bottom: none;
+}
+
+.lights-container .light-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  padding: 12px 16px;
+  border-radius: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.lights-container .light-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lights-container .light-icon {
+  color: var(--cad-blue-light);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.lights-container .light-info {
+  flex: 1;
+  text-align: left;
+}
+
+.lights-container .light-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cad-text-primary);
+  margin-bottom: 2px;
+}
+
+.lights-container .light-entity-id {
+  font-size: 12px;
+  color: var(--cad-text-muted);
+  font-family: 'Courier New', monospace;
+}
+
+.light-collapse-toggle {
+  color: var(--cad-text-muted);
+  font-size: 14px;
+  transition: transform 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+}
+
+.light-collapse-toggle:hover {
+  color: var(--cad-text-primary);
+}
+
+.light-collapse-toggle.expanded {
+  /* Rotation removed - JavaScript handles icon classes directly */
+}
+
+.light-scene-controls {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  max-height: 500px;
+  opacity: 1;
+}
+
+.light-scene-controls.collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+}
+
+.light-scene-controls.expanded {
+  max-height: 500px !important;
+  opacity: 1 !important;
+}
+
+.lights-container .property-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.lights-container .property-chip {
+  background: var(--cad-bg-primary);
+  border: none;
+  border-bottom: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-secondary);
+  padding: 12px 16px;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.lights-container .property-chip:last-child {
+  border-bottom: none;
+}
+
+.lights-container .property-chip:hover {
+  background: var(--cad-hover);
+}
+
+.lights-container .property-chip.active {
+  background: var(--cad-blue-primary);
+  color: white;
+  border-left: 3px solid var(--cad-blue-light);
+}
+
+.lights-container .property-chip .chip-icon {
+  color: var(--cad-blue-light);
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.lights-container .property-chip.active .chip-icon {
+  color: white;
+}
+
+.lights-container .property-chip .chip-label {
+  font-weight: 600;
+  flex: 1;
+}
+
+.lights-container .property-chip .chip-value {
+  font-size: 12px;
+  color: var(--cad-text-muted);
+}
+
+.lights-container .property-chip.active .chip-value {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chip-color-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  margin-left: 8px;
+}
+
+.inline-controls {
+  margin-top: 0;
+  padding: 16px;
+  background: var(--cad-bg-accent);
+  border-top: 1px solid var(--cad-border-primary);
+}
+
+.inline-brightness,
+.inline-kelvin {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inline-brightness label,
+.inline-kelvin label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cad-text-secondary);
+  min-width: 80px;
+}
+
+.inline-brightness input[type="range"],
+.inline-kelvin input[type="range"] {
+  flex: 1;
+  background: var(--cad-bg-primary);
+  border-radius: 4px;
+}
+
+.inline-brightness span,
+.inline-kelvin span {
+  font-size: 12px;
+  color: var(--cad-text-primary);
+  font-weight: 600;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ========================================
+   Layers Panel
+   ======================================== */
+.layers-container {
+  flex: 1;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.layer-item:hover {
+  background: var(--cad-hover);
+  border-color: var(--cad-border-secondary);
+}
+
+.layer-item.active {
+  border-color: var(--cad-blue-primary);
+}
+
+.layer-item:not(.active) {
+  opacity: 0.6;
+  background: var(--cad-bg-accent);
+}
+
+.layer-item:not(.active) .layer-name {
+  color: var(--cad-text-muted);
+}
+
+.layer-visibility,
+.layer-lock {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  font-size: var(--cad-font-size-xs);
+}
+
+.layer-visibility:hover,
+.layer-lock:hover {
+  color: var(--cad-text-primary);
+}
+
+.layer-name {
+  flex: 1;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  color: var(--cad-text-primary);
+}
+
+/* ========================================
+   Drawing Area
+   ======================================== */
+.drawing-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--cad-bg-canvas);
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#floorplan-canvas {
+  display: block;
+  background: var(--cad-bg-canvas);
+  cursor: crosshair;
+}
+
+.selected-light-indicator {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--cad-bg-secondary);
+  color: var(--cad-text-primary);
+  padding: 6px 12px;
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--cad-shadow-medium);
+  border: 1px solid var(--cad-border-primary);
+}
+
+.indicator-icon {
+  color: var(--cad-blue-light);
+  font-size: 12px;
+}
+
+/* ========================================
+   Right Panel
+   ======================================== */
+.right-panel {
+  width: var(--cad-panel-width);
+  background: var(--cad-bg-secondary);
+  border-left: 1px solid var(--cad-border-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* ========================================
+   Properties Panel
+   ======================================== */
+.properties-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.property-group {
+  margin-bottom: 16px;
+}
+
+.property-label {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+  margin-bottom: 8px;
+}
+
+.property-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.property-controls input[type="color"] {
+  width: 32px;
+  height: 24px;
+  border: 1px solid var(--cad-border-primary);
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--cad-border-radius);
+}
+
+.property-controls input[type="range"] {
+  flex: 1;
+  height: 4px;
+  background: var(--cad-bg-primary);
+  outline: none;
+  border-radius: 2px;
+  appearance: none;
+}
+
+.property-controls input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--cad-blue-primary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.property-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-sm);
+  transition: var(--cad-transition);
+}
+
+.property-btn:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+  border-color: var(--cad-border-secondary);
+}
+
+/* ========================================
+   Scenes Panel
+   ======================================== */
+.scenes-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.scene-input {
+  margin-bottom: 16px;
+}
+
+.scene-input input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-primary);
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-sm);
+  transition: var(--cad-transition);
+}
+
+.scene-input input:focus {
+  outline: none;
+  border-color: var(--cad-blue-primary);
+}
+
+.scenes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scene-card {
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.scene-card:hover {
+  background: var(--cad-hover);
+  border-color: var(--cad-border-secondary);
+}
+
+.scene-card.selected {
+  background: var(--cad-selected);
+  border-color: var(--cad-blue-primary);
+}
+
+.scene-name {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+  margin-bottom: 4px;
+}
+
+.scene-info {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+/* ========================================
+   Command Palette
+   ======================================== */
+.command-palette {
+  height: var(--cad-command-height);
+  background: var(--cad-bg-accent);
+  border-top: 1px solid var(--cad-border-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.command-input-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.command-prompt {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 600;
+  color: var(--cad-text-accent);
+}
+
+.command-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  font-family: 'Consolas', 'Monaco', monospace;
+  outline: none;
+}
+
+.command-input::placeholder {
+  color: var(--cad-text-muted);
+}
+
+.command-suggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  box-shadow: var(--cad-shadow-medium);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.command-status {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  font-weight: 500;
+}
+
+/* ========================================
+   Status Bar
+   ======================================== */
+.status-bar {
+  height: var(--cad-status-height);
+  background: var(--cad-bg-primary);
+  border-top: 1px solid var(--cad-border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+.status-label {
+  font-weight: 500;
+}
+
+.status-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--cad-border-radius-sm);
+  font-size: var(--cad-font-size-xs);
+  font-weight: 600;
+  color: var(--cad-text-muted);
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.status-toggle:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.status-toggle.active {
+  background: var(--cad-blue-primary);
+  color: white;
+}
+
+/* ========================================
+   Modals
+   ======================================== */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.modal.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  box-shadow: var(--cad-shadow-heavy);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-primary);
+}
+
+.modal-header h2 {
+  font-size: var(--cad-font-size-lg);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+}
+
+.modal-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  font-size: var(--cad-font-size-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cad-border-radius);
+  transition: var(--cad-transition);
+}
+
+.modal-close:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-body h3 {
+  font-size: var(--cad-font-size-md);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+  margin-bottom: 12px;
+}
+
+.modal-body p {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.modal-body ul {
+  list-style: none;
+  padding-left: 16px;
+}
+
+.modal-body li {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.modal-body li::before {
+  content: "•";
+  color: var(--cad-blue-primary);
+  position: absolute;
+  left: -12px;
+}
+
+.modal-body strong {
+  color: var(--cad-text-primary);
+  font-weight: 600;
+}
+
+/* ========================================
+   Color Picker Popup
+   ======================================== */
+.color-picker-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.color-picker-content {
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  box-shadow: var(--cad-shadow-heavy);
+  min-width: 400px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.color-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-tertiary);
+}
+
+.color-picker-header h3 {
+  font-size: var(--cad-font-size-md);
+  font-weight: 600;
+  color: var(--cad-text-primary);
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--cad-text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--cad-border-radius);
+  transition: var(--cad-transition);
+}
+
+.close-btn:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.color-picker-body {
+  padding: 16px;
+}
+
+.color-picker-visual {
+  margin-bottom: 16px;
+}
+
+.color-picker-native {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker-native input[type="color"] {
+  width: 60px;
+  height: 40px;
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-picker-native label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cad-text-primary);
+  cursor: pointer;
+  font-size: var(--cad-font-size-base);
+}
+
+.color-inputs-section {
+  margin-bottom: 16px;
+}
+
+.rgb-inputs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rgb-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rgb-input-group input[type="number"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  text-align: center;
+}
+
+.rgb-input-group label,
+.hex-input-group label {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-secondary);
+  font-weight: 600;
+}
+
+.hex-input-section {
+  margin-bottom: 16px;
+}
+
+.hex-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.hex-input-group input[type="text"] {
+  width: 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  background: var(--cad-bg-primary);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  text-align: center;
+  font-family: monospace;
+}
+
+.hsv-sliders {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cad-border-primary);
+}
+
+.slider-group {
+  margin-bottom: 12px;
+}
+
+.slider-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-primary);
+  font-weight: 500;
+}
+
+.slider-group input[type="range"] {
+  width: 100%;
+  height: 20px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.slider-group input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--cad-blue-primary);
+  border-radius: 50%;
+  border: 1px solid var(--cad-border-primary);
+  cursor: pointer;
+}
+
+.slider-group input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--cad-blue-primary);
+  border-radius: 50%;
+  border: 1px solid var(--cad-border-primary);
+  cursor: pointer;
+}
+
+.slider-group span {
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-secondary);
+  font-family: monospace;
+}
+
+.color-picker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--cad-border-primary);
+}
+
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.btn-primary {
+  background: var(--cad-blue-primary);
+  color: white;
+  border-color: var(--cad-blue-primary);
+}
+
+.btn-primary:hover {
+  background: var(--cad-blue-secondary);
+  border-color: var(--cad-blue-secondary);
+}
+
+.btn-secondary {
+  background: var(--cad-bg-tertiary);
+  color: var(--cad-text-primary);
+  border-color: var(--cad-border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--cad-hover);
+}
+
+/* ========================================
+   Status Messages
+   ======================================== */
+.status-messages {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-message {
+  padding: 12px 16px;
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  box-shadow: var(--cad-shadow-medium);
+  animation: statusSlideIn 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--cad-info);
+}
+
+.status-message.success::before {
+  background: var(--cad-success);
+}
+
+.status-message.error::before {
+  background: var(--cad-error);
+}
+
+.status-message.warning::before {
+  background: var(--cad-warning);
+}
+
+@keyframes statusSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+@media (max-width: 1200px) {
+  .left-panel,
+  .right-panel {
+    width: 240px;
+  }
+  
+  .ribbon-group {
+    padding: 8px;
+  }
+  
+  .ribbon-tool {
+    width: 40px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .left-panel,
+  .right-panel {
+    width: 200px;
+  }
+  
+  .ribbon-container {
+    display: none;
+  }
+  
+  .main-interface {
+    flex-direction: column;
+  }
+  
+  .drawing-area {
+    order: 1;
+    flex: 1;
+  }
+  
+  .left-panel,
+  .right-panel {
+    order: 2;
+    width: 100%;
+    height: 200px;
+  }
+}
+
+/* ========================================
+   Scrollbar Styling
+   ======================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cad-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cad-bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cad-border-secondary);
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+.hide {
+  display: none !important;
+}
+
+.show {
+  display: block !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.font-weight-bold {
+  font-weight: 600;
+}
+
+.font-weight-normal {
+  font-weight: 400;
+}
+
+.text-primary {
+  color: var(--cad-text-primary);
+}
+
+.text-secondary {
+  color: var(--cad-text-secondary);
+}
+
+.text-muted {
+  color: var(--cad-text-muted);
+}
+
+.text-accent {
+  color: var(--cad-text-accent);
+}
+
+.bg-primary {
+  background: var(--cad-bg-primary);
+}
+
+.bg-secondary {
+  background: var(--cad-bg-secondary);
+}
+
+.border-primary {
+  border-color: var(--cad-border-primary);
+}
+
+.border-secondary {
+  border-color: var(--cad-border-secondary);
+}
+
+.border-accent {
+  border-color: var(--cad-border-accent);
+}
+
+/* ========================================
+   Font Awesome Icon Fixes
+   ======================================== */
+/* Ensure correct chevron icons are displayed - Font Awesome 6.4.0 */
+.fa-chevron-down::before {
+  content: "\f078" !important; /* Correct down arrow */
+}
+
+.fa-chevron-up::before {
+  content: "\f077" !important; /* Correct up arrow */
+}
+
+.fa-chevron-right::before {
+  content: "\f054" !important; /* Correct right arrow */
+}
+
+.fa-chevron-left::before {
+  content: "\f053" !important; /* Correct left arrow */
+}
+
+/* Extra specificity for individual light collapse buttons */
+.light-card .light-collapse-toggle .fa-chevron-down::before {
+  content: "\f078" !important; /* Force down arrow for individual lights */
+}
+
+.light-card .light-collapse-toggle .fa-chevron-right::before {
+  content: "\f054" !important; /* Force right arrow for individual lights */
+}
+
+.light-card .light-collapse-toggle .fa-chevron-up::before {
+  content: "\f077" !important; /* Force up arrow for individual lights */
+}
+
+/* Ensure font family is correct for individual light toggles */
+.light-card .light-collapse-toggle i[class*="fa-chevron"]::before {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+}
+
+/* ========================================
+   Entity Assignment Dropdown Improvements
+   ======================================== */
+/* Make dropdown options fully clickable */
+.entity-dropdown .dropdown-option {
+  cursor: pointer !important;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.entity-dropdown .dropdown-option:hover {
+  background-color: var(--cad-hover-bg) !important;
+}
+
+.entity-dropdown .dropdown-option.highlighted {
+  background-color: var(--cad-accent-color) !important;
+  color: white !important;
+}
+
+/* Make entity names and IDs clickable */
+.entity-dropdown .entity-name,
+.entity-dropdown .entity-id {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  width: 100%;
+  display: block;
+}
+
+/* Disable selection on no-results option */
+.entity-dropdown .dropdown-option.no-results {
+  cursor: default !important;
+  pointer-events: none !important;
+  opacity: 0.6;
+}
+
+/* ========================================
+   Fabric.js Integration
+   ======================================== */
+.fabric-grid {
+  stroke: var(--cad-border-primary);
+  stroke-width: 1;
+  opacity: 0.3;
+}
+
+.fabric-light-object {
+  filter: drop-shadow(0 0 4px rgba(64, 169, 255, 0.4));
+}
+
+.fabric-light-selected {
+  filter: drop-shadow(0 0 8px rgba(64, 169, 255, 0.8));
+}
+
+.fabric-room-outline {
+  stroke: var(--cad-border-secondary);
+  stroke-width: 2;
+  fill: rgba(76, 175, 80, 0.1);
+}
+
+.fabric-background-image {
+  opacity: 0.7;
+}
+
+/* ========================================
+   Animation Classes
+   ======================================== */
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.fade-out {
+  animation: fadeOut 0.3s ease;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* ========================================
+   Print Styles
+   ======================================== */
+@media print {
+  .cad-interface {
+    height: auto;
+  }
+  
+  .cad-header,
+  .ribbon-container,
+  .command-palette,
+  .status-bar,
+  .left-panel,
+  .right-panel {
+    display: none !important;
+  }
+  
+  .main-interface {
+    flex-direction: column;
+  }
+  
+  .drawing-area {
+    width: 100%;
+    height: 100vh;
+    border: none;
+  }
+  
+  #floorplan-canvas {
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
+/* ========================================
+   Entity Panel - Photoshop Style
+   ======================================== */
+.entity-panel {
+  background: var(--cad-bg-secondary);
+  border-top: 1px solid var(--cad-border-primary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  height: 250px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-panel-tabs {
+  display: flex;
+  background: var(--cad-bg-primary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  padding: 0 8px;
+}
+
+.entity-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--cad-transition);
+  border-radius: var(--cad-border-radius) var(--cad-border-radius) 0 0;
+  margin-right: 2px;
+}
+
+.entity-tab:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.entity-tab.active {
+  background: var(--cad-bg-secondary);
+  color: var(--cad-text-primary);
+  border-bottom: 2px solid var(--cad-blue-primary);
+}
+
+.entity-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.entity-panel-header {
+  padding: 8px 12px;
+  background: var(--cad-bg-tertiary);
+  border-bottom: 1px solid var(--cad-border-primary);
+}
+
+.entity-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.entity-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.entity-filter-group label {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  font-weight: 500;
+}
+
+.entity-type-select {
+  padding: 4px 8px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  border-radius: var(--cad-border-radius);
+  min-width: 120px;
+}
+
+.entity-type-select:focus {
+  outline: none;
+  border-color: var(--cad-blue-primary);
+}
+
+.entity-search-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  max-width: 300px;
+}
+
+.entity-search {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-primary);
+  font-size: var(--cad-font-size-sm);
+  border-radius: var(--cad-border-radius);
+}
+
+.entity-search:focus {
+  outline: none;
+  border-color: var(--cad-blue-primary);
+}
+
+.entity-search::placeholder {
+  color: var(--cad-text-muted);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--cad-text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--cad-border-radius-sm);
+  transition: var(--cad-transition-fast);
+}
+
+.clear-search-btn:hover {
+  color: var(--cad-text-primary);
+  background: var(--cad-hover);
+}
+
+.entity-count-display {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  white-space: nowrap;
+}
+
+.entity-list-wrapper {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.entity-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--cad-text-secondary);
+  font-size: var(--cad-font-size-sm);
+}
+
+.entity-loading i {
+  color: var(--cad-blue-light);
+}
+
+.entity-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius);
+  margin-bottom: 2px;
+  cursor: pointer;
+  transition: var(--cad-transition);
+}
+
+.entity-item:hover {
+  background: var(--cad-hover);
+  border-color: var(--cad-border-secondary);
+}
+
+.entity-item.selected {
+  background: var(--cad-selected);
+  border-color: var(--cad-blue-primary);
+}
+
+.entity-item.assigned {
+  border-left: 3px solid var(--cad-success);
+}
+
+.entity-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: var(--cad-text-accent);
+  flex-shrink: 0;
+}
+
+.entity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-name {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entity-id {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entity-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.entity-state {
+  font-size: var(--cad-font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--cad-border-radius-sm);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.entity-state.on {
+  background: var(--cad-success);
+  color: white;
+}
+
+.entity-state.off {
+  background: var(--cad-bg-tertiary);
+  color: var(--cad-text-muted);
+}
+
+.entity-state.unavailable {
+  background: var(--cad-error);
+  color: white;
+}
+
+.entity-area {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+.entity-assignment-status {
+  padding: 8px 12px;
+  background: var(--cad-bg-tertiary);
+  border-top: 1px solid var(--cad-border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.assignment-info {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+}
+
+.assign-btn {
+  padding: 6px 12px;
+  background: var(--cad-blue-primary);
+  border: none;
+  color: white;
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  border-radius: var(--cad-border-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--cad-transition);
+}
+
+.assign-btn:hover:not(:disabled) {
+  background: var(--cad-blue-secondary);
+}
+
+.assign-btn:disabled {
+  background: var(--cad-bg-tertiary);
+  color: var(--cad-text-muted);
+  cursor: not-allowed;
+}
+
+/* Entity type icons */
+.entity-item[data-type="light"] .entity-icon {
+  color: #ffd700;
+}
+
+.entity-item[data-type="switch"] .entity-icon {
+  color: #52c41a;
+}
+
+.entity-item[data-type="sensor"] .entity-icon {
+  color: #1890ff;
+}
+
+.entity-item[data-type="binary_sensor"] .entity-icon {
+  color: #faad14;
+}
+
+.entity-item[data-type="climate"] .entity-icon {
+  color: #13c2c2;
+}
+
+.entity-item[data-type="cover"] .entity-icon {
+  color: #722ed1;
+}
+
+.entity-item[data-type="fan"] .entity-icon {
+  color: #40a9ff;
+}
+
+.entity-item[data-type="media_player"] .entity-icon {
+  color: #eb2f96;
+}
+
+/* Expand/Collapse Button */
+.entity-panel-toggle {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: var(--cad-bg-primary);
+  border: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-secondary);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 2;
+  transition: background 0.2s, color 0.2s;
+}
+.entity-panel-toggle:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+/* Collapsed Entity Panel */
+.entity-panel.collapsed {
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  height: 48px;
+  overflow: hidden;
+  transition: width 0.2s, min-width 0.2s, max-width 0.2s;
+}
+.entity-panel.collapsed .entity-panel-content,
+.entity-panel.collapsed .entity-panel-header,
+.entity-panel.collapsed .entity-panel-tabs .entity-tab,
+.entity-panel.collapsed .entity-controls,
+.entity-panel.collapsed .entity-list-wrapper,
+.entity-panel.collapsed .entity-assignment-status {
+  display: none !important;
+}
+.entity-panel.collapsed .entity-panel-toggle {
+  right: 4px;
+  top: 4px;
+}
+
+/* Draggable Vertical Divider */
+.vertical-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: transparent;
+  cursor: ew-resize;
+  z-index: 10;
+  transition: background 0.2s;
+}
+.vertical-divider:hover {
+  background: var(--cad-hover);
+}
+
+/* Positioning for dividers (to be set by JS) */
+#leftDivider {
+  left: 0;
+}
+#rightDivider {
+  right: 0;
+}
+
+/* Resizable Panels */
+.left-panel, .right-panel, .entity-panel {
+  min-width: 120px;
+  max-width: 600px;
+  transition: width 0.2s;
+}

@@ -1,0 +1,81 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build and temporary files
+dist/
+build/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Home Assistant specific
+*.db
+*.db-shm
+*.db-wal
+.storage/
+.cloud/
+.HA_VERSION
+
+# Docker
+*.log
+.dockerignore
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# SSL certificates (if any)
+*.pem
+*.key
+*.crt
+*.csr
+
+# Python (if any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Coverage and testing
+coverage/
+.nyc_output/
+*.lcov
+
+# OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*

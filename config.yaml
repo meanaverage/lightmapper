@@ -1,0 +1,54 @@
+name: "LightMapper"
+description: "Advanced Home Assistant lighting controller with interactive floorplan editor"
+version: "3.0.41"
+slug: lightmapper
+startup: application
+boot: auto
+init: false
+homeassistant_api: true
+watchdog: "http://[HOST]:[PORT:3000]/health"
+webui: "http://[HOST]:[PORT:3000]"
+ingress: true
+ingress_port: 3000
+panel_icon: mdi:lightbulb-group
+panel_title: "LightMapper"
+panel_admin: false
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+ports:
+  3000/tcp: 3000
+ports_description:
+  3000/tcp: "LightMapper Web Interface"
+options:
+  log_level: info
+  grid_size: 8
+  default_brightness: 100
+  default_color_temp: 3000
+  default_hue: 60
+  default_saturation: 100
+  use_metric: false
+  enhanced_color_picker: true
+  grid_labels: true
+  measurement_display: true
+  ha_token: ""
+  ha_base_url: ""
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)?
+  grid_size: int(4,12)?
+  default_brightness: int(0,100)?
+  default_color_temp: int(2000,6500)?
+  default_hue: int(0,360)?
+  default_saturation: int(0,100)?
+  use_metric: bool?
+  enhanced_color_picker: bool?
+  grid_labels: bool?
+  measurement_display: bool?
+  ha_token: str?
+  ha_base_url: str?
+map:
+  - config
+  - ssl 

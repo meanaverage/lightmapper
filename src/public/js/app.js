@@ -1,0 +1,9968 @@
+// Detect API base path for ingress compatibility
+function getApiBasePath() {
+    // Check if we're running through Home Assistant ingress
+    const currentPath = window.location.pathname;
+    
+    // If path contains hassio_ingress, extract the ingress path
+    if (currentPath.includes('/api/hassio_ingress/')) {
+        const ingressMatch = currentPath.match(/\/api\/hassio_ingress\/([^\/]+)/);
+        if (ingressMatch) {
+            return `/api/hassio_ingress/${ingressMatch[1]}`;
+        }
+    }
+    
+    // For direct access or unknown paths, use root
+    return '';
+}
+
+const API_BASE = getApiBasePath();
+console.log('🔗 API Base Path detected:', API_BASE || '(root)');
+
+// ========================================
+// Entity Panel Management System
+// ========================================
+class EntityPanelManager {
+    constructor() {
+        this.allEntities = [];
+        this.filteredEntities = [];
+        this.selectedEntity = null;
+        this.selectedLight = null;
+        this.currentFilter = 'light';
+        this.searchTerm = '';
+        
+        console.log('🎛️ EntityPanelManager initialized');
+        this.setupEventListeners();
+    }
+    
+    setupEventListeners() {
+        // Type filter
+        const typeFilter = document.getElementById('entityTypeFilter');
+        if (typeFilter) {
+            typeFilter.addEventListener('change', (e) => {
+                this.currentFilter = e.target.value;
+                this.filterAndDisplayEntities();
+            });
+        }
+        
+        // Search input
+        const searchBox = document.getElementById('entitySearchBox');
+        if (searchBox) {
+            searchBox.addEventListener('input', (e) => {
+                this.searchTerm = e.target.value.toLowerCase();
+                this.filterAndDisplayEntities();
+                this.updateClearButton();
+            });
+        }
+        
+        // Clear search button
+        const clearSearch = document.getElementById('clearEntitySearch');
+        if (clearSearch) {
+            clearSearch.addEventListener('click', () => {
+                this.clearSearch();
+            });
+        }
+        
+        // Assign button
+        const assignBtn = document.getElementById('assignSelectedEntity');
+        if (assignBtn) {
+            assignBtn.addEventListener('click', () => {
+                this.assignSelectedEntityToLight();
+            });
+        }
+        
+        console.log('🔧 Entity panel event listeners setup complete');
+    }
+    
+    async loadEntities() {
+        console.log('📋 Loading entities for entity panel...');
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/lights`);
+            if (!response.ok) {
+                throw new Error(`Failed to load entities: ${response.status}`);
+            }
+            
+            const entities = await response.json();
+            console.log('✅ Loaded', entities.length, 'entities for panel');
+            
+            // Convert to a format suitable for the entity panel
+            this.allEntities = entities.map(entity => ({
+                entityId: entity.entityId,
+                friendlyName: entity.friendlyName,
+                type: entity.entityId.split('.')[0], // Extract type from entity ID
+                state: entity.state || 'unknown',
+                area: entity.area,
+                attributes: {
+                    brightness: entity.brightness,
+                    colorTemp: entity.colorTemp,
+                    hsColor: entity.hsColor
+                }
+            }));
+            
+            this.filterAndDisplayEntities();
+            
+        } catch (error) {
+            console.error('❌ Failed to load entities:', error);
+            this.displayError('Failed to load entities. Please check your connection.');
+        }
+    }
+    
+    filterAndDisplayEntities() {
+        console.log('🔍 Filtering entities - Type:', this.currentFilter, 'Search:', this.searchTerm);
+        
+        this.filteredEntities = this.allEntities.filter(entity => {
+            // Type filter
+            const typeMatch = this.currentFilter === 'all' || entity.type === this.currentFilter;
+            
+            // Search filter
+            const searchMatch = !this.searchTerm || 
+                entity.friendlyName.toLowerCase().includes(this.searchTerm) ||
+                entity.entityId.toLowerCase().includes(this.searchTerm);
+            
+            return typeMatch && searchMatch;
+        });
+        
+        console.log('📋 Filtered to', this.filteredEntities.length, 'entities');
+        this.displayEntities();
+        this.updateEntityCount();
+    }
+    
+    displayEntities() {
+        const entityList = document.getElementById('entityList');
+        if (!entityList) return;
+        
+        if (this.filteredEntities.length === 0) {
+            entityList.innerHTML = `
+                <div class="entity-loading">
+                    <i class="fas fa-info-circle"></i>
+                    <span>No entities found matching your criteria</span>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort entities alphabetically by friendly name
+        const sortedEntities = [...this.filteredEntities].sort((a, b) => 
+            a.friendlyName.localeCompare(b.friendlyName)
+        );
+        
+        entityList.innerHTML = sortedEntities.map(entity => {
+            const isSelected = this.selectedEntity?.entityId === entity.entityId;
+            const isAssigned = this.isEntityAssigned(entity.entityId);
+            
+            return `
+                <div class="entity-item ${isSelected ? 'selected' : ''} ${isAssigned ? 'assigned' : ''}" 
+                     data-entity-id="${entity.entityId}" 
+                     data-type="${entity.type}">
+                    <div class="entity-icon">
+                        ${this.getEntityIcon(entity.type)}
+                    </div>
+                    <div class="entity-info">
+                        <div class="entity-name">${entity.friendlyName}</div>
+                        <div class="entity-id">${entity.entityId}</div>
+                    </div>
+                    <div class="entity-status">
+                        <div class="entity-state ${entity.state}">${entity.state.toUpperCase()}</div>
+                        ${entity.area ? `<div class="entity-area">${entity.area.name}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add click handlers to entity items
+        entityList.querySelectorAll('.entity-item').forEach(item => {
+            item.addEventListener('click', () => {
+                this.selectEntity(item.dataset.entityId);
+            });
+        });
+    }
+    
+    getEntityIcon(type) {
+        const icons = {
+            light: '<i class="fas fa-lightbulb"></i>',
+            switch: '<i class="fas fa-toggle-on"></i>',
+            sensor: '<i class="fas fa-thermometer-half"></i>',
+            binary_sensor: '<i class="fas fa-dot-circle"></i>',
+            climate: '<i class="fas fa-snowflake"></i>',
+            cover: '<i class="fas fa-window-maximize"></i>',
+            fan: '<i class="fas fa-fan"></i>',
+            media_player: '<i class="fas fa-play-circle"></i>'
+        };
+        
+        return icons[type] || '<i class="fas fa-question-circle"></i>';
+    }
+    
+    selectEntity(entityId) {
+        console.log('🎯 Selected entity:', entityId);
+        
+        this.selectedEntity = this.allEntities.find(e => e.entityId === entityId);
+        
+        // Update UI
+        document.querySelectorAll('.entity-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.entityId === entityId);
+        });
+        
+        this.updateAssignButton();
+    }
+    
+    setSelectedLight(light) {
+        console.log('💡 Selected light for assignment:', light);
+        this.selectedLight = light;
+        this.updateSelectedLightInfo();
+        this.updateAssignButton();
+    }
+    
+    updateSelectedLightInfo() {
+        const lightInfo = document.getElementById('selectedLightInfo');
+        if (!lightInfo) return;
+        
+        if (this.selectedLight) {
+            const entityId = this.selectedLight.entityId || 'Unassigned';
+            lightInfo.textContent = `Selected Light: ${entityId}`;
+        } else {
+            lightInfo.textContent = 'No light selected';
+        }
+    }
+    
+    updateAssignButton() {
+        const assignBtn = document.getElementById('assignSelectedEntity');
+        if (!assignBtn) return;
+        
+        const canAssign = this.selectedEntity && this.selectedLight;
+        assignBtn.disabled = !canAssign;
+    }
+    
+    assignSelectedEntityToLight() {
+        if (!this.selectedEntity || !this.selectedLight) {
+            window.sceneManager?.showStatus('Please select both an entity and a light', 'warning');
+            return;
+        }
+        
+        console.log('🔗 Assigning entity', this.selectedEntity.entityId, 'to light');
+        
+        // Assign the entity to the light
+        this.selectedLight.entityId = this.selectedEntity.entityId;
+        
+        // Update the light's visual state
+        if (window.floorplanEditor) {
+            window.floorplanEditor.updateLightVisualState(this.selectedLight, this.selectedEntity);
+        }
+        
+        // Clear selections
+        this.selectedEntity = null;
+        this.selectedLight = null;
+        
+        // Update UI
+        this.filterAndDisplayEntities();
+        this.updateSelectedLightInfo();
+        this.updateAssignButton();
+        
+        // Trigger autosave
+        if (window.floorplanEditor) {
+            window.floorplanEditor.triggerAutoSave();
+        }
+        
+        window.sceneManager?.showStatus('Entity assigned successfully!', 'success');
+    }
+    
+    isEntityAssigned(entityId) {
+        if (!window.floorplanEditor?.lights) return false;
+        
+        return window.floorplanEditor.lights.some(light => light.entityId === entityId);
+    }
+    
+    updateEntityCount() {
+        const countElement = document.getElementById('entityCount');
+        if (countElement) {
+            countElement.textContent = this.filteredEntities.length;
+        }
+    }
+    
+    clearSearch() {
+        const searchBox = document.getElementById('entitySearchBox');
+        if (searchBox) {
+            searchBox.value = '';
+            this.searchTerm = '';
+            this.filterAndDisplayEntities();
+            this.updateClearButton();
+        }
+    }
+    
+    updateClearButton() {
+        const clearBtn = document.getElementById('clearEntitySearch');
+        if (clearBtn) {
+            clearBtn.style.display = this.searchTerm ? 'block' : 'none';
+        }
+    }
+    
+    displayError(message) {
+        const entityList = document.getElementById('entityList');
+        if (!entityList) return;
+        
+        entityList.innerHTML = `
+            <div class="entity-loading">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+}
+
+// ========================================
+// Layer Management System
+// ========================================
+class LayerManager {
+    constructor(floorplanEditor) {
+        this.floorplanEditor = floorplanEditor;
+        this.layers = {
+            lights: { visible: true, locked: false, name: 'Lights' },
+            rooms: { visible: true, locked: false, name: 'Rooms' },
+            background: { visible: true, locked: false, name: 'Background' },
+            grid: { visible: true, locked: false, name: 'Grid' }
+        };
+        
+        console.log('🗂️ LayerManager initialized');
+        this.setupLayerControls();
+        this.updateLayerUI();
+    }
+    
+    setupLayerControls() {
+        // Setup click handlers for visibility and lock toggles
+        document.querySelectorAll('[data-layer-toggle]').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const layerId = toggle.dataset.layerId;
+                const toggleType = toggle.dataset.layerToggle;
+                
+                if (toggleType === 'visibility') {
+                    this.toggleLayerVisibility(layerId);
+                } else if (toggleType === 'lock') {
+                    this.toggleLayerLock(layerId);
+                }
+            });
+        });
+        
+        console.log('🔧 Layer controls setup complete');
+    }
+    
+    toggleLayerVisibility(layerId) {
+        if (!this.layers[layerId]) return;
+        
+        this.layers[layerId].visible = !this.layers[layerId].visible;
+        const isVisible = this.layers[layerId].visible;
+        
+        console.log(`👁️ Layer "${layerId}" visibility: ${isVisible ? 'ON' : 'OFF'}`);
+        
+        // Update UI
+        this.updateLayerToggleUI(layerId, 'visibility', isVisible);
+        
+        // Apply visibility to canvas objects
+        this.applyLayerVisibility(layerId, isVisible);
+        
+        // Update command status
+        if (window.cadInterface) {
+            window.cadInterface.updateCommandStatus(
+                `Layer "${this.layers[layerId].name}" ${isVisible ? 'shown' : 'hidden'}`
+            );
+        }
+    }
+    
+    toggleLayerLock(layerId) {
+        if (!this.layers[layerId]) return;
+        
+        this.layers[layerId].locked = !this.layers[layerId].locked;
+        const isLocked = this.layers[layerId].locked;
+        
+        console.log(`🔒 Layer "${layerId}" lock: ${isLocked ? 'ON' : 'OFF'}`);
+        
+        // Update UI
+        this.updateLayerToggleUI(layerId, 'lock', !isLocked);
+        
+        // Apply lock state to canvas objects
+        this.applyLayerLock(layerId, isLocked);
+        
+        // Update command status
+        if (window.cadInterface) {
+            window.cadInterface.updateCommandStatus(
+                `Layer "${this.layers[layerId].name}" ${isLocked ? 'locked' : 'unlocked'}`
+            );
+        }
+    }
+    
+    updateLayerToggleUI(layerId, toggleType, state) {
+        const toggle = document.querySelector(`[data-layer-toggle="${toggleType}"][data-layer-id="${layerId}"]`);
+        if (!toggle) return;
+        
+        const icon = toggle.querySelector('i');
+        const layerItem = toggle.closest('.layer-item');
+        
+        if (toggleType === 'visibility') {
+            if (state) {
+                icon.className = 'fas fa-eye';
+                layerItem.classList.add('active');
+            } else {
+                icon.className = 'fas fa-eye-slash';
+                layerItem.classList.remove('active');
+            }
+        } else if (toggleType === 'lock') {
+            if (state) { // state = unlocked
+                icon.className = 'fas fa-unlock';
+            } else { // locked
+                icon.className = 'fas fa-lock';
+            }
+        }
+    }
+    
+    applyLayerVisibility(layerId, isVisible) {
+        if (!this.floorplanEditor?.canvas) return;
+        
+        this.floorplanEditor.canvas.getObjects().forEach(obj => {
+            const objectLayer = this.getObjectLayer(obj);
+            if (objectLayer === layerId) {
+                obj.visible = isVisible;
+                obj.evented = isVisible; // Disable events when hidden
+            }
+        });
+        
+        // Special handling for grid
+        if (layerId === 'grid') {
+            this.floorplanEditor.gridVisible = isVisible;
+            if (isVisible) {
+                this.floorplanEditor.drawGrid();
+            } else {
+                this.clearGrid();
+            }
+        }
+        
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    applyLayerLock(layerId, isLocked) {
+        if (!this.floorplanEditor?.canvas) return;
+        
+        this.floorplanEditor.canvas.getObjects().forEach(obj => {
+            const objectLayer = this.getObjectLayer(obj);
+            if (objectLayer === layerId) {
+                obj.selectable = !isLocked;
+                obj.evented = !isLocked;
+                
+                // If object is currently selected and we're locking its layer, deselect it
+                if (isLocked && this.floorplanEditor.canvas.getActiveObject() === obj) {
+                    this.floorplanEditor.canvas.discardActiveObject();
+                }
+            }
+        });
+        
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    getObjectLayer(obj) {
+        // Determine which layer an object belongs to
+        if (obj.lightObject) return 'lights';
+        if (obj.roomObject || obj.roomOutline) return 'rooms';
+        if (obj.backgroundImage) return 'background';
+        if (obj.gridLine) return 'grid';
+        if (obj.textObject) return 'rooms'; // Text objects go with rooms
+        if (obj.lineObject) return 'rooms'; // Line objects go with rooms
+        
+        // Default layer
+        return 'rooms';
+    }
+    
+    clearGrid() {
+        if (!this.floorplanEditor?.canvas) return;
+        
+        const gridObjects = this.floorplanEditor.canvas.getObjects().filter(obj => obj.gridLine);
+        gridObjects.forEach(obj => this.floorplanEditor.canvas.remove(obj));
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    updateLayerUI() {
+        // Update all layer toggle states in the UI
+        Object.keys(this.layers).forEach(layerId => {
+            const layer = this.layers[layerId];
+            this.updateLayerToggleUI(layerId, 'visibility', layer.visible);
+            this.updateLayerToggleUI(layerId, 'lock', !layer.locked);
+        });
+    }
+    
+    isLayerVisible(layerId) {
+        return this.layers[layerId]?.visible ?? true;
+    }
+    
+    isLayerLocked(layerId) {
+        return this.layers[layerId]?.locked ?? false;
+    }
+    
+    setLayerVisibility(layerId, visible) {
+        if (this.layers[layerId]) {
+            this.layers[layerId].visible = visible;
+            this.applyLayerVisibility(layerId, visible);
+            this.updateLayerToggleUI(layerId, 'visibility', visible);
+        }
+    }
+    
+    setLayerLock(layerId, locked) {
+        if (this.layers[layerId]) {
+            this.layers[layerId].locked = locked;
+            this.applyLayerLock(layerId, locked);
+            this.updateLayerToggleUI(layerId, 'lock', !locked);
+        }
+    }
+}
+
+// ========================================
+// CAD Interface Manager
+// ========================================
+class CADInterfaceManager {
+    constructor() {
+        this.currentRibbonTab = 'home';
+        this.currentLeftPanel = 'lights';
+        this.currentRightPanel = 'properties';
+        this.commandHistory = [];
+        this.currentCommand = '';
+        this.mouseCoordinates = { x: 0, y: 0 };
+        this.selectedCount = 0;
+        this.setupRibbonInterface();
+        this.setupPanelSwitching();
+        this.setupCommandPalette();
+        this.setupStatusBar();
+        this.setupKeyboardShortcuts();
+        console.log('✅ CAD Interface Manager initialized');
+    }
+    
+    setupRibbonInterface() {
+        // Ribbon tab switching
+        const ribbonTabs = document.querySelectorAll('.ribbon-tab');
+        const ribbonPanels = document.querySelectorAll('.ribbon-panel');
+        
+        ribbonTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const targetTab = e.target.closest('.ribbon-tab').dataset.tab;
+                this.switchRibbonTab(targetTab);
+            });
+        });
+        
+        console.log('🎀 Ribbon interface setup complete');
+    }
+    
+    switchRibbonTab(tabName) {
+        // Update active tab
+        document.querySelectorAll('.ribbon-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        
+        // Update active panel
+        document.querySelectorAll('.ribbon-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        document.querySelector(`[data-panel="${tabName}"]`).classList.add('active');
+        
+        this.currentRibbonTab = tabName;
+        console.log(`🎀 Switched to ribbon tab: ${tabName}`);
+    }
+    
+    setupPanelSwitching() {
+        // Left panel switching
+        const leftPanelTabs = document.querySelectorAll('.left-panel .panel-tab');
+        const leftPanelSections = document.querySelectorAll('.left-panel .panel-section');
+        
+        leftPanelTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const targetPanel = e.target.closest('.panel-tab').dataset.panel;
+                this.switchLeftPanel(targetPanel);
+            });
+        });
+        
+        // Right panel switching
+        const rightPanelTabs = document.querySelectorAll('.right-panel .panel-tab');
+        const rightPanelSections = document.querySelectorAll('.right-panel .panel-section');
+        
+        rightPanelTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const targetPanel = e.target.closest('.panel-tab').dataset.panel;
+                this.switchRightPanel(targetPanel);
+            });
+        });
+        
+        console.log('📋 Panel switching setup complete');
+    }
+    
+    switchLeftPanel(panelName) {
+        // Update active tab
+        document.querySelectorAll('.left-panel .panel-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`.left-panel [data-panel="${panelName}"]`).classList.add('active');
+        
+        // Update active section
+        document.querySelectorAll('.left-panel .panel-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.querySelector(`.left-panel [data-section="${panelName}"]`).classList.add('active');
+        
+        this.currentLeftPanel = panelName;
+        console.log(`📋 Switched to left panel: ${panelName}`);
+    }
+    
+    switchRightPanel(panelName) {
+        // Update active tab
+        document.querySelectorAll('.right-panel .panel-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`.right-panel [data-panel="${panelName}"]`).classList.add('active');
+        
+        // Update active section
+        document.querySelectorAll('.right-panel .panel-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.querySelector(`.right-panel [data-section="${panelName}"]`).classList.add('active');
+        
+        this.currentRightPanel = panelName;
+        console.log(`📋 Switched to right panel: ${panelName}`);
+    }
+    
+    setupCommandPalette() {
+        const commandInput = document.getElementById('commandInput');
+        const commandStatus = document.getElementById('commandStatus');
+        const commandSuggestions = document.getElementById('commandSuggestions');
+        
+        if (!commandInput) return;
+        
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.executeCommand(commandInput.value);
+                commandInput.value = '';
+            } else if (e.key === 'Escape') {
+                commandInput.value = '';
+                commandSuggestions.style.display = 'none';
+            }
+        });
+        
+        commandInput.addEventListener('input', (e) => {
+            this.updateCommandSuggestions(e.target.value);
+        });
+        
+        commandInput.addEventListener('focus', () => {
+            commandStatus.textContent = 'Type a command...';
+        });
+        
+        commandInput.addEventListener('blur', () => {
+            commandStatus.textContent = 'Ready';
+            // Hide suggestions after a delay to allow clicking
+            setTimeout(() => {
+                commandSuggestions.style.display = 'none';
+            }, 200);
+        });
+        
+        console.log('⌨️ Command palette setup complete');
+    }
+    
+    updateCommandSuggestions(value) {
+        const suggestions = this.getCommandSuggestions(value.toLowerCase());
+        const commandSuggestions = document.getElementById('commandSuggestions');
+        
+        if (suggestions.length > 0 && value.length > 0) {
+            commandSuggestions.innerHTML = suggestions.map(cmd => 
+                `<div class="command-suggestion" data-command="${cmd.name}">${cmd.name} - ${cmd.description}</div>`
+            ).join('');
+            commandSuggestions.style.display = 'block';
+            
+            // Add click handlers for suggestions
+            commandSuggestions.querySelectorAll('.command-suggestion').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const command = e.target.dataset.command;
+                    document.getElementById('commandInput').value = command;
+                    commandSuggestions.style.display = 'none';
+                });
+            });
+        } else {
+            commandSuggestions.style.display = 'none';
+        }
+    }
+    
+    getCommandSuggestions(partial) {
+        const commands = [
+            { name: 'select', description: 'Select tool' },
+            { name: 'light', description: 'Add light tool' },
+            { name: 'room', description: 'Draw room tool' },
+            { name: 'line', description: 'Draw line tool' },
+            { name: 'text', description: 'Add text tool' },
+            { name: 'zoom', description: 'Zoom to fit' },
+            { name: 'grid', description: 'Toggle grid' },
+            { name: 'snap', description: 'Toggle snap' },
+            { name: 'save', description: 'Save layout' },
+            { name: 'load', description: 'Load layout' },
+            { name: 'clear', description: 'Clear selection' },
+            { name: 'delete', description: 'Delete selected' },
+            { name: 'layer-lights', description: 'Toggle lights layer visibility' },
+            { name: 'layer-rooms', description: 'Toggle rooms layer visibility' },
+            { name: 'layer-background', description: 'Toggle background layer visibility' },
+            { name: 'layer-grid', description: 'Toggle grid layer visibility' },
+            { name: 'lock-lights', description: 'Toggle lights layer lock' },
+            { name: 'lock-rooms', description: 'Toggle rooms layer lock' },
+            { name: 'lock-background', description: 'Toggle background layer lock' },
+            { name: 'lock-grid', description: 'Toggle grid layer lock' },
+            { name: 'help', description: 'Show help' }
+        ];
+        
+        return commands.filter(cmd => 
+            cmd.name.toLowerCase().includes(partial) || 
+            cmd.description.toLowerCase().includes(partial)
+        );
+    }
+    
+    executeCommand(command) {
+        const cmd = command.toLowerCase().trim();
+        console.log(`⚡ Executing command: ${cmd}`);
+        
+        // Add to command history
+        this.commandHistory.push(cmd);
+        if (this.commandHistory.length > 50) {
+            this.commandHistory.shift();
+        }
+        
+        // Execute command
+        switch (cmd) {
+            case 'select':
+            case 's':
+                window.floorplanEditor?.setTool('select');
+                break;
+            case 'light':
+            case 'l':
+                window.floorplanEditor?.setTool('light');
+                break;
+            case 'room':
+            case 'r':
+                window.floorplanEditor?.setTool('room');
+                break;
+            case 'line':
+                window.floorplanEditor?.setTool('line');
+                break;
+            case 'text':
+            case 't':
+                window.floorplanEditor?.setTool('text');
+                break;
+            case 'zoom':
+            case 'z':
+                window.floorplanEditor?.fitToScreen();
+                break;
+            case 'grid':
+            case 'g':
+                window.floorplanEditor?.toggleGrid();
+                break;
+            case 'snap':
+                window.floorplanEditor?.toggleSnap();
+                break;
+            case 'save':
+                window.floorplanEditor?.saveLayoutToFile();
+                break;
+            case 'load':
+                window.floorplanEditor?.loadLayoutFromFile();
+                break;
+            case 'clear':
+                window.lightController?.clearSelection();
+                break;
+            case 'delete':
+                window.floorplanEditor?.deleteSelected();
+                break;
+            
+            // Layer visibility commands
+            case 'layer-lights':
+                window.layerManager?.toggleLayerVisibility('lights');
+                break;
+            case 'layer-rooms':
+                window.layerManager?.toggleLayerVisibility('rooms');
+                break;
+            case 'layer-background':
+                window.layerManager?.toggleLayerVisibility('background');
+                break;
+            case 'layer-grid':
+                window.layerManager?.toggleLayerVisibility('grid');
+                break;
+            
+            // Layer lock commands
+            case 'lock-lights':
+                window.layerManager?.toggleLayerLock('lights');
+                break;
+            case 'lock-rooms':
+                window.layerManager?.toggleLayerLock('rooms');
+                break;
+            case 'lock-background':
+                window.layerManager?.toggleLayerLock('background');
+                break;
+            case 'lock-grid':
+                window.layerManager?.toggleLayerLock('grid');
+                break;
+            
+            case 'help':
+                window.lightController?.openSettings();
+                break;
+            default:
+                this.updateCommandStatus(`Unknown command: ${cmd}`);
+                return;
+        }
+        
+        this.updateCommandStatus(`Executed: ${cmd}`);
+    }
+    
+    updateCommandStatus(message) {
+        const commandStatus = document.getElementById('commandStatus');
+        if (commandStatus) {
+            commandStatus.textContent = message;
+            setTimeout(() => {
+                commandStatus.textContent = 'Ready';
+            }, 2000);
+        }
+    }
+    
+    setupStatusBar() {
+        const mouseCoordinates = document.getElementById('mouseCoordinates');
+        const selectedCount = document.getElementById('selectedCount');
+        const zoomLevel = document.getElementById('zoom-level');
+        
+        // Update mouse coordinates when moving over canvas
+        document.addEventListener('mousemove', (e) => {
+            const canvas = document.getElementById('floorplan-canvas');
+            if (canvas && e.target === canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.round(e.clientX - rect.left);
+                const y = Math.round(e.clientY - rect.top);
+                this.updateMouseCoordinates(x, y);
+            }
+        });
+        
+        // Update status toggles
+        this.updateStatusToggles();
+        
+        console.log('📊 Status bar setup complete');
+    }
+    
+    updateMouseCoordinates(x, y) {
+        this.mouseCoordinates = { x, y };
+        const mouseCoordinatesElement = document.getElementById('mouseCoordinates');
+        if (mouseCoordinatesElement) {
+            mouseCoordinatesElement.textContent = `${x}, ${y}`;
+        }
+    }
+    
+    updateSelectedCount(count) {
+        this.selectedCount = count;
+        const selectedCountElement = document.getElementById('selectedCount');
+        if (selectedCountElement) {
+            selectedCountElement.textContent = count.toString();
+        }
+    }
+    
+    updateStatusToggles() {
+        const gridStatus = document.getElementById('gridStatus');
+        const snapStatus = document.getElementById('snapStatus');
+        const orthoStatus = document.getElementById('orthoStatus');
+        
+        // Add click handlers for status toggles
+        if (gridStatus) {
+            gridStatus.addEventListener('click', () => {
+                window.floorplanEditor?.toggleGrid();
+            });
+        }
+        
+        if (snapStatus) {
+            snapStatus.addEventListener('click', () => {
+                window.floorplanEditor?.toggleSnap();
+            });
+        }
+        
+        if (orthoStatus) {
+            orthoStatus.addEventListener('click', () => {
+                // Toggle orthogonal mode (to be implemented)
+                orthoStatus.classList.toggle('active');
+            });
+        }
+    }
+    
+    updateToggleState(toggleId, active) {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+            if (active) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+    }
+    
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Don't override if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            // CAD-style keyboard shortcuts
+            if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                    case 's':
+                        e.preventDefault();
+                        this.executeCommand('select');
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        this.executeCommand('light');
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        this.executeCommand('room');
+                        break;
+                    case 't':
+                        e.preventDefault();
+                        this.executeCommand('text');
+                        break;
+                    case 'g':
+                        e.preventDefault();
+                        this.executeCommand('grid');
+                        break;
+                    case 'z':
+                        e.preventDefault();
+                        this.executeCommand('zoom');
+                        break;
+                    case 'escape':
+                        e.preventDefault();
+                        this.executeCommand('select');
+                        break;
+                }
+            }
+            
+            // Ctrl+Key shortcuts
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                    case 's':
+                        e.preventDefault();
+                        this.executeCommand('save');
+                        break;
+                    case 'o':
+                        e.preventDefault();
+                        this.executeCommand('load');
+                        break;
+                    case 'a':
+                        e.preventDefault();
+                        window.lightController?.selectAll();
+                        break;
+                    case 'd':
+                        e.preventDefault();
+                        window.lightController?.clearSelection();
+                        break;
+                }
+            }
+        });
+        
+        console.log('⌨️ CAD keyboard shortcuts setup complete');
+    }
+    
+    // Public methods for external integration
+    setRibbonTab(tabName) {
+        this.switchRibbonTab(tabName);
+    }
+    
+    setLeftPanel(panelName) {
+        this.switchLeftPanel(panelName);
+    }
+    
+    setRightPanel(panelName) {
+        this.switchRightPanel(panelName);
+    }
+    
+    showCommandPalette() {
+        const commandInput = document.getElementById('commandInput');
+        if (commandInput) {
+            commandInput.focus();
+        }
+    }
+    
+    updateZoomLevel(zoom) {
+        const zoomElement = document.getElementById('zoom-level');
+        if (zoomElement) {
+            zoomElement.textContent = `${Math.round(zoom * 100)}%`;
+        }
+    }
+}
+
+class LightMapperController {
+    constructor() {
+        this.config = {};
+        this.scenes = [];
+        this.lights = [];
+        this.mappings = [];
+        this.areas = [];
+        this.selectedLights = new Set(); // Keep for backwards compatibility
+        this.selectedFloorplanLights = new Set(); // New selection system using entity IDs
+        this.selectedScene = null;
+        this.individualMode = false;
+        this.selectedAreaId = null;
+        this.sceneLightSettings = new Map(); // Track brightness, kelvin, color for each light in scene mode
+        
+        this.init();
+    }
+    
+    async init() {
+        try {
+            // Initialize CAD interface first
+            window.cadInterface = new CADInterfaceManager();
+            
+            // Initialize entity panel
+            this.initializeEntityPanel();
+            
+            await this.loadConfig();
+            await this.loadInitialData();
+            this.setupEventListeners();
+            this.showStatus('LightMapper CAD loaded successfully', 'success');
+        } catch (error) {
+            console.error('Initialization error:', error);
+            this.showStatus('Failed to initialize application', 'error');
+        }
+    }
+    
+    async loadConfig() {
+        try {
+            console.log('🔧 Loading config from:', `${API_BASE}/api/config`);
+            const response = await fetch(`${API_BASE}/api/config`);
+            if (!response.ok) {
+                throw new Error(`Config request failed: ${response.status} ${response.statusText}`);
+            }
+            this.config = await response.json();
+            console.log('✅ Config loaded successfully:', this.config);
+            this.initializeDefaults();
+        } catch (error) {
+            console.error('❌ Error loading config:', error);
+            throw error;
+        }
+    }
+    
+    initializeDefaults() {
+        // Set default values from config (only if elements exist)
+        const globalBrightness = document.getElementById('globalBrightness');
+        if (globalBrightness) globalBrightness.value = this.config.defaults.brightness;
+        
+        const globalColorTemp = document.getElementById('globalColorTemp');
+        if (globalColorTemp) globalColorTemp.value = this.config.defaults.colorTemp;
+        
+        const globalHue = document.getElementById('globalHue');
+        if (globalHue) globalHue.value = this.config.defaults.hue;
+        
+        const globalSaturation = document.getElementById('globalSaturation');
+        if (globalSaturation) globalSaturation.value = this.config.defaults.saturation;
+        
+        // Only call these methods if the global controls exist
+        if (globalBrightness && globalColorTemp && globalHue && globalSaturation) {
+            this.updateGlobalControlValues();
+            this.updateColorPreview();
+        }
+    }
+    
+    async loadInitialData() {
+        await Promise.all([
+            this.loadScenes(),
+            this.loadLights(),
+            this.loadMappings(),
+            this.loadAreas(),
+            this.loadSavedFloorplans()
+        ]);
+    }
+    
+    async loadScenes() {
+        try {
+            const response = await fetch(`${API_BASE}/api/scenes`);
+            if (!response.ok) {
+                throw new Error(`Scenes request failed: ${response.status} ${response.statusText}`);
+            }
+            this.scenes = await response.json();
+            this.renderScenes();
+        } catch (error) {
+            console.error('Error loading scenes:', error);
+            this.showStatus('Failed to load scenes', 'error');
+        }
+    }
+    
+    async loadLights() {
+        try {
+            const response = await fetch(`${API_BASE}/api/lights`);
+            if (!response.ok) {
+                throw new Error(`Lights request failed: ${response.status} ${response.statusText}`);
+            }
+            this.lights = await response.json();
+            
+            // Make lights available globally for floorplan editor
+            window.lightEntities = {};
+            this.lights.forEach(light => {
+                window.lightEntities[light.entityId] = light;
+            });
+            
+            // Load entities for the entity panel
+            if (window.entityPanel) {
+                await window.entityPanel.loadEntities();
+            }
+        } catch (error) {
+            console.error('Error loading lights:', error);
+            this.showStatus('Failed to load lights from Home Assistant', 'error');
+        }
+    }
+    
+    async loadMappings() {
+        try {
+            const response = await fetch(`${API_BASE}/api/mappings`);
+            if (!response.ok) {
+                throw new Error(`Mappings request failed: ${response.status} ${response.statusText}`);
+            }
+            this.mappings = await response.json();
+        } catch (error) {
+            console.error('Error loading mappings:', error);
+            this.showStatus('Failed to load light mappings', 'warning');
+        }
+    }
+
+    async loadAreas() {
+        try {
+            const response = await fetch(`${API_BASE}/api/areas`);
+            if (!response.ok) {
+                throw new Error(`Areas request failed: ${response.status} ${response.statusText}`);
+            }
+            this.areas = await response.json();
+            console.log('🏠 Areas loaded:', this.areas);
+            this.populateAreaSelector();
+        } catch (error) {
+            console.error('❌ Failed to load areas:', error);
+            this.areas = [];
+            this.populateAreaSelector();
+        }
+    }
+
+    setupEventListeners() {
+        // Always initialize floorplan editor
+        this.initializeFloorplanEditor();
+
+        // Header buttons
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.refresh());
+        }
+
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => this.openSettings());
+        }
+
+        const notificationBtn = document.getElementById('notificationBtn');
+        if (notificationBtn) {
+            notificationBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.toggleNotificationPanel();
+            });
+        }
+
+        const clearNotifications = document.getElementById('clearNotifications');
+        if (clearNotifications) {
+            clearNotifications.addEventListener('click', () => this.clearAllNotifications());
+        }
+
+        const closeNotifications = document.getElementById('closeNotifications');
+        if (closeNotifications) {
+            closeNotifications.addEventListener('click', () => this.closeNotificationPanel());
+        }
+
+        // Grid controls
+        const clearSelection = document.getElementById('clearSelection');
+        if (clearSelection) {
+            clearSelection.addEventListener('click', () => this.clearSelection());
+        }
+
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            selectAll.addEventListener('click', () => this.selectAll());
+        }
+
+        // Removed captureState button - functionality now handled by Save Scene
+
+        // Individual mode toggle
+        const individualMode = document.getElementById('individualMode');
+        if (individualMode) {
+            individualMode.addEventListener('change', () => this.toggleControlMode());
+        }
+
+        // Scene controls (now in ribbon interface)
+        const saveScene = document.getElementById('saveScene');
+        if (saveScene) {
+            saveScene.addEventListener('click', () => this.saveScene());
+        }
+
+        const applyScene = document.getElementById('applyScene');
+        if (applyScene) {
+            applyScene.addEventListener('click', () => this.applyScene());
+        }
+
+        // Settings modal
+        const modalClose = document.querySelector('.modal-close');
+        if (modalClose) {
+            modalClose.addEventListener('click', () => this.closeSettings());
+        }
+
+        const saveMappings = document.getElementById('saveMappings');
+        if (saveMappings) {
+            saveMappings.addEventListener('click', () => this.saveMappings());
+        }
+
+        // Setup control sliders
+        this.setupControlSliders();
+    }
+
+    initializeFloorplanEditor() {
+        // Always show floorplan mode
+        if (!window.floorplanEditor) {
+            console.log('🎨 Initializing FloorplanEditor...');
+            window.floorplanEditor = new FloorplanEditor();
+        }
+        
+        // Store global references for CAD interface integration
+        window.lightController = this;
+        window.sceneManager = this; // Keep backwards compatibility
+        
+        // Initialize the lights tab header text based on current mode
+        this.updateLightsTabHeader();
+        
+        // Setup event listeners for panel buttons
+        this.setupPanelEventListeners();
+        
+        this.renderFloorplanLightsList();
+    }
+    
+    initializeEntityPanel() {
+        console.log('🎛️ Initializing entity panel...');
+        
+        // Initialize entity panel manager
+        window.entityPanel = new EntityPanelManager();
+        
+        console.log('✅ Entity panel initialized');
+    }
+    
+    updateLightsTabHeader() {
+        // Update the lights tab header based on current mode
+        const lightsTabHeader = document.getElementById('lightsTabHeader');
+        if (lightsTabHeader && window.floorplanEditor) {
+            const isCurrentMode = window.floorplanEditor.showCurrentState;
+            lightsTabHeader.textContent = isCurrentMode ? 'Live States' : 'Scene Lights';
+            console.log('🔄 Updated lights tab header to:', lightsTabHeader.textContent);
+        }
+    }
+    
+    setupPanelEventListeners() {
+        // Toggle All Collapse/Expand button
+        const toggleAllBtn = document.getElementById('toggleAllCollapse');
+        if (toggleAllBtn && !toggleAllBtn.dataset.listenerAdded) {
+            toggleAllBtn.addEventListener('click', () => {
+                this.toggleAllLightsCollapse();
+            });
+            toggleAllBtn.dataset.listenerAdded = 'true';
+            console.log('✅ Toggle All Collapse button event listener added');
+        }
+
+        // Area selection functionality
+        const areaSelector = document.getElementById('areaSelector');
+        if (areaSelector && !areaSelector.dataset.listenerAdded) {
+            areaSelector.addEventListener('change', (e) => {
+                const previousArea = this.selectedArea;
+                this.selectedArea = e.target.value;
+                
+                console.log('🏠 DEBUG - Area selection changed:');
+                console.log('   Previous Area:', previousArea);
+                console.log('   New Area ID:', this.selectedArea);
+                console.log('   New Area Name:', this.getAreaName(this.selectedArea));
+                
+                this.showStatus(`Selected area: ${this.getAreaName(this.selectedArea)}`, 'info');
+                
+                // Show what floorplans exist for debugging
+                this.debugLocalStorageFloorplans();
+            });
+            areaSelector.dataset.listenerAdded = 'true';
+        }
+
+        // Save floorplan button
+        const saveFloorplanBtn = document.getElementById('save-floorplan-btn');
+        if (saveFloorplanBtn && !saveFloorplanBtn.dataset.listenerAdded) {
+            saveFloorplanBtn.addEventListener('click', () => {
+                this.saveFloorplanLayout();
+            });
+            saveFloorplanBtn.dataset.listenerAdded = 'true';
+        }
+
+        // Load floorplan button
+        const loadFloorplanBtn = document.getElementById('load-floorplan-btn');
+        if (loadFloorplanBtn && !loadFloorplanBtn.dataset.listenerAdded) {
+            loadFloorplanBtn.addEventListener('click', () => {
+                this.loadFloorplanLayout();
+            });
+            loadFloorplanBtn.dataset.listenerAdded = 'true';
+        }
+    }
+
+    populateAreaSelector() {
+        const areaSelector = document.getElementById('areaSelector');
+        if (!areaSelector) return;
+
+        // Clear existing options
+        areaSelector.innerHTML = '';
+
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = this.areas.length === 0 ? 'No areas found' : 'Select an area...';
+        areaSelector.appendChild(defaultOption);
+
+        // Add area options
+        if (this.areas && this.areas.length > 0) {
+            // Sort areas alphabetically by name
+            const sortedAreas = [...this.areas].sort((a, b) => {
+                const nameA = a.name || a.id || '';
+                const nameB = b.name || b.id || '';
+                return nameA.localeCompare(nameB);
+            });
+
+            sortedAreas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area.id;  // Fixed: use area.id instead of area.area_id
+                option.textContent = area.name || area.id;
+                areaSelector.appendChild(option);
+            });
+
+            console.log(`🏠 Populated area selector with ${this.areas.length} areas`);
+        }
+    }
+
+    getAreaName(areaId) {
+        if (!areaId || !this.areas) return 'Unknown';
+        const area = this.areas.find(a => a.id === areaId);  // Fixed: use area.id instead of area.area_id
+        return area ? (area.name || area.id) : areaId;
+    }
+
+    async saveFloorplanLayout() {
+        if (!this.selectedArea || this.selectedArea === '' || this.selectedArea === 'undefined') {
+            this.showStatus('Please select a valid area first', 'warning');
+            console.log('❌ Save blocked: Invalid selectedArea:', this.selectedArea);
+            return;
+        }
+
+        if (!window.floorplanEditor) {
+            this.showStatus('Floorplan editor not available', 'error');
+            return;
+        }
+
+        try {
+            // Get the floorplan layout data
+            const layoutData = window.floorplanEditor.saveLayout();
+            
+            // Enhanced debugging
+            const storageKey = `lightmapper_floorplan_${this.selectedArea}`;
+            console.log('🔍 DEBUG - Save operation:');
+            console.log('   Selected Area ID:', this.selectedArea);
+            console.log('   Selected Area Name:', this.getAreaName(this.selectedArea));
+            console.log('   Storage Key:', storageKey);
+            console.log('   Layout Data Length:', layoutData ? JSON.stringify(layoutData).length : 'NULL');
+            
+            // Add metadata
+            const saveData = {
+                area_id: this.selectedArea,
+                area_name: this.getAreaName(this.selectedArea),
+                layout: layoutData,
+                version: '3.0.25',
+                timestamp: new Date().toISOString(),
+                lights_count: this.getAssignedFloorplanEntities().length
+            };
+
+            // Save to localStorage with area-specific key
+            localStorage.setItem(storageKey, JSON.stringify(saveData));
+            
+            console.log('💾 Floorplan saved to localStorage with key:', storageKey);
+            console.log('💾 Save data summary:', {
+                area_id: saveData.area_id,
+                area_name: saveData.area_name,
+                version: saveData.version,
+                lights_count: saveData.lights_count,
+                timestamp: saveData.timestamp
+            });
+            
+            this.showStatus(`Floorplan saved for ${this.getAreaName(this.selectedArea)}`, 'success');
+            
+            // Show localStorage inspector for debugging
+            this.debugLocalStorageFloorplans();
+            
+            // Refresh saved floorplans list
+            await this.loadSavedFloorplans();
+            
+        } catch (error) {
+            console.error('❌ Failed to save floorplan:', error);
+            this.showStatus('Failed to save floorplan', 'error');
+        }
+    }
+
+    async loadFloorplanLayout() {
+        if (!this.selectedArea) {
+            this.showStatus('Please select an area first', 'warning');
+            return;
+        }
+
+        // Show immediate loading state on canvas
+        if (window.floorplanEditor) {
+            window.floorplanEditor.showLoadingState();
+        }
+
+        try {
+            // Enhanced debugging
+            const storageKey = `lightmapper_floorplan_${this.selectedArea}`;
+            console.log('🔍 DEBUG - Load operation:');
+            console.log('   Selected Area ID:', this.selectedArea);
+            console.log('   Selected Area Name:', this.getAreaName(this.selectedArea));
+            console.log('   Storage Key:', storageKey);
+            
+            // Show localStorage inspector for debugging
+            this.debugLocalStorageFloorplans();
+            
+            // Load saved floorplan from localStorage for the selected area
+            const savedDataString = localStorage.getItem(storageKey);
+            
+            console.log('   Found data in localStorage:', savedDataString ? 'YES' : 'NO');
+            if (savedDataString) {
+                console.log('   Data length:', savedDataString.length);
+            }
+            
+            if (!savedDataString) {
+                // Hide loading state on error
+                if (window.floorplanEditor) {
+                    window.floorplanEditor.hideLoadingState();
+                }
+                this.showStatus('No saved floorplan found for this area', 'warning');
+                return;
+            }
+
+            const savedData = JSON.parse(savedDataString);
+            
+            console.log('📂 Loaded data summary:', {
+                area_id: savedData.area_id,
+                area_name: savedData.area_name,
+                version: savedData.version,
+                lights_count: savedData.lights_count,
+                timestamp: savedData.timestamp,
+                has_layout: !!savedData.layout
+            });
+            
+            if (!savedData.layout) {
+                // Hide loading state on error
+                if (window.floorplanEditor) {
+                    window.floorplanEditor.hideLoadingState();
+                }
+                this.showStatus('Invalid floorplan data', 'error');
+                return;
+            }
+
+            // Load the layout into the floorplan editor
+            if (window.floorplanEditor) {
+                // Pass a callback to be called when loading is complete
+                window.floorplanEditor.loadLayout(savedData.layout, () => {
+                    console.log('📂 Floorplan loaded successfully for area:', this.selectedArea);
+                    this.showStatus(`Floorplan loaded for ${this.getAreaName(this.selectedArea)} (saved ${new Date(savedData.timestamp).toLocaleString()})`, 'success');
+                    
+                    // Hide loading state
+                    window.floorplanEditor.hideLoadingState();
+                    
+                    // Refresh the lights list to show loaded entities (after loading is complete)
+                    this.renderFloorplanLightsList();
+                });
+            } else {
+                // Hide loading state on error
+                window.floorplanEditor.hideLoadingState();
+                this.showStatus('Floorplan editor not available', 'error');
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load floorplan:', error);
+            // Hide loading state on error
+            if (window.floorplanEditor) {
+                window.floorplanEditor.hideLoadingState();
+            }
+            this.showStatus('Failed to load floorplan', 'error');
+        }
+    }
+
+    async loadSavedFloorplans() {
+        try {
+            // Load all saved floorplans from localStorage
+            this.savedFloorplans = [];
+            
+            // Iterate through all localStorage keys to find floorplan data
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('lightmapper_floorplan_')) {
+                    try {
+                        const savedDataString = localStorage.getItem(key);
+                        const savedData = JSON.parse(savedDataString);
+                        
+                        // Extract area_id from the key
+                        const areaId = key.replace('lightmapper_floorplan_', '');
+                        
+                        // Add summary info for the saved floorplan
+                        this.savedFloorplans.push({
+                            area_id: areaId,
+                            area_name: savedData.area_name,
+                            version: savedData.version,
+                            timestamp: savedData.timestamp,
+                            lights_count: savedData.lights_count
+                        });
+                    } catch (parseError) {
+                        console.warn(`❌ Failed to parse saved floorplan for key ${key}:`, parseError);
+                    }
+                }
+            }
+            
+            // Sort by most recently saved
+            this.savedFloorplans.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            console.log('📋 Saved floorplans loaded from localStorage:', this.savedFloorplans);
+        } catch (error) {
+            console.error('❌ Failed to load saved floorplans:', error);
+            this.savedFloorplans = [];
+        }
+    }
+
+    // Utility function to check if a saved floorplan exists for the current area
+    hasSavedFloorplan(areaId = null) {
+        const targetAreaId = areaId || this.selectedArea;
+        if (!targetAreaId) return false;
+        
+        const storageKey = `lightmapper_floorplan_${targetAreaId}`;
+        return localStorage.getItem(storageKey) !== null;
+    }
+
+    // Utility function to delete a saved floorplan (for future use)
+    deleteSavedFloorplan(areaId) {
+        try {
+            const storageKey = `lightmapper_floorplan_${areaId}`;
+            localStorage.removeItem(storageKey);
+            console.log(`🗑️ Deleted saved floorplan for area: ${areaId}`);
+            
+            // Refresh the saved floorplans list
+            this.loadSavedFloorplans();
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to delete saved floorplan:', error);
+            return false;
+        }
+    }
+
+    // Debug function to inspect all localStorage floorplan data
+    debugLocalStorageFloorplans() {
+        console.log('🔍 DEBUG - LocalStorage Floorplan Inspector:');
+        console.log('================================================');
+        
+        const floorplanKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('lightmapper_floorplan_')) {
+                floorplanKeys.push(key);
+            }
+        }
+        
+        console.log(`Found ${floorplanKeys.length} saved floorplan(s):`);
+        
+        if (floorplanKeys.length === 0) {
+            console.log('   (No saved floorplans found)');
+        } else {
+            floorplanKeys.forEach(key => {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    const areaId = key.replace('lightmapper_floorplan_', '');
+                    console.log(`   📁 ${key}:`);
+                    console.log(`      Area ID: ${data.area_id}`);
+                    console.log(`      Area Name: ${data.area_name}`);
+                    console.log(`      Timestamp: ${data.timestamp}`);
+                    console.log(`      Lights Count: ${data.lights_count}`);
+                    console.log(`      Has Layout: ${!!data.layout}`);
+                    console.log(`      Layout Size: ${data.layout ? JSON.stringify(data.layout).length : 0} chars`);
+                } catch (error) {
+                    console.log(`   ❌ ${key}: CORRUPTED DATA`);
+                }
+            });
+        }
+        
+        console.log('================================================');
+        
+        // Also expose as global function for manual debugging
+        window.debugFloorplans = () => this.debugLocalStorageFloorplans();
+        
+        // Auto-cleanup corrupted entries
+        this.cleanupCorruptedFloorplans();
+        
+        return floorplanKeys.length;
+    }
+
+    // Auto-cleanup corrupted/invalid floorplan entries
+    cleanupCorruptedFloorplans() {
+        const keysToCleanup = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('lightmapper_floorplan_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    
+                    // Remove entries with undefined area_id or missing layout data
+                    if (!data.area_id || data.area_id === 'undefined' || !data.layout) {
+                        keysToCleanup.push(key);
+                        console.log(`🧹 Marking for cleanup: ${key} (area_id: ${data.area_id}, has_layout: ${!!data.layout})`);
+                    }
+                } catch (error) {
+                    // Remove corrupted entries that can't be parsed
+                    keysToCleanup.push(key);
+                    console.log(`🧹 Marking corrupted entry for cleanup: ${key}`);
+                }
+            }
+        }
+        
+        // Remove corrupted entries
+        keysToCleanup.forEach(key => {
+            localStorage.removeItem(key);
+            console.log(`✅ Cleaned up corrupted entry: ${key}`);
+        });
+        
+        if (keysToCleanup.length > 0) {
+            console.log(`🧹 Cleanup complete: removed ${keysToCleanup.length} corrupted floorplan(s)`);
+        }
+        
+        return keysToCleanup.length;
+    }
+
+    // Debug function to clear all floorplan data (for testing)
+    clearAllFloorplanData() {
+        console.log('🗑️ DEBUG - Clearing all floorplan data from localStorage...');
+        
+        const keysToDelete = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('lightmapper_floorplan_')) {
+                keysToDelete.push(key);
+            }
+        }
+        
+        keysToDelete.forEach(key => {
+            localStorage.removeItem(key);
+            console.log(`   Deleted: ${key}`);
+        });
+        
+        console.log(`✅ Cleared ${keysToDelete.length} floorplan(s) from localStorage`);
+        
+        // Refresh the saved floorplans list
+        this.loadSavedFloorplans();
+        
+        // Expose as global function for manual debugging
+        window.clearFloorplans = () => this.clearAllFloorplanData();
+        window.cleanupFloorplans = () => this.cleanupCorruptedFloorplans();
+        
+        return keysToDelete.length;
+    }
+    
+    renderFloorplanLightsList() {
+        const container = document.getElementById('floorplanLightsList');
+        container.innerHTML = '';
+        
+        // Get all assigned entities from floorplan lights
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        if (assignedEntities.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No lights assigned in floorplan yet. Add lights to the floorplan and assign entities to see them here.</p>';
+            return;
+        }
+        
+        // Check if we're in current state mode
+        const isCurrentStateMode = window.floorplanEditor?.showCurrentState || false;
+        
+        // Sort entities alphabetically by friendly name
+        assignedEntities.sort((a, b) => {
+            const nameA = (a.friendly_name && a.friendly_name !== a.entity_id 
+                ? a.friendly_name 
+                : a.entity_id.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())).toLowerCase();
+            const nameB = (b.friendly_name && b.friendly_name !== b.entity_id 
+                ? b.friendly_name 
+                : b.entity_id.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())).toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+        
+        assignedEntities.forEach(entity => {
+            const lightCard = document.createElement('div');
+            lightCard.className = 'light-card';
+            lightCard.dataset.entityId = entity.entity_id;
+            
+            let displaySettings;
+            let isActive = false;
+            
+            if (isCurrentStateMode) {
+                // In current state mode, show actual light values from Home Assistant
+                const currentEntity = window.lightEntities ? window.lightEntities[entity.entity_id] : null;
+                if (currentEntity && currentEntity.state === 'on') {
+                    isActive = true;
+                    
+                    // Extract current light values
+                    const brightness = currentEntity.attributes?.brightness 
+                        ? Math.round((currentEntity.attributes.brightness / 255) * 100) 
+                        : null;
+                    
+                    const kelvin = currentEntity.attributes?.color_temp_kelvin || null;
+                    
+                    const hsColor = currentEntity.attributes?.hs_color;
+                    const color = hsColor ? { hue: hsColor[0], saturation: hsColor[1] } : null;
+                    
+                    displaySettings = {
+                        brightness: brightness,
+                        kelvin: kelvin,
+                        color: color
+                    };
+                } else {
+                    // Light is off or no entity data
+                    displaySettings = {
+                        brightness: null,
+                        kelvin: null,
+                        color: null
+                    };
+                }
+            } else {
+                // In scene mode, show scene settings
+                displaySettings = this.sceneLightSettings.get(entity.entity_id) || {
+                    brightness: null,  // null means "Not set"
+                    kelvin: null,      // null means "Not set" 
+                    color: null        // null means "Not set"
+                };
+                isActive = Object.values(displaySettings).some(val => val !== null);
+            }
+            
+            const safeId = entity.entity_id.replace(/\./g, '_');
+            
+            // Generate a friendly display name
+            const friendlyName = entity.friendly_name && entity.friendly_name !== entity.entity_id 
+                ? entity.friendly_name 
+                : entity.entity_id.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Helper function to format color value display
+            const formatColorValue = (color) => {
+                if (!color) return 'Not Set';
+                const hue = Math.round(color.hue);
+                const sat = Math.round(color.saturation);
+                return `HSV(${hue}°,${sat}%)`;
+            };
+            
+            // Helper function to get color preview style
+            const getColorPreviewStyle = (color) => {
+                if (!color) return '';
+                return `<div class="chip-color-preview" style="background-color: hsl(${color.hue}, ${color.saturation}%, 50%)"></div>`;
+            };
+            
+            lightCard.innerHTML = `
+                <div class="light-header" data-light-toggle="${safeId}">
+                    <div class="light-icon">•</div>
+                    <div class="light-info">
+                        <div class="light-label">${friendlyName}</div>
+                        <div class="light-entity-id">${entity.entity_id}</div>
+                    </div>
+                    <div class="light-collapse-toggle expanded" data-light-toggle="${safeId}">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+                <div class="light-scene-controls expanded" id="controls_container_${safeId}">
+                    <div class="property-chips">
+                        <div class="property-chip ${displaySettings.brightness !== null ? 'active' : ''}" 
+                             data-property="brightness" data-entity="${entity.entity_id}">
+                            <span class="chip-icon">●</span>
+                            <span class="chip-label">Brightness</span>
+                            <span class="chip-value">${displaySettings.brightness !== null ? displaySettings.brightness + '%' : 'Not Set'}</span>
+                        </div>
+                        <div class="property-chip ${displaySettings.kelvin !== null ? 'active' : ''}" 
+                             data-property="kelvin" data-entity="${entity.entity_id}">
+                            <span class="chip-icon">K</span>
+                            <span class="chip-label">Kelvin</span>
+                            <span class="chip-value">${displaySettings.kelvin !== null ? displaySettings.kelvin + 'K' : 'Not Set'}</span>
+                        </div>
+                        <div class="property-chip ${displaySettings.color !== null ? 'active' : ''}" 
+                             data-property="color" data-entity="${entity.entity_id}">
+                            <span class="chip-icon">●</span>
+                            <span class="chip-label">Color</span>
+                            <span class="chip-value">${formatColorValue(displaySettings.color)}</span>
+                            ${getColorPreviewStyle(displaySettings.color)}
+                        </div>
+                    </div>
+                    
+                    <!-- Inline controls (hidden by default) -->
+                    <div class="inline-controls" id="controls_${safeId}" style="display: none;">
+                        <div class="inline-brightness" style="display: none;">
+                            <label>Brightness</label>
+                            <input type="range" id="brightness_value_${safeId}" min="1" max="100" 
+                                   value="${displaySettings.brightness || 50}">
+                            <span id="brightness_display_${safeId}">${displaySettings.brightness || 50}%</span>
+                        </div>
+                        <div class="inline-kelvin" style="display: none;">
+                            <label>Kelvin</label>
+                            <input type="range" id="kelvin_value_${safeId}" min="2000" max="6500" step="100"
+                                   value="${displaySettings.kelvin || 3000}">
+                            <span id="kelvin_display_${safeId}">${displaySettings.kelvin || 3000}K</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(lightCard);
+            
+            // Setup event listeners for this light's controls (only in scene mode)
+            if (!isCurrentStateMode) {
+                this.setupSceneLightControls(entity.entity_id, safeId);
+            }
+            
+            // Setup collapsible functionality
+            this.setupLightCollapse(safeId);
+        });
+        
+        // Update the toggle all button state
+        this.updateToggleAllButtonState();
+    }
+    
+    updateToggleAllButtonState() {
+        const toggleButton = document.getElementById('toggleAllCollapse');
+        const toggleIcon = toggleButton?.querySelector('i');
+        
+        if (!toggleButton || !toggleIcon) return;
+        
+        // Check current state of all lights
+        const lightCards = document.querySelectorAll('.light-card');
+        if (lightCards.length === 0) return;
+        
+        // Count expanded lights
+        let expandedCount = 0;
+        lightCards.forEach(lightCard => {
+            const controlsContainer = lightCard.querySelector('.light-scene-controls');
+            if (controlsContainer?.classList.contains('expanded')) {
+                expandedCount++;
+            }
+        });
+        
+        // Update button based on majority state
+        const allExpanded = expandedCount === lightCards.length;
+        const allCollapsed = expandedCount === 0;
+        
+        if (allExpanded) {
+            // All are expanded, show collapse icon
+            toggleIcon.className = 'fas fa-chevron-down';
+            toggleButton.title = 'Collapse All';
+        } else {
+            // Some or all are collapsed, show expand icon
+            toggleIcon.className = 'fas fa-chevron-right';
+            toggleButton.title = 'Expand All';
+        }
+    }
+    
+    toggleAllLightsCollapse() {
+        console.log('🔄 Toggle all lights collapse/expand');
+        
+        // Get all light cards
+        const lightCards = document.querySelectorAll('.light-card');
+        const toggleButton = document.getElementById('toggleAllCollapse');
+        const toggleIcon = toggleButton.querySelector('i');
+        
+        if (lightCards.length === 0) {
+            console.log('⚠️ No light cards found');
+            return;
+        }
+        
+        // Check current state by looking at the first light card
+        const firstCard = lightCards[0];
+        const firstControlsContainer = firstCard.querySelector('.light-scene-controls');
+        const isCurrentlyExpanded = firstControlsContainer?.classList.contains('expanded');
+        
+        console.log(`🔍 Current state: ${isCurrentlyExpanded ? 'expanded' : 'collapsed'}`);
+        
+        // Toggle all lights to opposite state
+        lightCards.forEach(lightCard => {
+            const safeId = lightCard.dataset.entityId?.replace(/\./g, '_');
+            if (safeId) {
+                const controlsContainer = lightCard.querySelector('.light-scene-controls');
+                const toggleElements = lightCard.querySelectorAll(`[data-light-toggle="${safeId}"]`);
+                const chevronIcon = lightCard.querySelector(`[data-light-toggle="${safeId}"] i`);
+                
+                if (isCurrentlyExpanded) {
+                    // Collapse this light
+                    controlsContainer?.classList.remove('expanded');
+                    controlsContainer?.classList.add('collapsed');
+                    toggleElements.forEach(el => el.classList.remove('expanded'));
+                    toggleElements.forEach(el => el.classList.add('collapsed'));
+                    if (chevronIcon) {
+                        chevronIcon.className = 'fas fa-chevron-right';
+                    }
+                } else {
+                    // Expand this light
+                    controlsContainer?.classList.remove('collapsed');
+                    controlsContainer?.classList.add('expanded');
+                    toggleElements.forEach(el => el.classList.remove('collapsed'));
+                    toggleElements.forEach(el => el.classList.add('expanded'));
+                    if (chevronIcon) {
+                        chevronIcon.className = 'fas fa-chevron-down';
+                    }
+                }
+            }
+        });
+        
+        // Update the toggle all button icon and tooltip
+        if (isCurrentlyExpanded) {
+            // We just collapsed all, so show expand icon
+            toggleIcon.className = 'fas fa-chevron-right';
+            toggleButton.title = 'Expand All';
+            console.log('✅ Collapsed all lights');
+        } else {
+            // We just expanded all, so show collapse icon  
+            toggleIcon.className = 'fas fa-chevron-down';
+            toggleButton.title = 'Collapse All';
+            console.log('✅ Expanded all lights');
+        }
+        
+        // Show status message
+        const message = isCurrentlyExpanded ? 'All lights collapsed' : 'All lights expanded';
+        console.log(`💬 Status: ${message}`);
+        this.showStatus(message, 'info');
+    }
+    
+    getAssignedFloorplanEntities() {
+        console.log('🔍 getAssignedFloorplanEntities called');
+        const assignedEntities = [];
+        
+        if (window.floorplanEditor?.canvas) {
+            const lights = window.floorplanEditor.canvas.getObjects().filter(obj => obj.lightObject === true);
+            console.log('🔍 Found lights on canvas:', lights.length);
+            
+            lights.forEach(light => {
+                console.log('🔍 Checking light:', {
+                    entityId: light.entityId,
+                    hasEntity: !!light.entityId
+                });
+                
+                if (light.entityId) {
+                    // Try multiple ways to find the entity data
+                    let entityData = null;
+                    
+                    // Method 1: Check this.lights array
+                    if (this.lights && Array.isArray(this.lights)) {
+                        entityData = this.lights.find(l => l.entity_id === light.entityId);
+                        console.log('🔍 Method 1 (this.lights):', !!entityData);
+                    }
+                    
+                    // Method 2: Check window.lightEntities
+                    if (!entityData && window.lightEntities) {
+                        const entity = window.lightEntities[light.entityId];
+                        if (entity) {
+                            entityData = {
+                                entity_id: light.entityId,
+                                friendly_name: entity.attributes?.friendly_name || entity.friendly_name || light.entityId,
+                                attributes: entity.attributes
+                            };
+                            console.log('🔍 Method 2 (window.lightEntities):', !!entityData);
+                        }
+                    }
+                    
+                    // Method 3: Create minimal entity data as fallback
+                    if (!entityData) {
+                        entityData = {
+                            entity_id: light.entityId,
+                            friendly_name: light.entityId,
+                            attributes: {}
+                        };
+                        console.log('🔍 Method 3 (fallback):', !!entityData);
+                    }
+                    
+                    if (entityData) {
+                        assignedEntities.push(entityData);
+                        console.log('✅ Added entity to list:', entityData.entity_id);
+                    }
+                }
+            });
+        }
+        
+        console.log('🔍 Total assigned entities found:', assignedEntities.length);
+        return assignedEntities;
+    }
+    
+    setupSceneLightControls(entityId, safeId) {
+        // Get all property chips for this light
+        const propertyChips = document.querySelectorAll(`[data-entity="${entityId}"]`);
+        
+        propertyChips.forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const property = chip.dataset.property;
+                const isActive = chip.classList.contains('active');
+                
+                if (property === 'color') {
+                    // Handle color chip - show color picker popup
+                    if (isActive) {
+                        // Turn off color
+                        this.setSceneLightProperty(entityId, 'color', null);
+                        this.updateChipDisplay(chip, property, null);
+                    } else {
+                        // Show color picker
+                        this.showColorPicker(entityId, chip);
+                    }
+                } else {
+                    // Handle brightness/kelvin chips
+                    if (isActive) {
+                        // Turn off property
+                        this.setSceneLightProperty(entityId, property, null);
+                        this.updateChipDisplay(chip, property, null);
+                        this.hideInlineControls(safeId, property);
+                    } else {
+                        // Turn on property and show inline controls
+                        const defaultValue = property === 'brightness' ? 80 : 3000;
+                        this.setSceneLightProperty(entityId, property, defaultValue);
+                        this.updateChipDisplay(chip, property, defaultValue);
+                        this.showInlineControls(safeId, property, defaultValue);
+                    }
+                }
+            });
+        });
+        
+        // Setup inline control listeners
+        const brightnessSlider = document.getElementById(`brightness_value_${safeId}`);
+        const kelvinSlider = document.getElementById(`kelvin_value_${safeId}`);
+        
+        if (brightnessSlider) {
+            brightnessSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                this.setSceneLightProperty(entityId, 'brightness', value);
+                const chip = document.querySelector(`[data-entity="${entityId}"][data-property="brightness"]`);
+                this.updateChipDisplay(chip, 'brightness', value);
+                document.getElementById(`brightness_display_${safeId}`).textContent = value + '%';
+            });
+        }
+        
+        if (kelvinSlider) {
+            kelvinSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                this.setSceneLightProperty(entityId, 'kelvin', value);
+                const chip = document.querySelector(`[data-entity="${entityId}"][data-property="kelvin"]`);
+                this.updateChipDisplay(chip, 'kelvin', value);
+                document.getElementById(`kelvin_display_${safeId}`).textContent = value + 'K';
+            });
+        }
+    }
+    
+    setupLightCollapse(safeId) {
+        // Get the toggle elements for this light
+        const toggleElements = document.querySelectorAll(`[data-light-toggle="${safeId}"]`);
+        const controlsContainer = document.getElementById(`controls_container_${safeId}`);
+        
+        if (!controlsContainer || toggleElements.length === 0) return;
+        
+        // Add click event listener to both header and toggle button
+        toggleElements.forEach(element => {
+            element.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleLightCollapse(safeId);
+            });
+        });
+    }
+    
+    toggleLightCollapse(safeId) {
+        const controlsContainer = document.getElementById(`controls_container_${safeId}`);
+        const toggleIcon = document.querySelector(`[data-light-toggle="${safeId}"] i`);
+        const toggleButton = document.querySelector(`[data-light-toggle="${safeId}"].light-collapse-toggle`);
+        
+        if (!controlsContainer || !toggleIcon || !toggleButton) return;
+        
+        const isExpanded = controlsContainer.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            controlsContainer.classList.remove('expanded');
+            controlsContainer.classList.add('collapsed');
+            toggleButton.classList.remove('expanded');
+            toggleButton.classList.add('collapsed');
+            toggleIcon.className = 'fas fa-chevron-right';
+        } else {
+            // Expand
+            controlsContainer.classList.remove('collapsed');
+            controlsContainer.classList.add('expanded');
+            toggleButton.classList.remove('collapsed');
+            toggleButton.classList.add('expanded');
+            toggleIcon.className = 'fas fa-chevron-down';
+        }
+        
+        // Update the toggle all button state after individual toggle
+        this.updateToggleAllButtonState();
+    }
+    
+    updateChipDisplay(chip, property, value) {
+        const valueSpan = chip.querySelector('.chip-value');
+        const colorPreview = chip.querySelector('.chip-color-preview');
+        
+        if (value === null) {
+            chip.classList.remove('active');
+            valueSpan.textContent = 'Not Set';
+            if (colorPreview) {
+                colorPreview.remove();
+            }
+        } else {
+            chip.classList.add('active');
+            if (property === 'brightness') {
+                valueSpan.textContent = value + '%';
+            } else if (property === 'kelvin') {
+                valueSpan.textContent = value + 'K';
+            } else if (property === 'color') {
+                valueSpan.textContent = 'Set';
+                if (!colorPreview) {
+                    const preview = document.createElement('div');
+                    preview.className = 'chip-color-preview';
+                    chip.appendChild(preview);
+                }
+                const preview = chip.querySelector('.chip-color-preview');
+                preview.style.backgroundColor = `hsl(${value.hue}, ${value.saturation}%, 50%)`;
+            }
+        }
+    }
+    
+    showInlineControls(safeId, property, value) {
+        const controls = document.getElementById(`controls_${safeId}`);
+        const propertyControl = controls.querySelector(`.inline-${property}`);
+        
+        controls.style.display = 'block';
+        propertyControl.style.display = 'flex';
+        
+        // Update the slider value
+        const slider = propertyControl.querySelector('input[type="range"]');
+        const display = propertyControl.querySelector('span');
+        slider.value = value;
+        display.textContent = property === 'brightness' ? value + '%' : value + 'K';
+    }
+    
+    hideInlineControls(safeId, property) {
+        const controls = document.getElementById(`controls_${safeId}`);
+        const propertyControl = controls.querySelector(`.inline-${property}`);
+        
+        propertyControl.style.display = 'none';
+        
+        // Check if any controls are still visible
+        const visibleControls = controls.querySelectorAll('.inline-brightness[style*="flex"], .inline-kelvin[style*="flex"]');
+        if (visibleControls.length === 0) {
+            controls.style.display = 'none';
+        }
+    }
+    
+    showColorPicker(entityId, chip) {
+        const currentSettings = this.sceneLightSettings.get(entityId) || {};
+        const currentColor = currentSettings.color || { hue: 0, saturation: 100 };
+        
+        console.log('🎨 Opening color picker for', entityId, 'with stored color:', currentColor);
+        console.log('🎨 Current scene light settings:', this.sceneLightSettings.get(entityId));
+        
+        // Convert HSV to RGB for the color picker
+        // Note: hsvToRgb expects hue: 0-360, saturation: 0-100, value: 0-100
+        const rgb = this.hsvToRgb(currentColor.hue, currentColor.saturation, 100);
+        const currentHex = this.rgbToHex(Math.round(rgb.r), Math.round(rgb.g), Math.round(rgb.b));
+        
+        console.log('🎨 Converted to RGB:', rgb, 'Hex:', currentHex);
+        
+        // Create enhanced color picker popup
+        const popup = document.createElement('div');
+        popup.className = 'color-picker-popup';
+        popup.innerHTML = `
+            <div class="color-picker-content enhanced">
+                <div class="color-picker-header">
+                    <h3>Choose Light Color</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="color-picker-body">
+                    <div class="color-picker-main">
+                        <div class="color-picker-visual">
+                            <div class="color-picker-native">
+                                <input type="color" id="nativeColorPicker" value="${currentHex}">
+                                <label for="nativeColorPicker">
+                                    <i class="fas fa-palette"></i>
+                                    Color Wheel
+                                </label>
+                            </div>
+                        </div>
+                        <div class="color-inputs-section">
+                            <div class="rgb-inputs">
+                                <div class="rgb-input-group">
+                                    <input type="number" id="redInput" min="0" max="255" value="${Math.round(rgb.r)}">
+                                    <label>R</label>
+                                </div>
+                                <div class="rgb-input-group">
+                                    <input type="number" id="greenInput" min="0" max="255" value="${Math.round(rgb.g)}">
+                                    <label>G</label>
+                                </div>
+                                <div class="rgb-input-group">
+                                    <input type="number" id="blueInput" min="0" max="255" value="${Math.round(rgb.b)}">
+                                    <label>B</label>
+                                </div>
+                            </div>
+                            <div class="hex-input-section">
+                                <div class="hex-input-group">
+                                    <input type="text" id="hexInput" value="${currentHex}" maxlength="7" placeholder="#FFFFFF">
+                                    <label>HEX</label>
+                                </div>
+                            </div>
+                            <div class="hsv-sliders" id="hsvSliders" style="margin-bottom: 30px; padding-bottom: 20px;">
+                                <div class="slider-group" style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px;">Hue</label>
+                                    <input type="range" id="hueSlider" min="0" max="360" value="${currentColor.hue}" 
+                                           style="width: 100%; pointer-events: auto !important; cursor: pointer !important; z-index: 1000; position: relative;">
+                                    <span id="hueValue" style="display: block; text-align: center; margin-top: 5px;">${currentColor.hue}°</span>
+                                </div>
+                                <div class="slider-group" style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px;">Saturation</label>
+                                    <input type="range" id="saturationSlider" min="0" max="100" value="${currentColor.saturation}"
+                                           style="width: 100%; pointer-events: auto !important; cursor: pointer !important; z-index: 1000; position: relative;">
+                                    <span id="saturationValue" style="display: block; text-align: center; margin-top: 5px;">${currentColor.saturation}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="color-picker-actions">
+                        <button class="btn btn-primary" id="applyColor">Apply Color</button>
+                        <button class="btn btn-secondary" id="cancelColor">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Get all the elements
+        const nativeColorPicker = popup.querySelector('#nativeColorPicker');
+        const redInput = popup.querySelector('#redInput');
+        const greenInput = popup.querySelector('#greenInput');
+        const blueInput = popup.querySelector('#blueInput');
+        const hexInput = popup.querySelector('#hexInput');
+        const hueSlider = popup.querySelector('#hueSlider');
+        const saturationSlider = popup.querySelector('#saturationSlider');
+        const hueValue = popup.querySelector('#hueValue');
+        const saturationValue = popup.querySelector('#saturationValue');
+        
+        const updateColorPreview = () => {
+            const r = parseInt(redInput.value) || 0;
+            const g = parseInt(greenInput.value) || 0;
+            const b = parseInt(blueInput.value) || 0;
+            
+            console.log('🎨 Updating color preview with RGB:', { r, g, b });
+            
+            // Update hex picker to show the current color
+            const hex = rgbToHexLocal(r, g, b);
+            nativeColorPicker.value = hex;
+            hexInput.value = hex;
+            console.log('🎨 Updated hex picker and input to:', hex);
+            
+            // Update HSV sliders (only if this wasn't triggered by HSV slider change)
+            const hsv = rgbToHsvLocal(r, g, b);
+            const hue = Math.round(hsv.h * 360);
+            const saturation = Math.round(hsv.s * 100);
+            hueSlider.value = hue;
+            saturationSlider.value = saturation;
+            hueValue.textContent = hue + '°';
+            saturationValue.textContent = saturation + '%';
+            
+            // Update floorplan light color in real-time (temporarily set color for preview)
+            const tempSettings = this.sceneLightSettings.get(entityId) || {};
+            const originalColor = tempSettings.color;
+            tempSettings.color = { hue, saturation };
+            this.updateFloorplanLightFromSceneSettings(entityId);
+            // Don't restore original color since this is just a preview
+        };
+        
+        // Local RGB to Hex conversion
+        const rgbToHexLocal = (r, g, b) => {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        };
+        
+        // Local RGB to HSV conversion
+        const rgbToHsvLocal = (r, g, b) => {
+            r /= 255;
+            g /= 255;
+            b /= 255;
+            
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const delta = max - min;
+            
+            let h = 0;
+            const s = max === 0 ? 0 : delta / max;
+            const v = max;
+            
+            if (delta !== 0) {
+                if (max === r) {
+                    h = ((g - b) / delta) % 6;
+                } else if (max === g) {
+                    h = (b - r) / delta + 2;
+                } else {
+                    h = (r - g) / delta + 4;
+                }
+                h /= 6;
+                if (h < 0) h += 1;
+            }
+            
+            return { h, s, v };
+        };
+        
+        const updateFromNative = () => {
+            const hex = nativeColorPicker.value;
+            console.log('🎨 Native color picker changed to:', hex);
+            const rgb = hexToRgbLocal(hex);
+            redInput.value = rgb.r;
+            greenInput.value = rgb.g;
+            blueInput.value = rgb.b;
+            hexInput.value = hex;
+            updateColorPreview();
+        };
+        
+        const updateFromHex = () => {
+            let hex = hexInput.value.trim();
+            if (!hex.startsWith('#')) {
+                hex = '#' + hex;
+                hexInput.value = hex;
+            }
+            console.log('🎨 Hex input changed to:', hex);
+            const rgb = hexToRgbLocal(hex);
+            redInput.value = rgb.r;
+            greenInput.value = rgb.g;
+            blueInput.value = rgb.b;
+            nativeColorPicker.value = hex;
+            updateColorPreview();
+        };
+        
+        // Local Hex to RGB conversion
+        const hexToRgbLocal = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        };
+        
+        const updateFromHSV = () => {
+            const hue = parseInt(hueSlider.value);
+            const saturation = parseInt(saturationSlider.value);
+            console.log('🎨 HSV slider changed:', { hue, saturation });
+            
+            // Convert HSV to RGB (using local function to avoid scope issues)
+            const rgb = hsvToRgbLocal(hue / 360, saturation / 100, 1);
+            console.log('🎨 Converted RGB:', rgb);
+            
+            // Update RGB inputs
+            redInput.value = Math.round(rgb.r);
+            greenInput.value = Math.round(rgb.g);
+            blueInput.value = Math.round(rgb.b);
+            
+            // Update HSV display values
+            hueValue.textContent = hue + '°';
+            saturationValue.textContent = saturation + '%';
+            
+            // Update color preview and native picker
+            updateColorPreview();
+            
+            // Update floorplan light color in real-time (temporarily set color for preview)
+            const tempSettings = this.sceneLightSettings.get(entityId) || {};
+            const originalColor = tempSettings.color;
+            tempSettings.color = { hue, saturation };
+            this.updateFloorplanLightFromSceneSettings(entityId);
+            // Don't restore original color since this is just a preview
+        };
+        
+        // Local HSV to RGB conversion function to avoid scope issues
+        const hsvToRgbLocal = (h, s, v) => {
+            let r, g, b;
+            
+            const i = Math.floor(h * 6);
+            const f = h * 6 - i;
+            const p = v * (1 - s);
+            const q = v * (1 - f * s);
+            const t = v * (1 - (1 - f) * s);
+            
+            switch (i % 6) {
+                case 0: r = v; g = t; b = p; break;
+                case 1: r = q; g = v; b = p; break;
+                case 2: r = p; g = v; b = t; break;
+                case 3: r = p; g = q; b = v; break;
+                case 4: r = t; g = p; b = v; break;
+                case 5: r = v; g = p; b = q; break;
+            }
+            
+            return {
+                r: Math.round(r * 255),
+                g: Math.round(g * 255),
+                b: Math.round(b * 255)
+            };
+        };
+        
+        // Event listeners with debugging
+        nativeColorPicker.addEventListener('input', updateFromNative);
+        redInput.addEventListener('input', updateColorPreview);
+        greenInput.addEventListener('input', updateColorPreview);
+        blueInput.addEventListener('input', updateColorPreview);
+        hexInput.addEventListener('input', updateFromHex);
+        hexInput.addEventListener('change', updateFromHex);
+        
+        // Enhanced HSV slider event listeners with event prevention
+        if (hueSlider) {
+            console.log('🎨 Hue slider found, adding event listeners');
+            hueSlider.addEventListener('input', updateFromHSV);
+            hueSlider.addEventListener('change', updateFromHSV);
+            hueSlider.addEventListener('mousedown', (e) => e.stopPropagation());
+            hueSlider.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+            hueSlider.addEventListener('click', (e) => e.stopPropagation());
+        } else {
+            console.error('❌ Hue slider not found!');
+        }
+        
+        if (saturationSlider) {
+            console.log('🎨 Saturation slider found, adding event listeners');
+            saturationSlider.addEventListener('input', updateFromHSV);
+            saturationSlider.addEventListener('change', updateFromHSV);
+            saturationSlider.addEventListener('mousedown', (e) => e.stopPropagation());
+            saturationSlider.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+            saturationSlider.addEventListener('click', (e) => e.stopPropagation());
+        } else {
+            console.error('❌ Saturation slider not found!');
+        }
+        
+        // Initialize preview
+        updateColorPreview();
+        
+        // Handle buttons
+        popup.querySelector('#applyColor').addEventListener('click', () => {
+            const r = parseInt(redInput.value) || 0;
+            const g = parseInt(greenInput.value) || 0;
+            const b = parseInt(blueInput.value) || 0;
+            const hsv = rgbToHsvLocal(r, g, b);
+            const hue = Math.round(hsv.h * 360);
+            const saturation = Math.round(hsv.s * 100);
+            
+            console.log('🎨 Applying color - RGB:', { r, g, b }, 'HSV:', { hue, saturation });
+            this.setSceneLightProperty(entityId, 'color', { hue, saturation });
+            this.updateChipDisplay(chip, 'color', { hue, saturation });
+            popup.remove();
+        });
+        
+        popup.querySelector('#cancelColor').addEventListener('click', () => {
+            popup.remove();
+        });
+        
+        popup.querySelector('.close-btn').addEventListener('click', () => {
+            popup.remove();
+        });
+        
+        // Close on backdrop click (but not on slider interaction)
+        popup.addEventListener('click', (e) => {
+            // Don't close if clicking on sliders or their containers
+            if (e.target === popup && !e.target.closest('.hsv-sliders')) {
+                popup.remove();
+            }
+        });
+        
+        // Prevent modal close when interacting with HSV slider area
+        const hsvContainer = popup.querySelector('#hsvSliders');
+        if (hsvContainer) {
+            hsvContainer.addEventListener('click', (e) => e.stopPropagation());
+            hsvContainer.addEventListener('mousedown', (e) => e.stopPropagation());
+            hsvContainer.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+        }
+    }
+    
+    setSceneLightProperty(entityId, property, value) {
+        if (!this.sceneLightSettings.has(entityId)) {
+            this.sceneLightSettings.set(entityId, {
+                brightness: null,
+                kelvin: null,
+                color: null
+            });
+        }
+        
+        const settings = this.sceneLightSettings.get(entityId);
+        settings[property] = value;
+        
+        // Implement mutual exclusivity for kelvin and color
+        if (property === 'color' && value !== null) {
+            // When color is set, clear kelvin
+            if (settings.kelvin !== null) {
+                console.log(`🎬 Color set for ${entityId}, clearing kelvin (was: ${settings.kelvin})`);
+                settings.kelvin = null;
+                
+                // Update kelvin chip UI to show "Not Set"
+                const kelvinChip = document.querySelector(`[data-entity="${entityId}"][data-property="kelvin"]`);
+                if (kelvinChip) {
+                    this.updateChipDisplay(kelvinChip, 'kelvin', null);
+                }
+                
+                // Hide kelvin inline controls
+                const safeId = entityId.replace(/\./g, '_');
+                this.hideInlineControls(safeId, 'kelvin');
+            }
+        } else if (property === 'kelvin' && value !== null) {
+            // When kelvin is set, clear color
+            if (settings.color !== null) {
+                console.log(`🎬 Kelvin set for ${entityId}, clearing color (was: ${JSON.stringify(settings.color)})`);
+                settings.color = null;
+                
+                // Update color chip UI to show "Not Set"
+                const colorChip = document.querySelector(`[data-entity="${entityId}"][data-property="color"]`);
+                if (colorChip) {
+                    this.updateChipDisplay(colorChip, 'color', null);
+                }
+            }
+        }
+        
+        console.log(`🎬 Scene ${property} for ${entityId}:`, value);
+        console.log('🎬 Updated scene light settings:', this.sceneLightSettings.get(entityId));
+        
+        // Update floorplan light appearance based on new scene settings
+        this.updateFloorplanLightFromSceneSettings(entityId);
+    }
+    
+
+    
+    toggleFloorplanLight(entityId) {
+        const lightBtn = document.querySelector(`[data-entity-id="${entityId}"]`);
+        const isSelected = lightBtn.classList.contains('selected');
+        
+        if (isSelected) {
+            lightBtn.classList.remove('selected');
+            this.selectedFloorplanLights.delete(entityId);
+        } else {
+            lightBtn.classList.add('selected');
+            this.selectedFloorplanLights.add(entityId);
+        }
+        
+        this.updateSelectionUI();
+        
+        // Update individual controls if in individual mode
+        if (this.individualMode) {
+            this.renderIndividualControls();
+        }
+    }
+    
+    setupControlSliders() {
+        // Brightness slider
+        const brightnessSlider = document.getElementById('globalBrightness');
+        const brightnessValue = document.getElementById('globalBrightnessValue');
+        
+        brightnessSlider?.addEventListener('input', (e) => {
+            brightnessValue.textContent = e.target.value + '%';
+            this.updateColorPreview();
+            this.updateSelectedFloorplanLight();
+        });
+
+        // Color temperature slider
+        const colorTempSlider = document.getElementById('globalColorTemp');
+        const colorTempValue = document.getElementById('globalColorTempValue');
+        
+        colorTempSlider?.addEventListener('input', (e) => {
+            colorTempValue.textContent = e.target.value + 'K';
+            this.updateColorPreview();
+            this.updateSelectedFloorplanLight();
+        });
+
+        // Hue slider
+        const hueSlider = document.getElementById('globalHue');
+        const hueValue = document.getElementById('globalHueValue');
+        
+        hueSlider?.addEventListener('input', (e) => {
+            hueValue.textContent = e.target.value + '°';
+            this.updateColorPreview();
+            this.updateSelectedFloorplanLight();
+        });
+
+        // Saturation slider
+        const saturationSlider = document.getElementById('globalSaturation');
+        const saturationValue = document.getElementById('globalSaturationValue');
+        
+        saturationSlider?.addEventListener('input', (e) => {
+            saturationValue.textContent = e.target.value + '%';
+            this.updateColorPreview();
+            this.updateSelectedFloorplanLight();
+        });
+    }
+    
+    updateSelectedFloorplanLight() {
+        // Update the selected floorplan light if one exists
+        if (window.floorplanEditor?.selectedLight) {
+            const selectedLight = window.floorplanEditor.selectedLight;
+            
+            const brightness = parseInt(document.getElementById('globalBrightness')?.value || 100);
+            const hue = parseInt(document.getElementById('globalHue')?.value || 60);
+            const saturation = parseInt(document.getElementById('globalSaturation')?.value || 100);
+            
+            // Use HSV values for color representation
+            const h = hue / 360;
+            const s = saturation / 100;
+            const v = brightness / 100;
+            
+            const rgb = this.hsvToRgb(h, s, v);
+            const fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+            
+            // Update the light's visual appearance
+            selectedLight.set('fill', fillColor);
+            window.floorplanEditor.canvas.renderAll();
+        }
+    }
+    
+    updateFloorplanLightColor(entityId, hue, saturation) {
+        // Find the light object on the floorplan by entity ID
+        if (window.floorplanEditor?.lights) {
+            const light = window.floorplanEditor.lights.find(light => light.entityId === entityId);
+            if (light) {
+                console.log('🎨 Updating floorplan light color for', entityId, { hue, saturation });
+                
+                // Get brightness from scene settings for glow effect
+                const currentSettings = this.sceneLightSettings.get(entityId) || {};
+                const brightness = currentSettings.brightness;
+                
+                console.log('🎨 Using brightness for glow:', brightness);
+                
+                // Convert HSV to RGB at full brightness for fill color
+                const rgb = this.hsvToRgb(hue, saturation, 100);
+                const fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+                
+                console.log('🎨 Setting light fill color to:', fillColor);
+                
+                                 // Apply glow effect using separate glow circle behind main light
+                 if (brightness !== null) {
+                     const glowIntensity = brightness / 100; // 0.0 to 1.0
+                     const glowSize = Math.max(5, brightness * 0.4); // Glow radius extension (5px to 40px)
+                     const glowOpacity = Math.max(0.4, 0.4 - (glowIntensity * 0.3)); // 0.4 at 0% brightness, 0.1 at 100% brightness (more subtle)
+                     
+                     // Remove any existing glow circle
+                     if (light.glowCircle) {
+                         window.floorplanEditor.canvas.remove(light.glowCircle);
+                         light.glowCircle = null;
+                     }
+                     
+                     // Create a separate larger circle behind the main light for glow effect
+                     const glowCircle = new fabric.Circle({
+                         left: light.left + light.radius - (light.radius + glowSize),
+                         top: light.top + light.radius - (light.radius + glowSize),
+                         radius: light.radius + glowSize,
+                         fill: fillColor,
+                         opacity: glowOpacity,
+                         selectable: false,
+                         evented: false,
+                         excludeFromExport: true
+                     });
+                     
+                     // Add glow circle behind the main light
+                     window.floorplanEditor.canvas.add(glowCircle);
+                     
+                     // Use canvas methods to control layering (v6 API)
+                     window.floorplanEditor.canvas.sendObjectToBack(glowCircle);
+                     window.floorplanEditor.canvas.bringObjectToFront(light);
+                     
+                     // Store reference to glow circle for cleanup
+                     light.glowCircle = glowCircle;
+                     
+                     // Add outline to main light when brightness is set
+                     light.set({
+                         fill: fillColor,
+                         stroke: this.getContrastingColor(fillColor),
+                         strokeWidth: 2,
+                         shadow: null
+                     });
+                     
+                     console.log('🌟 Applied glow effect - Glow Size:', glowSize, 'Brightness:', brightness, 'Opacity:', glowOpacity);
+                 } else {
+                     // No brightness setting, remove glow circle
+                     if (light.glowCircle) {
+                         window.floorplanEditor.canvas.remove(light.glowCircle);
+                         light.glowCircle = null;
+                     }
+                     
+                     light.set({
+                         fill: fillColor,
+                         stroke: null,
+                         strokeWidth: 0,
+                         shadow: null
+                     });
+                     console.log('🌟 No brightness setting, removed glow effect');
+                 }
+                 
+                 window.floorplanEditor.canvas.renderAll();
+            } else {
+                console.log('🎨 Light not found on floorplan for entity:', entityId);
+            }
+        }
+    }
+    
+    updateFloorplanLightFromSceneSettings(entityId) {
+        // Find the light object on the floorplan by entity ID
+        if (window.floorplanEditor?.lights) {
+            const light = window.floorplanEditor.lights.find(light => light.entityId === entityId);
+            if (light) {
+                const currentSettings = this.sceneLightSettings.get(entityId) || {};
+                
+                console.log('🎬 Updating floorplan light from scene settings for', entityId, currentSettings);
+                
+                // Get brightness setting for glow effect
+                const brightness = currentSettings.brightness;
+                let fillColor;
+                
+                if (currentSettings.color && currentSettings.color.hue !== undefined && currentSettings.color.saturation !== undefined) {
+                    // Use color setting at full saturation for fill
+                    const rgb = this.hsvToRgb(currentSettings.color.hue, currentSettings.color.saturation, 100);
+                    fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+                    console.log('🎨 Using color setting:', currentSettings.color, 'with glow brightness:', brightness);
+                } else if (currentSettings.kelvin !== null) {
+                    // Use kelvin setting at full brightness for fill
+                    const rgb = this.colorTempToRgb(currentSettings.kelvin);
+                    fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+                    console.log('🎨 Using kelvin setting:', currentSettings.kelvin, 'with glow brightness:', brightness);
+                } else if (brightness !== null) {
+                    // Only brightness is set, use default warm white
+                    fillColor = `rgb(255, 255, 200)`;
+                    console.log('🎨 Using default warm white with glow brightness:', brightness);
+                } else {
+                    // Nothing is set, use default light appearance
+                    fillColor = '#ffa500'; // Default orange
+                    console.log('🎨 No scene settings, using default orange color');
+                }
+                
+                                 // Apply glow effect using separate glow circle behind main light
+                 if (brightness !== null) {
+                     const glowIntensity = brightness / 100; // 0.0 to 1.0
+                     const glowSize = Math.max(5, brightness * 0.4); // Glow radius extension (5px to 40px)
+                     const glowOpacity = Math.max(0.4, 0.4 - (glowIntensity * 0.3)); // 0.4 at 0% brightness, 0.1 at 100% brightness (more subtle)
+                     
+                     // Remove any existing glow circle
+                     if (light.glowCircle) {
+                         window.floorplanEditor.canvas.remove(light.glowCircle);
+                         light.glowCircle = null;
+                     }
+                     
+                     // Create a separate larger circle behind the main light for glow effect
+                     const glowCircle = new fabric.Circle({
+                         left: light.left + light.radius - (light.radius + glowSize),
+                         top: light.top + light.radius - (light.radius + glowSize),
+                         radius: light.radius + glowSize,
+                         fill: fillColor,
+                         opacity: glowOpacity,
+                         selectable: false,
+                         evented: false,
+                         excludeFromExport: true
+                     });
+                     
+                     // Add glow circle behind the main light
+                     window.floorplanEditor.canvas.add(glowCircle);
+                     
+                     // Use canvas methods to control layering (v6 API)
+                     window.floorplanEditor.canvas.sendObjectToBack(glowCircle);
+                     window.floorplanEditor.canvas.bringObjectToFront(light);
+                     
+                     // Store reference to glow circle for cleanup
+                     light.glowCircle = glowCircle;
+                     
+                     // Add outline to main light when brightness is set
+                     light.set({
+                         fill: fillColor,
+                         stroke: this.getContrastingColor(fillColor),
+                         strokeWidth: 2,
+                         shadow: null
+                     });
+                     
+                     console.log('🌟 Applied glow effect - Glow Size:', glowSize, 'Brightness:', brightness, 'Opacity:', glowOpacity);
+                 } else {
+                     // No brightness setting, remove glow circle
+                     if (light.glowCircle) {
+                         window.floorplanEditor.canvas.remove(light.glowCircle);
+                         light.glowCircle = null;
+                     }
+                     
+                     light.set({
+                         fill: fillColor,
+                         stroke: null,
+                         strokeWidth: 0,
+                         shadow: null
+                     });
+                     console.log('🌟 No brightness setting, removed glow effect');
+                 }
+                 
+                 console.log('🎨 Setting light fill color to:', fillColor);
+                 
+                 // Update the canvas
+                 window.floorplanEditor.canvas.renderAll();
+            } else {
+                console.log('🎨 Light not found on floorplan for entity:', entityId);
+            }
+        }
+    }
+    
+    getLastColorForEntity(entityId) {
+        const settings = this.sceneLightSettings.get(entityId);
+        if (settings && settings.color && settings.color.hue !== undefined && settings.color.saturation !== undefined) {
+            console.log('🎨 Retrieved last color for', entityId, ':', settings.color);
+            return settings.color;
+        }
+        console.log('🎨 No stored color found for', entityId);
+        return null;
+    }
+    
+    updateGlobalControlValues() {
+        // Only update if global control elements exist
+        const brightness = document.getElementById('globalBrightness');
+        const colorTemp = document.getElementById('globalColorTemp');
+        const hue = document.getElementById('globalHue');
+        const saturation = document.getElementById('globalSaturation');
+        
+        if (!brightness || !colorTemp || !hue || !saturation) return;
+        
+        const brightnessValue = document.getElementById('globalBrightnessValue');
+        const colorTempValue = document.getElementById('globalColorTempValue');
+        const hueValue = document.getElementById('globalHueValue');
+        const saturationValue = document.getElementById('globalSaturationValue');
+        
+        if (brightnessValue) brightnessValue.textContent = `${brightness.value}%`;
+        if (colorTempValue) colorTempValue.textContent = `${colorTemp.value}K`;
+        if (hueValue) hueValue.textContent = `${hue.value}°`;
+        if (saturationValue) saturationValue.textContent = `${saturation.value}%`;
+    }
+    
+    updateColorPreview() {
+        // Only update if global control elements exist
+        const hueElement = document.getElementById('globalHue');
+        const saturationElement = document.getElementById('globalSaturation');
+        
+        if (!hueElement || !saturationElement) return;
+        
+        const hue = parseInt(hueElement.value);
+        const saturation = parseInt(saturationElement.value);
+        
+        const rgb = this.hsvToRgb(hue, saturation, 100);
+        const rgbString = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        
+        const colorPreview = document.getElementById('globalColorPreview');
+        const colorText = document.getElementById('globalColorText');
+        
+        if (colorPreview) colorPreview.style.backgroundColor = rgbString;
+        if (colorText) colorText.textContent = rgbString;
+    }
+    
+    hsvToRgb(h, s, v) {
+        h = h / 360;
+        s = s / 100;
+        v = v / 100;
+        
+        const c = v * s;
+        const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+        const m = v - c;
+        
+        let r, g, b;
+        
+        if (h < 1/6) {
+            r = c; g = x; b = 0;
+        } else if (h < 2/6) {
+            r = x; g = c; b = 0;
+        } else if (h < 3/6) {
+            r = 0; g = c; b = x;
+        } else if (h < 4/6) {
+            r = 0; g = x; b = c;
+        } else if (h < 5/6) {
+            r = x; g = 0; b = c;
+        } else {
+            r = c; g = 0; b = x;
+        }
+        
+        return {
+            r: Math.round((r + m) * 255),
+            g: Math.round((g + m) * 255),
+            b: Math.round((b + m) * 255)
+        };
+    }
+    
+    rgbToHsv(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        
+        let h = 0;
+        const s = max === 0 ? 0 : delta / max;
+        const v = max;
+        
+        if (delta !== 0) {
+            if (max === r) {
+                h = ((g - b) / delta) % 6;
+            } else if (max === g) {
+                h = (b - r) / delta + 2;
+            } else {
+                h = (r - g) / delta + 4;
+            }
+            h /= 6;
+            if (h < 0) h += 1;
+        }
+        
+        return { h, s, v };
+    }
+    
+    rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+    
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+    }
+
+    getContrastingColor(fillColor) {
+        // Parse RGB values from fillColor string
+        let r, g, b;
+        
+        if (fillColor.startsWith('rgb(')) {
+            // Extract RGB values from "rgb(r, g, b)" format
+            const match = fillColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (match) {
+                r = parseInt(match[1]);
+                g = parseInt(match[2]);
+                b = parseInt(match[3]);
+            } else {
+                return '#000000'; // Default to black if parsing fails
+            }
+        } else if (fillColor.startsWith('#')) {
+            // Extract RGB values from hex format
+            const rgb = this.hexToRgb(fillColor);
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        } else {
+            return '#000000'; // Default to black if format unknown
+        }
+        
+        // Calculate luminance using the relative luminance formula
+        // https://www.w3.org/TR/WCAG20/#relativeluminancedef
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        
+        // Return black for light colors, white for dark colors
+        return luminance > 0.5 ? '#000000' : '#FFFFFF';
+    }
+    
+    // Color temperature to RGB approximation
+    colorTempToRgb(colorTemp) {
+        // Simplified color temperature to RGB conversion
+        const temp = colorTemp / 100;
+        let r, g, b;
+        
+        if (temp <= 66) {
+            r = 255;
+            g = temp;
+            g = 99.4708025861 * Math.log(g) - 161.1195681661;
+            
+            if (temp >= 19) {
+                b = temp - 10;
+                b = 138.5177312231 * Math.log(b) - 305.0447927307;
+            } else {
+                b = 0;
+            }
+        } else {
+            r = temp - 60;
+            r = 329.698727446 * Math.pow(r, -0.1332047592);
+            
+            g = temp - 60;
+            g = 288.1221695283 * Math.pow(g, -0.0755148492);
+            
+            b = 255;
+        }
+        
+        return {
+            r: Math.max(0, Math.min(255, r)),
+            g: Math.max(0, Math.min(255, g)),
+            b: Math.max(0, Math.min(255, b))
+        };
+    }
+    
+    clearSelection() {
+        console.log('🎬 Clearing all scene settings for all lights');
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        // Clear all scene settings for all lights
+        assignedEntities.forEach(entity => {
+            // Reset all properties to "Not set"
+            this.sceneLightSettings.set(entity.entity_id, {
+                brightness: null,
+                kelvin: null,
+                color: null
+            });
+        });
+        
+        // Re-render the lights list to update the UI
+        this.renderFloorplanLightsList();
+        
+        console.log('🎬 All scene settings cleared');
+        this.showStatus(`Cleared scene settings for ${assignedEntities.length} lights`, 'success');
+        
+        // Keep for backwards compatibility
+        this.selectedFloorplanLights.clear();
+        this.updateSelectionUI();
+    }
+
+    selectAll() {
+        console.log('🎬 Setting default scene values for all lights');
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        // Set default scene values for all lights
+        assignedEntities.forEach(entity => {
+            this.sceneLightSettings.set(entity.entity_id, {
+                brightness: 80,    // 80% brightness
+                kelvin: 3000,     // 3000K (warm white)
+                color: null       // No color (keep "Not set")
+            });
+        });
+        
+        // Re-render the lights list to update the UI
+        this.renderFloorplanLightsList();
+        
+        console.log('🎬 All lights set with default scene values');
+        this.showStatus(`Set default scene values for ${assignedEntities.length} lights`, 'success');
+    }
+    
+    updateSelectionUI() {
+        // Scene saving now uses all floorplan lights, not selections
+        const hasFloorplanLights = this.getAssignedFloorplanEntities().length > 0;
+        const hasSceneName = document.getElementById('newSceneName').value.trim().length > 0;
+        document.getElementById('saveScene').disabled = !hasFloorplanLights || !hasSceneName;
+        
+        // Individual controls removed - using Scene Lights cards instead
+        // if (this.individualMode) {
+        //     this.renderIndividualControls();
+        // }
+    }
+    
+    toggleControlMode() {
+        // Toggle the mode first
+        this.individualMode = !this.individualMode;
+        
+        const globalControls = document.getElementById('globalControls');
+        const individualControls = document.getElementById('individualControls');
+        
+        if (this.individualMode) {
+            globalControls.style.display = 'none';
+            individualControls.style.display = 'block';
+            this.renderIndividualControls();
+        } else {
+            globalControls.style.display = 'block';
+            individualControls.style.display = 'none';
+        }
+    }
+    
+    renderIndividualControls() {
+        const container = document.getElementById('individualControlsList');
+        container.innerHTML = '';
+        
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        if (assignedEntities.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No lights in floorplan yet. Add lights to see individual controls.</p>';
+            return;
+        }
+        
+        assignedEntities.forEach(entity => {
+            const entityId = entity.entity_id;
+            // Generate a friendly display name
+            const lightName = entity.friendly_name && entity.friendly_name !== entityId 
+                ? entity.friendly_name 
+                : entityId.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Create a safe ID for DOM elements by replacing dots with underscores
+            const safeId = entityId.replace(/\./g, '_');
+            
+            const controlDiv = document.createElement('div');
+            controlDiv.className = 'individual-light-control';
+            controlDiv.innerHTML = `
+                <h4>${lightName}</h4>
+                <div class="entity-id-small">${entityId}</div>
+                <div class="control-group">
+                    <label>Brightness (%)</label>
+                    <input type="range" id="light${safeId}Brightness" min="0" max="100" value="${this.config.defaults.brightness}">
+                    <span id="light${safeId}BrightnessValue">${this.config.defaults.brightness}%</span>
+                </div>
+                <div class="control-group">
+                    <label>Color Temperature (K)</label>
+                    <input type="range" id="light${safeId}ColorTemp" min="2000" max="6500" value="${this.config.defaults.colorTemp}" step="100">
+                    <span id="light${safeId}ColorTempValue">${this.config.defaults.colorTemp}K</span>
+                </div>
+                <div class="control-group">
+                    <label>Hue (°)</label>
+                    <input type="range" id="light${safeId}Hue" min="0" max="360" value="${this.config.defaults.hue}">
+                    <span id="light${safeId}HueValue">${this.config.defaults.hue}°</span>
+                </div>
+                <div class="control-group">
+                    <label>Saturation (%)</label>
+                    <input type="range" id="light${safeId}Saturation" min="0" max="100" value="${this.config.defaults.saturation}">
+                    <span id="light${safeId}SaturationValue">${this.config.defaults.saturation}%</span>
+                </div>
+                <div class="color-preview">
+                    <div id="light${safeId}ColorPreview" class="color-preview-box"></div>
+                    <span id="light${safeId}ColorText">rgb(255, 165, 0)</span>
+                </div>
+            `;
+            
+            container.appendChild(controlDiv);
+            
+            // Setup individual control listeners
+            this.setupIndividualControlListeners(safeId);
+        });
+    }
+    
+    setupIndividualControlListeners(safeId) {
+        const controls = ['Brightness', 'ColorTemp', 'Hue', 'Saturation'];
+        const suffixes = ['%', 'K', '°', '%'];
+        
+        controls.forEach((control, index) => {
+            const slider = document.getElementById(`light${safeId}${control}`);
+            const valueSpan = document.getElementById(`light${safeId}${control}Value`);
+            
+            if (slider && valueSpan) {
+                slider.addEventListener('input', () => {
+                    valueSpan.textContent = `${slider.value}${suffixes[index]}`;
+                    this.updateIndividualColorPreview(safeId);
+                });
+            }
+        });
+        
+        this.updateIndividualColorPreview(safeId);
+    }
+    
+    updateIndividualColorPreview(safeId) {
+        const hue = parseInt(document.getElementById(`light${safeId}Hue`)?.value || this.config.defaults.hue);
+        const saturation = parseInt(document.getElementById(`light${safeId}Saturation`)?.value || this.config.defaults.saturation);
+        
+        const rgb = this.hsvToRgb(hue, saturation, 100);
+        const rgbString = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        
+        const preview = document.getElementById(`light${safeId}ColorPreview`);
+        const text = document.getElementById(`light${safeId}ColorText`);
+        
+        if (preview && text) {
+            preview.style.backgroundColor = rgbString;
+            text.textContent = rgbString;
+        }
+    }
+    
+    updateSelectedIndividualControls() {
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        assignedEntities.forEach(entity => {
+            const entityId = entity.entity_id;
+            const safeId = entityId.replace(/\./g, '_');
+            const brightness = document.getElementById('globalBrightness').value;
+            const colorTemp = document.getElementById('globalColorTemp').value;
+            const hue = document.getElementById('globalHue').value;
+            const saturation = document.getElementById('globalSaturation').value;
+            
+            const controls = [
+                { id: `light${safeId}Brightness`, value: brightness, suffix: '%' },
+                { id: `light${safeId}ColorTemp`, value: colorTemp, suffix: 'K' },
+                { id: `light${safeId}Hue`, value: hue, suffix: '°' },
+                { id: `light${safeId}Saturation`, value: saturation, suffix: '%' }
+            ];
+            
+            controls.forEach(control => {
+                const element = document.getElementById(control.id);
+                const valueElement = document.getElementById(`${control.id}Value`);
+                
+                if (element && valueElement) {
+                    element.value = control.value;
+                    valueElement.textContent = `${control.value}${control.suffix}`;
+                }
+            });
+            
+            this.updateIndividualColorPreview(safeId);
+        });
+    }
+    
+    renderScenes() {
+        const container = document.getElementById('scenesList');
+        container.innerHTML = '';
+        
+        if (this.scenes.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No scenes saved yet. Create your first scene!</p>';
+            return;
+        }
+        
+        this.scenes.forEach(scene => {
+            const sceneCard = document.createElement('div');
+            sceneCard.className = 'scene-card';
+            sceneCard.dataset.sceneId = scene.id;
+            
+            const createdDate = new Date(scene.created_at).toLocaleDateString();
+            const updatedDate = new Date(scene.updated_at).toLocaleDateString();
+            
+            sceneCard.innerHTML = `
+                <div class="scene-name">${scene.name}</div>
+                <div class="scene-info">
+                    ${scene.light_count} light${scene.light_count !== 1 ? 's' : ''}<br>
+                    Created: ${createdDate}<br>
+                    ${scene.created_at !== scene.updated_at ? `Updated: ${updatedDate}` : ''}
+                </div>
+                <div class="scene-actions-card">
+                    <button class="btn btn-small btn-primary" onclick="sceneManager.loadScene(${scene.id})">Load</button>
+                    <button class="btn btn-small btn-success" onclick="sceneManager.applySceneById(${scene.id})">Apply</button>
+                    <button class="btn btn-small btn-error" onclick="sceneManager.deleteScene(${scene.id})">Delete</button>
+                </div>
+            `;
+            
+            sceneCard.addEventListener('click', (e) => {
+                if (!e.target.closest('.scene-actions-card')) {
+                    this.selectScene(scene.id);
+                }
+            });
+            
+            container.appendChild(sceneCard);
+        });
+    }
+    
+    selectScene(sceneId) {
+        // Remove previous selection
+        document.querySelectorAll('.scene-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Select new scene
+        const sceneCard = document.querySelector(`[data-scene-id="${sceneId}"]`);
+        if (sceneCard) {
+            sceneCard.classList.add('selected');
+            this.selectedScene = sceneId;
+            document.getElementById('applyScene').disabled = false;
+        }
+    }
+    
+    async loadScene(sceneId) {
+        try {
+            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
+            if (!response.ok) {
+                throw new Error(`Scene request failed: ${response.status} ${response.statusText}`);
+            }
+            const scene = await response.json();
+            
+            this.clearSelection();
+            
+            scene.lights.forEach(light => {
+                this.selectedLights.add(light.position);
+                const button = document.querySelector(`[data-position="${light.position}"]`);
+                if (button) {
+                    button.classList.add('selected');
+                }
+                
+                // Update individual controls if in individual mode
+                if (this.individualMode) {
+                    this.setIndividualLightValues(light.position, light);
+                }
+            });
+            
+            this.selectScene(sceneId);
+            this.updateSelectionUI();
+            this.showStatus(`Scene "${scene.name}" loaded`, 'success');
+            
+        } catch (error) {
+            console.error('Error loading scene:', error);
+            this.showStatus('Failed to load scene', 'error');
+        }
+    }
+    
+
+    
+    async saveScene() {
+        const sceneName = document.getElementById('newSceneName').value.trim();
+        
+        if (!sceneName) {
+            this.showStatus('Please enter a scene name', 'warning');
+            return;
+        }
+        
+        // Get ALL floorplan lights (no selection required)
+        const assignedEntities = this.getAssignedFloorplanEntities();
+        
+        if (assignedEntities.length === 0) {
+            this.showStatus('No lights found in floorplan. Add lights to the floorplan first.', 'warning');
+            return;
+        }
+        
+        const lights = assignedEntities.map(entity => {
+            const entityId = entity.entity_id;
+            
+            // Get scene settings for this light
+            const sceneSettings = this.sceneLightSettings.get(entityId) || {
+                brightness: null,
+                kelvin: null,
+                color: null
+            };
+            
+            const lightData = {
+                entityId,
+                haEntityId: entityId
+            };
+            
+            // Only include properties that are set (not null)
+            if (sceneSettings.brightness !== null) {
+                lightData.brightness = sceneSettings.brightness;
+            }
+            
+            if (sceneSettings.kelvin !== null) {
+                lightData.colorTemp = sceneSettings.kelvin;
+            }
+            
+            if (sceneSettings.color !== null) {
+                lightData.hue = sceneSettings.color.hue;
+                lightData.saturation = sceneSettings.color.saturation;
+            }
+            
+            console.log(`🎬 Scene data for ${entityId}:`, lightData);
+            return lightData;
+        });
+        
+        console.log('🎬 Saving scene with lights:', lights);
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/scenes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: sceneName,
+                    lights
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                this.showStatus(`Scene "${sceneName}" saved successfully with ${lights.length} lights`, 'success');
+                document.getElementById('newSceneName').value = '';
+                await this.loadScenes();
+                this.updateSelectionUI();
+            } else {
+                this.showStatus(result.error || 'Failed to save scene', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error saving scene:', error);
+            this.showStatus('Failed to save scene', 'error');
+        }
+    }
+    
+    async applyScene() {
+        if (!this.selectedScene) {
+            this.showStatus('Please select a scene first', 'warning');
+            return;
+        }
+        
+        await this.applySceneById(this.selectedScene);
+    }
+    
+    async applySceneById(sceneId) {
+        try {
+            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}/apply`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                this.showStatus(result.message, 'success');
+                // Refresh light states
+                await this.loadLights();
+                this.renderFloorplanLightsList();
+            } else {
+                this.showStatus(result.error || 'Failed to apply scene', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error applying scene:', error);
+            this.showStatus('Failed to apply scene', 'error');
+        }
+    }
+    
+    async deleteScene(sceneId) {
+        const scene = this.scenes.find(s => s.id === sceneId);
+        if (!scene) return;
+        
+        if (!confirm(`Are you sure you want to delete the scene "${scene.name}"?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                this.showStatus(`Scene "${scene.name}" deleted`, 'success');
+                await this.loadScenes();
+                
+                if (this.selectedScene === sceneId) {
+                    this.selectedScene = null;
+                    document.getElementById('applyScene').disabled = true;
+                }
+            } else {
+                this.showStatus(result.error || 'Failed to delete scene', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error deleting scene:', error);
+            this.showStatus('Failed to delete scene', 'error');
+        }
+    }
+    
+    // Removed captureCurrentState method - functionality now integrated into Save Scene
+    
+    async refresh() {
+        try {
+            this.showStatus('Refreshing data...', 'info');
+            
+            // Reload all data in parallel
+            await Promise.all([
+                this.loadScenes(),
+                this.loadLights(),
+                this.loadMappings(),
+                this.loadAreas(),
+                this.loadSavedFloorplans()
+            ]);
+            
+            // Update UI components
+            this.renderFloorplanLightsList();
+            
+            this.showStatus('Data refreshed successfully', 'success');
+        } catch (error) {
+            console.error('Error refreshing:', error);
+            this.showStatus('Failed to refresh data', 'error');
+        }
+    }
+    
+    openSettings() {
+        document.getElementById('settingsModal').style.display = 'block';
+    }
+    
+    closeSettings() {
+        document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    // Notification History Methods
+    initializeNotificationSystem() {
+        if (!this.notificationHistory) {
+            this.notificationHistory = [];
+            this.maxNotifications = 50;
+        }
+    }
+
+    addToNotificationHistory(message, type) {
+        this.initializeNotificationSystem();
+        
+        const notification = {
+            id: Date.now() + Math.random(),
+            message: message,
+            type: type,
+            timestamp: new Date()
+        };
+        
+        // Add to beginning of array (newest first)
+        this.notificationHistory.unshift(notification);
+        
+        // Limit history size
+        if (this.notificationHistory.length > this.maxNotifications) {
+            this.notificationHistory = this.notificationHistory.slice(0, this.maxNotifications);
+        }
+        
+        // Update notification badge
+        this.updateNotificationBadge();
+        
+        // Update notification panel if open
+        if (this.isNotificationPanelOpen()) {
+            this.renderNotificationHistory();
+        }
+    }
+
+    updateNotificationBadge() {
+        const badge = document.getElementById('notificationBadge');
+        if (badge && this.notificationHistory) {
+            const count = this.notificationHistory.length;
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count.toString();
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
+    isNotificationPanelOpen() {
+        const panel = document.getElementById('notificationPanel');
+        return panel && panel.style.display !== 'none';
+    }
+
+    toggleNotificationPanel() {
+        const panel = document.getElementById('notificationPanel');
+        if (!panel) return;
+        
+        if (this.isNotificationPanelOpen()) {
+            this.closeNotificationPanel();
+        } else {
+            this.openNotificationPanel();
+        }
+    }
+
+    openNotificationPanel() {
+        const panel = document.getElementById('notificationPanel');
+        if (!panel) return;
+        
+        panel.style.display = 'block';
+        this.renderNotificationHistory();
+        
+        // Add click outside to close with proper event handling
+        setTimeout(() => {
+            document.addEventListener('click', this.handleNotificationPanelOutsideClick, true);
+        }, 150);
+    }
+
+    closeNotificationPanel() {
+        const panel = document.getElementById('notificationPanel');
+        if (!panel) return;
+        
+        panel.style.display = 'none';
+        document.removeEventListener('click', this.handleNotificationPanelOutsideClick, true);
+    }
+
+    handleNotificationPanelOutsideClick = (e) => {
+        const panel = document.getElementById('notificationPanel');
+        const notificationBtn = document.getElementById('notificationBtn');
+        
+        // Check if panel is actually open
+        if (!panel || panel.style.display === 'none') {
+            return;
+        }
+        
+        // Don't close if clicking on the notification button or inside the panel
+        if (panel && notificationBtn && 
+            !panel.contains(e.target) && 
+            !notificationBtn.contains(e.target) &&
+            !e.target.closest('.notification-badge')) {
+            this.closeNotificationPanel();
+        }
+    }
+
+    renderNotificationHistory() {
+        const container = document.getElementById('notificationHistory');
+        if (!container) return;
+        
+        if (!this.notificationHistory || this.notificationHistory.length === 0) {
+            container.innerHTML = `
+                <div class="notification-empty">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>No notifications yet</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const getIcon = (type) => {
+            switch (type) {
+                case 'success': return 'fas fa-check-circle';
+                case 'error': return 'fas fa-exclamation-circle';
+                case 'warning': return 'fas fa-exclamation-triangle';
+                case 'info': 
+                default: return 'fas fa-info-circle';
+            }
+        };
+        
+        const formatTime = (timestamp) => {
+            const now = new Date();
+            const diff = now - timestamp;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (seconds < 60) return 'Just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            return timestamp.toLocaleDateString();
+        };
+        
+        container.innerHTML = this.notificationHistory.map(notification => `
+            <div class="notification-item" data-id="${notification.id}">
+                <div class="notification-icon ${notification.type}">
+                    <i class="${getIcon(notification.type)}"></i>
+                </div>
+                <div class="notification-content">
+                    <p class="notification-message">${notification.message}</p>
+                    <div class="notification-time">${formatTime(notification.timestamp)}</div>
+                </div>
+                <button class="notification-delete" onclick="window.lightController.deleteNotification('${notification.id}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    deleteNotification(notificationId) {
+        if (!this.notificationHistory) return;
+        
+        this.notificationHistory = this.notificationHistory.filter(n => n.id != notificationId);
+        this.updateNotificationBadge();
+        this.renderNotificationHistory();
+    }
+
+    clearAllNotifications() {
+        this.notificationHistory = [];
+        this.updateNotificationBadge();
+        this.renderNotificationHistory();
+    }
+    
+
+    
+
+    
+
+    
+    setupSearchableSelect(selectElement, onSelect) {
+        const input = selectElement.querySelector('input');
+        const dropdown = selectElement.querySelector('.dropdown-options');
+        let isOpen = false;
+        let originalValue = '';
+        
+        // Store reference for cleanup
+        if (!selectElement._listeners) {
+            selectElement._listeners = [];
+        }
+        
+        // Open dropdown when input is focused or clicked
+        const openDropdown = () => {
+            if (!isOpen) {
+                this.closeAllDropdowns();
+                dropdown.classList.add('show');
+                isOpen = true;
+                originalValue = input.value;
+                input.removeAttribute('readonly');
+                input.focus();
+                
+                // Reset search filter when opening
+                this.filterDropdownOptions(dropdown, '');
+            }
+        };
+        
+        const handleFocus = (e) => {
+            openDropdown();
+        };
+        
+        const handleClick = (e) => {
+            e.stopPropagation();
+            if (!isOpen) {
+                openDropdown();
+            }
+        };
+        
+        // Search functionality  
+        const handleInput = () => {
+            if (!isOpen) {
+                openDropdown();
+            }
+            
+            const searchTerm = input.value.toLowerCase();
+            this.filterDropdownOptions(dropdown, searchTerm);
+        };
+        
+        // Option selection
+        const handleOptionClick = (e) => {
+            const option = e.target.closest('.dropdown-option');
+            if (!option) return;
+            
+            e.stopPropagation();
+            const value = option.dataset.value;
+            const entityName = option.querySelector('.entity-name')?.textContent || '';
+            
+            input.value = entityName;
+            selectElement.dataset.selectedValue = value;
+            originalValue = entityName;
+            this.closeDropdown(selectElement);
+            
+            if (onSelect) onSelect(value, entityName);
+        };
+        
+        // Keyboard navigation
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                input.value = originalValue;
+                this.closeDropdown(selectElement);
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.navigateDropdownOptions(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const selected = dropdown.querySelector('.dropdown-option.highlighted');
+                if (selected) {
+                    selected.click();
+                }
+            }
+        };
+        
+        // Add event listeners
+        input.addEventListener('focus', handleFocus);
+        input.addEventListener('click', handleClick);
+        input.addEventListener('input', handleInput);
+        dropdown.addEventListener('click', handleOptionClick);
+        input.addEventListener('keydown', handleKeydown);
+        
+        // Store listeners for cleanup
+        selectElement._listeners.push(
+            { element: input, event: 'focus', handler: handleFocus },
+            { element: input, event: 'click', handler: handleClick },
+            { element: input, event: 'input', handler: handleInput },
+            { element: dropdown, event: 'click', handler: handleOptionClick },
+            { element: input, event: 'keydown', handler: handleKeydown }
+        );
+        
+        // Close dropdown function
+        selectElement._closeDropdown = () => {
+            if (isOpen) {
+                dropdown.classList.remove('show');
+                isOpen = false;
+                input.setAttribute('readonly', true);
+                
+                // Reset to selected value if no valid selection was made
+                const selectedValue = selectElement.dataset.selectedValue;
+                if (selectedValue) {
+                    const selectedOption = dropdown.querySelector(`[data-value="${selectedValue}"]`);
+                    if (selectedOption) {
+                        const entityName = selectedOption.querySelector('.entity-name')?.textContent || '';
+                        input.value = entityName;
+                        originalValue = entityName;
+                    }
+                } else if (!input.value.trim()) {
+                    input.value = '';
+                    originalValue = '';
+                }
+            }
+        };
+    }
+    
+    filterDropdownOptions(dropdown, searchTerm) {
+        const options = dropdown.querySelectorAll('.dropdown-option');
+        let hasVisibleOptions = false;
+        
+        options.forEach(option => {
+            const entityName = option.querySelector('.entity-name')?.textContent.toLowerCase() || '';
+            const entityId = option.querySelector('.entity-id')?.textContent.toLowerCase() || '';
+            const isMatch = !searchTerm || entityName.includes(searchTerm) || entityId.includes(searchTerm);
+            
+            option.style.display = isMatch ? 'block' : 'none';
+            if (isMatch) hasVisibleOptions = true;
+            
+            // Remove any existing highlighting
+            option.classList.remove('highlighted');
+        });
+        
+        // Show/hide no results message
+        let noResults = dropdown.querySelector('.no-results');
+        if (!hasVisibleOptions && searchTerm) {
+            if (!noResults) {
+                noResults = document.createElement('div');
+                noResults.className = 'no-results dropdown-option';
+                noResults.innerHTML = '<div class="entity-name">No matching lights found</div>';
+                dropdown.appendChild(noResults);
+            }
+            noResults.style.display = 'block';
+        } else if (noResults) {
+            noResults.style.display = 'none';
+        }
+    }
+    
+    navigateDropdownOptions(dropdown, direction) {
+        const visibleOptions = Array.from(dropdown.querySelectorAll('.dropdown-option'))
+            .filter(option => option.style.display !== 'none' && !option.classList.contains('no-results'));
+        
+        if (visibleOptions.length === 0) return;
+        
+        const currentHighlighted = dropdown.querySelector('.dropdown-option.highlighted');
+        let newIndex = 0;
+        
+        if (currentHighlighted) {
+            const currentIndex = visibleOptions.indexOf(currentHighlighted);
+            newIndex = currentIndex + direction;
+            currentHighlighted.classList.remove('highlighted');
+        }
+        
+        // Wrap around
+        if (newIndex < 0) newIndex = visibleOptions.length - 1;
+        if (newIndex >= visibleOptions.length) newIndex = 0;
+        
+        visibleOptions[newIndex].classList.add('highlighted');
+        visibleOptions[newIndex].scrollIntoView({ block: 'nearest' });
+    }
+    
+    closeDropdown(selectElement) {
+        if (selectElement._closeDropdown) {
+            selectElement._closeDropdown();
+        }
+    }
+    
+    closeAllDropdowns() {
+        document.querySelectorAll('.searchable-select').forEach(selectElement => {
+            if (selectElement._closeDropdown) {
+                selectElement._closeDropdown();
+            }
+        });
+    }
+    
+
+    
+    showStatus(message, type = 'info') {
+        // Add to notification history
+        this.addToNotificationHistory(message, type);
+        const container = document.getElementById('statusMessages');
+        const statusDiv = document.createElement('div');
+        statusDiv.className = `status-message status-${type}`;
+        statusDiv.textContent = message;
+        
+        container.appendChild(statusDiv);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (statusDiv.parentNode) {
+                statusDiv.remove();
+            }
+        }, 5000);
+    }
+    showLoadingState() {
+        console.log('📋 Showing loading state on canvas...');
+        
+        // Clear the canvas immediately
+        this.canvas.clear();
+        this.lights = [];
+        this.texts = [];
+        this.labels = [];
+        this.roomOutline = null;
+        this.backgroundImage = null;
+        
+        // Set canvas background
+        this.canvas.backgroundColor = this.isDarkTheme ? '#1a1a1a' : '#f5f5f5';
+        
+        // Create loading message
+        const loadingText = new fabric.Text('Loading floorplan...', {
+            left: this.canvas.width / 2,
+            top: this.canvas.height / 2,
+            fontSize: 32,
+            fill: this.isDarkTheme ? '#ffffff' : '#333333',
+            fontFamily: 'Arial, sans-serif',
+            textAlign: 'center',
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false
+        });
+        
+        // Create loading spinner using text characters
+        const spinner = new fabric.Text('⟳', {
+            left: this.canvas.width / 2,
+            top: (this.canvas.height / 2) + 60,
+            fontSize: 48,
+            fill: this.isDarkTheme ? '#4CAF50' : '#2196F3',
+            fontFamily: 'Arial, sans-serif',
+            textAlign: 'center',
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false
+        });
+        
+        // Add loading elements to canvas
+        this.canvas.add(loadingText);
+        this.canvas.add(spinner);
+        
+        // Store references for cleanup
+        this.loadingText = loadingText;
+        this.loadingSpinner = spinner;
+        
+        // Animate the spinner
+        this.startSpinnerAnimation();
+        
+        this.canvas.renderAll();
+    }
+
+    hideLoadingState() {
+        console.log('📋 Hiding loading state from canvas...');
+        
+        // Stop spinner animation
+        this.stopSpinnerAnimation();
+        
+        // Remove loading elements
+        if (this.loadingText) {
+            this.canvas.remove(this.loadingText);
+            this.loadingText = null;
+        }
+        
+        if (this.loadingSpinner) {
+            this.canvas.remove(this.loadingSpinner);
+            this.loadingSpinner = null;
+        }
+        
+        this.canvas.renderAll();
+    }
+
+    startSpinnerAnimation() {
+        if (this.loadingSpinner) {
+            // Stop any existing animation
+            this.stopSpinnerAnimation();
+            
+            // Start rotation animation
+            this.spinnerAnimation = setInterval(() => {
+                if (this.loadingSpinner) {
+                    this.loadingSpinner.set('angle', (this.loadingSpinner.angle + 30) % 360);
+                    this.canvas.renderAll();
+                }
+            }, 100);
+        }
+    }
+
+    stopSpinnerAnimation() {
+        if (this.spinnerAnimation) {
+            clearInterval(this.spinnerAnimation);
+            this.spinnerAnimation = null;
+        }
+    }
+    
+    // ========================================
+    // Network Label Management
+    // ========================================
+    
+    async showIPLabels() {
+        console.log('🌐 Showing IP labels...');
+        window.sceneManager?.showStatus('Loading IP addresses...', 'info');
+        
+        try {
+            // Clear existing IP labels
+            this.clearIPLabels();
+            
+            // Get network info for all assigned lights
+            const networkInfo = await this.getNetworkInfoForLights();
+            
+            if (networkInfo.length === 0) {
+                window.sceneManager?.showStatus('No lights with network information found', 'warning');
+                return;
+            }
+            
+            // Create IP labels
+            let labelsCreated = 0;
+            networkInfo.forEach(info => {
+                if (info.ipAddress) {
+                    const label = this.createNetworkLabel(info.light, info.ipAddress, 'ip');
+                    if (label) {
+                        this.ipLabels.push(label);
+                        labelsCreated++;
+                    }
+                }
+            });
+            
+            window.sceneManager?.showStatus(`${labelsCreated} IP labels displayed`, 'success');
+            this.canvas.renderAll();
+            
+        } catch (error) {
+            console.error('❌ Error showing IP labels:', error);
+            window.sceneManager?.showStatus('Failed to load IP labels: ' + error.message, 'error');
+        }
+    }
+    
+    async showHostnameLabels() {
+        console.log('🖥️ Showing hostname labels...');
+        window.sceneManager?.showStatus('Loading hostnames...', 'info');
+        
+        try {
+            // Clear existing hostname labels
+            this.clearHostnameLabels();
+            
+            // Get network info for all assigned lights
+            const networkInfo = await this.getNetworkInfoForLights();
+            
+            if (networkInfo.length === 0) {
+                window.sceneManager?.showStatus('No lights with network information found', 'warning');
+                return;
+            }
+            
+            // Create hostname labels
+            let labelsCreated = 0;
+            networkInfo.forEach(info => {
+                if (info.hostname) {
+                    const label = this.createNetworkLabel(info.light, info.hostname, 'hostname');
+                    if (label) {
+                        this.hostnameLabels.push(label);
+                        labelsCreated++;
+                    }
+                }
+            });
+            
+            window.sceneManager?.showStatus(`${labelsCreated} hostname labels displayed`, 'success');
+            this.canvas.renderAll();
+            
+        } catch (error) {
+            console.error('❌ Error showing hostname labels:', error);
+            window.sceneManager?.showStatus('Failed to load hostname labels: ' + error.message, 'error');
+        }
+    }
+    
+    async showMACLabels() {
+        console.log('🔗 Showing MAC address labels...');
+        window.sceneManager?.showStatus('Loading MAC addresses...', 'info');
+        
+        try {
+            // Clear existing MAC labels
+            this.clearMACLabels();
+            
+            // Get network info for all assigned lights
+            const networkInfo = await this.getNetworkInfoForLights();
+            
+            if (networkInfo.length === 0) {
+                window.sceneManager?.showStatus('No lights with network information found', 'warning');
+                return;
+            }
+            
+            // Create MAC labels
+            let labelsCreated = 0;
+            networkInfo.forEach(info => {
+                if (info.macAddress) {
+                    const label = this.createNetworkLabel(info.light, info.macAddress, 'mac');
+                    if (label) {
+                        this.macLabels.push(label);
+                        labelsCreated++;
+                    }
+                }
+            });
+            
+            window.sceneManager?.showStatus(`${labelsCreated} MAC address labels displayed`, 'success');
+            this.canvas.renderAll();
+            
+        } catch (error) {
+            console.error('❌ Error showing MAC labels:', error);
+            window.sceneManager?.showStatus('Failed to load MAC labels: ' + error.message, 'error');
+        }
+    }
+    
+    async getNetworkInfoForLights() {
+        // Get all lights on the floorplan that have assigned entities
+        const assignedLights = this.lights.filter(light => light.entityId);
+        
+        if (assignedLights.length === 0) {
+            throw new Error('No lights with assigned entities found on floorplan');
+        }
+        
+        console.log(`🔍 Found ${assignedLights.length} assigned lights on floorplan`);
+        
+        // Get HA API configuration
+        const haUrl = `${window.location.protocol}//${window.location.host}${API_BASE}`;
+        const haToken = localStorage.getItem('ha_token') || '';
+        
+        if (!haToken) {
+            throw new Error('Home Assistant token not configured');
+        }
+        
+        // Get device registry and device trackers
+        const [deviceRegistry, deviceTrackers] = await Promise.all([
+            this.getDeviceRegistry(haUrl, haToken),
+            this.getDeviceTrackersByMAC(haUrl, haToken)
+        ]);
+        
+        console.log(`📱 Found ${Object.keys(deviceRegistry).length} devices in registry`);
+        console.log(`📍 Found ${Object.keys(deviceTrackers).length} device trackers`);
+        
+        // Match lights to network information
+        const networkInfo = [];
+        
+        for (const light of assignedLights) {
+            try {
+                const entityId = light.entityId;
+                
+                // Find device for this entity
+                const device = this.findDeviceForEntity(entityId, deviceRegistry);
+                if (!device) {
+                    console.warn(`⚠️ No device found for entity: ${entityId}`);
+                    continue;
+                }
+                
+                // Get MAC address from device
+                const macAddress = this.getMACAddressFromDevice(device);
+                if (!macAddress) {
+                    console.warn(`⚠️ No MAC address found for device: ${device.name}`);
+                    continue;
+                }
+                
+                // Find corresponding device tracker
+                const tracker = deviceTrackers[macAddress.toLowerCase()];
+                if (!tracker) {
+                    console.warn(`⚠️ No device tracker found for MAC: ${macAddress}`);
+                    continue;
+                }
+                
+                // Extract network information
+                const info = {
+                    light: light,
+                    entityId: entityId,
+                    deviceName: device.name || device.name_by_user,
+                    macAddress: macAddress.toUpperCase(),
+                    ipAddress: null,
+                    hostname: null
+                };
+                
+                // Get IP address if device is online
+                if (tracker.state === 'home' && tracker.attributes?.ip) {
+                    info.ipAddress = tracker.attributes.ip;
+                }
+                
+                // Get hostname from device tracker name or attributes
+                if (tracker.attributes?.friendly_name) {
+                    info.hostname = tracker.attributes.friendly_name;
+                } else if (tracker.entity_id) {
+                    // Extract hostname from entity_id (device_tracker.hostname)
+                    const parts = tracker.entity_id.split('.');
+                    if (parts.length > 1) {
+                        info.hostname = parts[1];
+                    }
+                }
+                
+                networkInfo.push(info);
+                console.log(`✅ Network info for ${entityId}:`, info);
+                
+            } catch (error) {
+                console.error(`❌ Error processing light ${light.entityId}:`, error);
+            }
+        }
+        
+        return networkInfo;
+    }
+    
+    async getDeviceRegistry(haUrl, haToken) {
+        // For now, we'll get device info from the existing light entities
+        // This is a simplified approach that works with the current system
+        const devices = {};
+        
+        if (window.lightEntities) {
+            Object.values(window.lightEntities).forEach(entity => {
+                if (entity.device_id) {
+                    devices[entity.device_id] = {
+                        id: entity.device_id,
+                        name: entity.friendlyName || entity.friendly_name || entity.entity_id,
+                        name_by_user: entity.friendlyName || entity.friendly_name,
+                        connections: entity.connections || [],
+                        // For WiZ lights, try to extract MAC from entity attributes
+                        mac_address: entity.attributes?.mac || null
+                    };
+                }
+            });
+        }
+        
+        return devices;
+    }
+    
+    async getDeviceTrackersByMAC(haUrl, haToken) {
+        try {
+            const response = await fetch(`${haUrl}/api/states`, {
+                headers: {
+                    'Authorization': `Bearer ${haToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get states: ${response.status}`);
+            }
+            
+            const states = await response.json();
+            const trackerMap = {};
+            
+            // Build MAC -> device tracker mapping
+            states.forEach(state => {
+                if (state.entity_id.startsWith('device_tracker.')) {
+                    const mac = state.attributes?.mac?.toLowerCase();
+                    if (mac) {
+                        trackerMap[mac] = {
+                            entity_id: state.entity_id,
+                            state: state.state,
+                            attributes: state.attributes
+                        };
+                    }
+                }
+            });
+            
+            return trackerMap;
+            
+        } catch (error) {
+            console.error('❌ Error getting device trackers:', error);
+            throw error;
+        }
+    }
+    
+    findDeviceForEntity(entityId, deviceRegistry) {
+        // For lights with device_id in the entity data
+        const entity = window.lightEntities?.[entityId];
+        if (entity?.device_id && deviceRegistry[entity.device_id]) {
+            return deviceRegistry[entity.device_id];
+        }
+        
+        // Fallback: try to find by name matching
+        const entityName = entity?.friendlyName || entity?.friendly_name || entityId;
+        return Object.values(deviceRegistry).find(device => 
+            device.name?.includes(entityName) || 
+            entityName.includes(device.name)
+        );
+    }
+    
+    getMACAddressFromDevice(device) {
+        // Try device connections first
+        if (device.connections) {
+            for (const connection of device.connections) {
+                if (connection[0] === 'mac') {
+                    return connection[1];
+                }
+            }
+        }
+        
+        // Try direct mac_address property
+        return device.mac_address || null;
+    }
+    
+    createNetworkLabel(light, text, labelType) {
+        try {
+            const labelText = new fabric.Text(text, {
+                left: light.left,
+                top: light.top + 40 + (labelType === 'ip' ? 0 : labelType === 'hostname' ? 15 : 30),
+                fontSize: 10,
+                fill: this.isDarkTheme ? '#ffffff' : '#333333',
+                backgroundColor: this.isDarkTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+                fontFamily: 'Monaco, Consolas, monospace',
+                textAlign: 'center',
+                originX: 'center',
+                originY: 'center',
+                selectable: false,
+                evented: false,
+                networkLabel: true,
+                labelType: labelType,
+                parentLight: light
+            });
+            
+            this.canvas.add(labelText);
+            return labelText;
+            
+        } catch (error) {
+            console.error('❌ Error creating network label:', error);
+            return null;
+        }
+    }
+    
+    clearIPLabels() {
+        this.ipLabels.forEach(label => {
+            this.canvas.remove(label);
+        });
+        this.ipLabels = [];
+    }
+    
+    clearHostnameLabels() {
+        this.hostnameLabels.forEach(label => {
+            this.canvas.remove(label);
+        });
+        this.hostnameLabels = [];
+    }
+    
+    clearMACLabels() {
+        this.macLabels.forEach(label => {
+            this.canvas.remove(label);
+        });
+        this.macLabels = [];
+    }
+    
+    clearAllNetworkLabels() {
+        this.clearIPLabels();
+        this.clearHostnameLabels();
+        this.clearMACLabels();
+        this.canvas.renderAll();
+    }
+}
+
+// Initialize the application when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Initializing LightMapper Controller...');
+window.sceneManager = new LightMapperController();
+    
+    // Setup scene name input validation after sceneManager is initialized
+    const newSceneName = document.getElementById('newSceneName');
+    if (newSceneName) {
+        newSceneName.addEventListener('input', (e) => {
+            const hasText = e.target.value.trim().length > 0;
+            const hasSelection = window.sceneManager?.selectedLights.size > 0;
+            const saveButton = document.getElementById('saveScene');
+            if (saveButton) {
+                saveButton.disabled = !hasText || !hasSelection;
+            }
+        });
+    }
+});
+
+// Floorplan Editor using Fabric.js
+class FloorplanEditor {
+    constructor() {
+        this.canvas = null;
+        this.currentTool = 'select';
+        this.gridVisible = true;
+        this.snapEnabled = true;
+        
+        // Grid system: 1 foot = 48 pixels, so 0.5 feet = 24 pixels per grid square
+        this.pixelsPerFoot = 48; // Base scale: 48 pixels = 1 foot
+        this.gridSize = 24; // 0.5 feet per grid square (24 pixels)
+        this.feetPerGrid = 0.5; // Each grid square represents 0.5 feet
+        
+        // Measurement system
+        this.useMetric = false; // false = Imperial (feet), true = Metric (meters)
+        this.pixelsPerMeter = this.pixelsPerFoot * 3.28084; // 1 meter = 3.28084 feet
+        this.metersPerGrid = this.feetPerGrid / 3.28084; // Grid size in meters
+        
+        this.isDarkTheme = false;
+        this.showLabels = false;
+        this.useFriendlyNames = false; // Always use entity names
+        this.lightIconStyle = 'circle'; // Default light style
+        this.showCurrentState = true; // true = show HA current state, false = show scene preview
+
+        this.isDrawing = false;
+        this.drawingPoints = [];
+        this.roomOutline = null;
+
+        this.lights = [];
+        this.texts = [];
+        this.labels = [];
+        
+        // Network label tracking
+        this.ipLabels = [];
+        this.hostnameLabels = [];
+        this.macLabels = [];
+        
+        // Snapping enhancements
+        this.snapTolerance = 10; // pixels within which to snap to objects
+        this.snapGuides = []; // for visual feedback lines
+        this.selectedLight = null; // currently selected light for controls integration
+        
+        // Distance measurement display
+        this.measurementDisplay = null; // Current measurement overlay
+        this.showMeasurements = true; // Enable/disable measurement display
+        
+        this.autoSaveTimer = null;
+        this.saveDelay = 2000; // 2 seconds after last change
+        this.autoSaveInterval = 30000; // 30 seconds periodic save
+        this.isLoadingLayout = false; // Flag to prevent auto-save during loading
+        this.initialLoadComplete = false; // Flag to prevent automatic loading after init
+        this.zoomLevel = 1.0; // Initialize zoom level to 100%
+        
+        // Panning state
+        this.isPanning = false;
+        this.panStart = null;
+        this.spacebarPressed = false;
+        
+        // Room drawing mode - default to rectangle
+        this.roomDrawingMode = 'rectangle'; // 'rectangle' or 'polygon'
+        
+        // Room fill color settings
+        this.roomFillColor = '#cccccc'; // Default room fill color (hex)
+        this.roomFillOpacity = 0.3; // Default opacity (0.0 to 1.0)
+        
+        this.init();
+    }
+    
+    init() {
+        console.log('🚀 FloorplanEditor.init() called');
+        this.setupCanvas();
+        this.setupEventListeners();
+        this.drawGrid();
+        this.resizeCanvas();
+        this.loadLayoutFromAutoSave();
+        this.createLabels();
+        this.startAutoSave();
+        
+        // Initialize layer manager after canvas is ready
+        this.layerManager = new LayerManager(this);
+        window.layerManager = this.layerManager; // Make globally accessible
+        
+        // ✅ SET DEFAULT TOOL TO SELECT MODE
+        console.log('🎯 Setting default tool to SELECT');
+        this.setTool('select');
+        
+        console.log('✅ FloorplanEditor initialization complete');
+    }
+    
+    setupCanvas() {
+        console.log('🎨 Setting up canvas...');
+        
+        const canvasElement = document.getElementById('floorplan-canvas');
+        const workspace = document.querySelector('.drawing-area');
+        
+        if (!canvasElement) {
+            console.error('❌ Canvas element not found!');
+            return;
+        }
+        
+        if (!workspace) {
+            console.error('❌ Workspace element not found!');
+            return;
+        }
+        
+        // Wait for the DOM to be properly rendered
+        if (!workspace.clientWidth || !workspace.clientHeight) {
+            console.warn('⚠️ Workspace not fully rendered yet, retrying in 100ms...');
+            setTimeout(() => this.setupCanvas(), 100);
+            return;
+        }
+        
+        console.log('  Canvas element found:', canvasElement);
+        console.log('  Workspace found:', workspace);
+        
+        // Set canvas size to fill workspace with proper sizing
+        const width = workspace.clientWidth || 800;
+        const height = workspace.clientHeight || 600;
+        
+        console.log('  Calculated dimensions:', { width, height });
+        console.log('  Workspace clientWidth/Height:', workspace.clientWidth, workspace.clientHeight);
+        console.log('  Workspace offsetWidth/Height:', workspace.offsetWidth, workspace.offsetHeight);
+        
+        canvasElement.width = width;
+        canvasElement.height = height;
+        
+        console.log('  Canvas element dimensions set to:', { 
+            width: canvasElement.width, 
+            height: canvasElement.height,
+            style: canvasElement.style.cssText
+        });
+        
+        try {
+            this.canvas = new fabric.Canvas('floorplan-canvas', {
+                backgroundColor: this.isDarkTheme ? '#1a1a1a' : '#ffffff',
+                selection: true,
+                preserveObjectStacking: true,
+                allowTouchScrolling: false,
+                imageSmoothingEnabled: false,
+                width: width,
+                height: height,
+                // Enable SHIFT key for proportional scaling and constrained angles
+                uniScaleTransform: true,
+                centeredScaling: false,
+                centeredRotation: false,
+                // 🔧 FIX: Proper right-click handling for Fabric.js v6
+                stopContextMenu: true,  // Prevents browser context menu
+                fireRightClick: true    // Enables right-click events in Fabric
+            });
+            
+            console.log('✅ Fabric.js canvas created successfully');
+            console.log('  Canvas dimensions in Fabric:', { 
+                width: this.canvas.width, 
+                height: this.canvas.height 
+            });
+            
+            // 🔧 FIX: Additional context menu prevention for better browser compatibility
+            this.canvas.getElement().addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+            
+            // 🔧 FIX: Also prevent on upper canvas element
+            this.canvas.upperCanvasEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+            
+        } catch (error) {
+            console.error('❌ Failed to create Fabric.js canvas:', error);
+            return;
+        }
+        
+        // Configure selection styles
+        this.canvas.selectionColor = 'rgba(0, 153, 255, 0.1)';
+        this.canvas.selectionBorderColor = '#0099ff';
+        this.canvas.selectionLineWidth = 1;
+        
+        // 🔥 COMPREHENSIVE EVENT DEBUGGING
+        console.log('🔥 Setting up canvas events with extensive debugging...');
+        
+        // 🔧 FIX: Right-click event for context menu (set up FIRST to handle right-clicks)
+        this.canvas.on('mouse:down', (e) => {
+            // Check if this is a right-click (button 3 or e.button === 2)
+            if (e.e && (e.e.button === 2 || e.e.which === 3)) {
+                console.log('🖱️ RIGHT CLICK detected:', e);
+                console.log('  Target:', e.target);
+                console.log('  Pointer:', e.pointer);
+                
+                // Prevent the default context menu
+                e.e.preventDefault();
+                e.e.stopPropagation();
+                
+                // Only show context menu on light objects
+                if (e.target && e.target.lightObject) {
+                    console.log('🔧 Right-click on light object - showing context menu');
+                    this.showLightContextMenu(e.target, e.e);
+                }
+                return false;
+            }
+            
+            // Handle non-right-click mouse down events
+            console.log('🖱️ MOUSE DOWN:', e);
+            console.log('  Target:', e.target);
+            console.log('  Pointer:', e.pointer);
+            console.log('  Current tool:', this.currentTool);
+            this.handleMouseDown(e);
+        });
+        
+        this.canvas.on('mouse:move', (e) => {
+            // Don't log every mouse move to avoid spam
+            this.handleMouseMove(e);
+        });
+        
+        this.canvas.on('mouse:up', (e) => {
+            console.log('🖱️ MOUSE UP:', e);
+            console.log('  Target:', e.target);
+            console.log('  Pointer:', e.pointer);
+            this.handleMouseUp(e);
+        });
+        
+        // 🔧 FIX: Double-click event for entity assignment
+        this.canvas.on('mouse:dblclick', (e) => {
+            console.log('🖱️ DOUBLE CLICK:', e);
+            console.log('  Target:', e.target);
+            console.log('  Pointer:', e.pointer);
+            
+            // Only handle double-click on light objects
+            if (e.target && e.target.lightObject) {
+                console.log('🔧 Double-click on light object - setting light for entity panel');
+                // Use the new entity panel instead of old popup
+                if (window.entityPanel) {
+                    window.entityPanel.setSelectedLight(e.target);
+                    window.sceneManager?.showStatus('Light selected. Choose an entity below to assign.', 'info');
+                } else {
+                    // Fallback to old method if entity panel not available
+                    this.assignEntityToLight(e.target);
+                }
+            }
+        });
+        
+        // Selection events
+        this.canvas.on('object:selected', (e) => {
+            console.log('🎯 OBJECT SELECTED EVENT:', e);
+            console.log('  Selected object:', e.target);
+            console.log('  Object type:', e.target?.type);
+            console.log('  Object properties:', {
+                lightObject: e.target?.lightObject,
+                entityId: e.target?.entityId,
+                iconStyle: e.target?.iconStyle,
+                selectable: e.target?.selectable,
+                evented: e.target?.evented
+            });
+            this.handleObjectSelected(e);
+        });
+        
+        this.canvas.on('selection:created', (e) => {
+            console.log('🎯 SELECTION CREATED:', e);
+            console.log('  Selected objects:', e.selected);
+            if (e.selected && e.selected.length > 0) {
+                const obj = e.selected[0];
+                console.log('  First selected object properties:', {
+                    type: obj.type,
+                    lightObject: obj.lightObject,
+                    entityId: obj.entityId,
+                    selectable: obj.selectable,
+                    evented: obj.evented
+                });
+                
+                // ✅ ALSO HANDLE SELECTION HERE - this is the main selection event in v6
+                console.log('🔄 Calling handleObjectSelected from selection:created');
+                this.handleObjectSelected({ target: obj, selected: e.selected });
+            }
+        });
+        
+        this.canvas.on('selection:updated', (e) => {
+            console.log('🎯 SELECTION UPDATED:', e);
+            console.log('  Selected objects:', e.selected);
+            if (e.selected && e.selected.length > 0) {
+                const obj = e.selected[0];
+                console.log('  Updated selected object properties:', {
+                    type: obj.type,
+                    lightObject: obj.lightObject,
+                    entityId: obj.entityId
+                });
+                
+                // ✅ ALSO HANDLE SELECTION UPDATES
+                console.log('🔄 Calling handleObjectSelected from selection:updated');
+                this.handleObjectSelected({ target: obj, selected: e.selected });
+            }
+        });
+        
+        this.canvas.on('selection:cleared', (e) => {
+            console.log('🎯 SELECTION CLEARED:', e);
+            this.handleSelectionCleared();
+        });
+        
+        // Movement events
+        this.canvas.on('object:moving', (e) => {
+            console.log('🚀 OBJECT MOVING:', e.target?.type, e.target?.lightObject);
+            this.handleObjectMoving(e);
+        });
+        
+        this.canvas.on('object:moved', (e) => {
+            console.log('🚀 OBJECT MOVED:', e.target?.type, e.target?.lightObject);
+            this.handleObjectMoved(e);
+        });
+        
+        // Object events
+        this.canvas.on('object:added', (e) => {
+            console.log('➕ OBJECT ADDED:', e.target?.type, e.target?.lightObject);
+        });
+        
+        this.canvas.on('object:removed', (e) => {
+            console.log('➖ OBJECT REMOVED:', e.target?.type, e.target?.lightObject);
+        });
+        
+        // Path events
+        this.canvas.on('path:created', (e) => {
+            console.log('🎨 PATH CREATED:', e);
+        });
+        
+        console.log('✅ Canvas events attached with debugging');
+        
+        // Initialize layer control button states
+        this.updateLayerControlButtons();
+        
+        // Handle window resize
+        window.addEventListener('resize', this.resizeCanvas.bind(this));
+        
+        // Add global debug functions for console access
+        window.floorplanDebug = {
+            forceGridRefresh: () => this.forceGridRefresh(),
+            drawGrid: () => this.drawGrid(),
+            toggleGrid: () => this.toggleGrid(),
+            testSelection: () => {
+                console.log('🧪 TESTING SELECTION:');
+                console.log('  Canvas objects:', this.canvas.getObjects().length);
+                console.log('  Light objects:', this.canvas.getObjects().filter(obj => obj.lightObject).length);
+                console.log('  Current tool:', this.currentTool);
+                console.log('  Canvas selection enabled:', this.canvas.selection);
+                
+                // List all light objects
+                const lightObjects = this.canvas.getObjects().filter(obj => obj.lightObject);
+                lightObjects.forEach((light, index) => {
+                    console.log(`  Light ${index}:`, {
+                        type: light.type,
+                        selectable: light.selectable,
+                        evented: light.evented,
+                        entityId: light.entityId,
+                        iconStyle: light.iconStyle,
+                        position: { x: light.left, y: light.top }
+                    });
+                });
+            },
+            getCanvasInfo: () => {
+                return {
+                    canvas: this.canvas,
+                    gridVisible: this.gridVisible,
+                    gridSize: this.gridSize,
+                    isDarkTheme: this.isDarkTheme,
+                    objects: this.canvas.getObjects().length,
+                    gridObjects: this.canvas.getObjects().filter(obj => obj.gridLine).length,
+                    lightObjects: this.canvas.getObjects().filter(obj => obj.lightObject).length,
+                    currentTool: this.currentTool,
+                    selectionEnabled: this.canvas.selection
+                };
+            }
+        };
+        
+        console.log('  Debug functions added to window.floorplanDebug');
+        console.log('  Type "floorplanDebug.testSelection()" in console to test selection');
+        console.log('🎨 Canvas setup complete');
+    }
+    
+    setupEventListeners() {
+        console.log('🔧 Setting up CAD interface event listeners...');
+        
+        // Tool buttons (now in ribbon interface)
+        this.setupRibbonToolButtons();
+        
+        // Long-hold functionality for light style selection
+        this.setupLongHoldLightTool();
+        this.setupLongHoldRoomTool();
+        
+        // Initialize room tool tooltip
+        this.updateRoomToolTooltip();
+        
+        // Setup room fill controls (now in properties panel)
+        this.setupRoomFillControls();
+        
+        // Add rectangle tool button setup
+        const roomTool = document.getElementById('room-tool');
+        if (roomTool) {
+            roomTool.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                console.log('📐 Rectangle tool (right-click) activated');
+                this.setTool('rectangle');
+            });
+        }
+        
+        // Keyboard shortcuts (handled by CAD interface, but keep local ones)
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement === this.canvas.upperCanvasEl || 
+                document.querySelector('.drawing-area:hover')) {
+                console.log('⌨️ Keyboard event:', e.key);
+                this.handleKeyDown(e);
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (document.activeElement === this.canvas.upperCanvasEl || 
+                document.querySelector('.drawing-area:hover')) {
+                this.handleKeyUp(e);
+            }
+        });
+        
+        console.log('✅ CAD interface event listeners setup complete');
+    }
+    
+    setupRibbonToolButtons() {
+        // Tool buttons in ribbon interface
+        const selectTool = document.getElementById('select-tool');
+        if (selectTool) {
+            selectTool.addEventListener('click', () => {
+                console.log('🎯 Select tool button clicked');
+                this.setTool('select');
+            });
+        }
+        
+        const roomTool = document.getElementById('room-tool');
+        if (roomTool) {
+            roomTool.addEventListener('click', () => {
+                console.log('🏠 Room tool button clicked');
+                this.setTool('room');
+            });
+        }
+        
+        const lightTool = document.getElementById('light-tool');
+        if (lightTool) {
+            lightTool.addEventListener('click', () => {
+                console.log('💡 Light tool button clicked');
+                this.setTool('light');
+            });
+        }
+        
+        const lineTool = document.getElementById('line-tool');
+        if (lineTool) {
+            lineTool.addEventListener('click', () => {
+                console.log('📏 Line tool button clicked');
+                this.setTool('line');
+            });
+        }
+        
+        const textTool = document.getElementById('text-tool');
+        if (textTool) {
+            textTool.addEventListener('click', () => {
+                console.log('📝 Text tool button clicked');
+                this.setTool('text');
+            });
+        }
+        
+        const backgroundTool = document.getElementById('background-tool');
+        if (backgroundTool) {
+            backgroundTool.addEventListener('click', () => this.importBackground());
+        }
+        
+        // Zoom and view controls
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', () => this.zoomIn());
+        }
+        
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', () => this.zoomOut());
+        }
+        
+        const fitScreenBtn = document.getElementById('fit-screen-btn');
+        if (fitScreenBtn) {
+            fitScreenBtn.addEventListener('click', () => this.fitToScreen());
+        }
+        
+        // Modify tools
+        const bringToFrontBtn = document.getElementById('bring-to-front-btn');
+        if (bringToFrontBtn) {
+            bringToFrontBtn.addEventListener('click', () => this.bringToFront());
+        }
+        
+        const sendToBackBtn = document.getElementById('send-to-back-btn');
+        if (sendToBackBtn) {
+            sendToBackBtn.addEventListener('click', () => this.sendToBack());
+        }
+        
+        const rotateBtn = document.getElementById('rotate-btn');
+        if (rotateBtn) {
+            rotateBtn.addEventListener('click', () => this.rotateSelected());
+        }
+        
+        const deleteBtn = document.getElementById('delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => this.deleteSelected());
+        }
+        
+        // View controls
+        const gridToggleBtn = document.getElementById('grid-toggle-btn');
+        if (gridToggleBtn) {
+            gridToggleBtn.addEventListener('click', () => this.toggleGrid());
+        }
+        
+        const snapToggleBtn = document.getElementById('snap-toggle-btn');
+        if (snapToggleBtn) {
+            snapToggleBtn.addEventListener('click', () => this.toggleSnap());
+        }
+        
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => this.toggleTheme());
+        }
+        
+        const unitsToggleBtn = document.getElementById('units-toggle-btn');
+        if (unitsToggleBtn) {
+            unitsToggleBtn.addEventListener('click', () => this.toggleUnits());
+        }
+        
+        const labelsToggleBtn = document.getElementById('labels-toggle-btn');
+        if (labelsToggleBtn) {
+            labelsToggleBtn.addEventListener('click', () => this.toggleLabels());
+        }
+        
+        const stateModeToggleBtn = document.getElementById('state-mode-toggle-btn');
+        if (stateModeToggleBtn) {
+            stateModeToggleBtn.addEventListener('click', () => this.toggleStateMode());
+        }
+        
+        // Layout controls
+        const saveLayoutBtn = document.getElementById('save-layout-btn');
+        if (saveLayoutBtn) {
+            saveLayoutBtn.addEventListener('click', () => this.saveLayoutToFile());
+        }
+        
+        const loadLayoutBtn = document.getElementById('load-layout-btn');
+        if (loadLayoutBtn) {
+            loadLayoutBtn.addEventListener('click', () => this.loadLayoutFromFile());
+        }
+        
+        // Label buttons (Insert tab)
+        const ipLabelsBtn = document.getElementById('ip-labels-btn');
+        if (ipLabelsBtn) {
+            ipLabelsBtn.addEventListener('click', () => this.showIPLabels());
+        }
+        
+        const hostnameLabelsBtn = document.getElementById('hostname-labels-btn');
+        if (hostnameLabelsBtn) {
+            hostnameLabelsBtn.addEventListener('click', () => this.showHostnameLabels());
+        }
+        
+        const macLabelsBtn = document.getElementById('mac-labels-btn');
+        if (macLabelsBtn) {
+            macLabelsBtn.addEventListener('click', () => this.showMACLabels());
+        }
+        
+        console.log('🎀 Ribbon tool buttons setup complete');
+    }
+    
+    setupLongHoldLightTool() {
+        const lightTool = document.getElementById('light-tool');
+        const lightStyleBtn = document.getElementById('light-style-btn');
+        
+        // Replace light-style-btn with regular light tool activation
+        lightTool.addEventListener('mousedown', (e) => {
+            this.longHoldTimer = setTimeout(() => {
+                this.showLightStyleMenu(e);
+                this.longHoldActive = true;
+            }, 500);
+        });
+        
+        lightTool.addEventListener('mouseup', () => {
+            if (this.longHoldTimer) {
+                clearTimeout(this.longHoldTimer);
+                if (!this.longHoldActive) {
+                    this.setTool('light');
+                }
+                this.longHoldActive = false;
+            }
+        });
+        
+        lightTool.addEventListener('mouseleave', () => {
+            if (this.longHoldTimer) {
+                clearTimeout(this.longHoldTimer);
+                this.longHoldActive = false;
+            }
+        });
+        
+        // Hide the old light style button
+        lightStyleBtn.style.display = 'none';
+    }
+    
+    setupLongHoldRoomTool() {
+        const roomTool = document.getElementById('room-tool');
+        let longHoldTimer = null;
+        let longHoldTriggered = false;
+        let menuActive = false;
+        
+        const startLongHold = (e) => {
+            longHoldTriggered = false;
+            menuActive = false;
+            longHoldTimer = setTimeout(() => {
+                console.log('🏠 Long-hold detected on room tool');
+                longHoldTriggered = true;
+                menuActive = true;
+                this.showRoomModeMenu(e);
+            }, 500); // 500ms for long hold
+        };
+        
+        const cancelLongHold = () => {
+            if (longHoldTimer && !menuActive) {
+                clearTimeout(longHoldTimer);
+                longHoldTimer = null;
+            }
+        };
+        
+        const handleMouseUp = (e) => {
+            // Only cancel if menu isn't active
+            if (!menuActive) {
+                cancelLongHold();
+            }
+        };
+        
+        roomTool.addEventListener('mousedown', startLongHold);
+        roomTool.addEventListener('mouseup', handleMouseUp);
+        roomTool.addEventListener('mouseleave', (e) => {
+            // Only cancel if we're not hovering over a menu
+            if (!menuActive) {
+                cancelLongHold();
+            }
+        });
+        roomTool.addEventListener('touchstart', startLongHold);
+        roomTool.addEventListener('touchend', handleMouseUp);
+        
+        // Store menu state for cleanup
+        this.roomMenuActive = () => menuActive;
+        this.setRoomMenuActive = (state) => { menuActive = state; };
+        
+        // Regular click for normal tool selection
+        roomTool.addEventListener('click', (e) => {
+            // Give long-hold a chance to trigger first
+            setTimeout(() => {
+                if (!longHoldTriggered && !menuActive) {
+                    console.log('🏠 Regular click on room tool');
+                    this.setTool('room');
+                }
+                // Reset flags after a longer delay to allow menu interactions
+                setTimeout(() => {
+                    longHoldTriggered = false;
+                }, 100);
+            }, 50);
+        });
+    }
+    
+    showRoomModeMenu(event) {
+        // Remove any existing menu
+        const existingMenu = document.querySelector('.room-mode-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        const menu = document.createElement('div');
+        menu.className = 'room-mode-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = event.clientX + 'px';
+        menu.style.top = event.clientY + 'px';
+        menu.style.zIndex = '10000';
+        menu.style.background = 'var(--card-background-color)';
+        menu.style.border = '1px solid var(--border-color)';
+        menu.style.borderRadius = '8px';
+        menu.style.padding = '8px';
+        menu.style.boxShadow = 'var(--material-shadow-elevation-2dp)';
+        menu.style.minWidth = '160px';
+        
+        const rectangleOption = document.createElement('div');
+        rectangleOption.className = 'room-mode-option';
+        rectangleOption.innerHTML = `
+            <i class="fas fa-square" style="margin-right: 8px; color: ${this.roomDrawingMode === 'rectangle' ? 'var(--primary-color)' : 'var(--text-muted)'};"></i>
+            Rectangle Mode
+            ${this.roomDrawingMode === 'rectangle' ? '<span style="color: var(--primary-color); margin-left: auto;">✓</span>' : ''}
+        `;
+        rectangleOption.style.padding = '8px 12px';
+        rectangleOption.style.cursor = 'pointer';
+        rectangleOption.style.display = 'flex';
+        rectangleOption.style.alignItems = 'center';
+        rectangleOption.style.borderRadius = '4px';
+        rectangleOption.style.transition = 'background-color 0.2s';
+        
+        const polygonOption = document.createElement('div');
+        polygonOption.className = 'room-mode-option';
+        polygonOption.innerHTML = `
+            <i class="fas fa-draw-polygon" style="margin-right: 8px; color: ${this.roomDrawingMode === 'polygon' ? 'var(--primary-color)' : 'var(--text-muted)'};"></i>
+            Polygon Mode
+            ${this.roomDrawingMode === 'polygon' ? '<span style="color: var(--primary-color); margin-left: auto;">✓</span>' : ''}
+        `;
+        polygonOption.style.padding = '8px 12px';
+        polygonOption.style.cursor = 'pointer';
+        polygonOption.style.display = 'flex';
+        polygonOption.style.alignItems = 'center';
+        polygonOption.style.borderRadius = '4px';
+        polygonOption.style.transition = 'background-color 0.2s';
+        
+        // Add hover effects
+        [rectangleOption, polygonOption].forEach(option => {
+            option.addEventListener('mouseenter', () => {
+                option.style.backgroundColor = 'color-mix(in srgb, var(--primary-color) 10%, transparent)';
+            });
+            option.addEventListener('mouseleave', () => {
+                option.style.backgroundColor = 'transparent';
+            });
+        });
+        
+        // Function to clean up menu and reset state
+        const cleanupMenu = () => {
+            if (menu.parentNode) {
+                menu.remove();
+            }
+            if (this.setRoomMenuActive) {
+                this.setRoomMenuActive(false);
+            }
+            document.removeEventListener('click', outsideClickHandler);
+            document.removeEventListener('mousedown', outsideClickHandler);
+        };
+        
+        // Handle mode selection
+        const selectRectangleMode = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🏠 Rectangle mode selected');
+            this.roomDrawingMode = 'rectangle';
+            this.updateRoomToolTooltip();
+            window.sceneManager?.showStatus('Room tool set to Rectangle mode', 'success');
+            cleanupMenu();
+        };
+        
+        const selectPolygonMode = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🏠 Polygon mode selected');
+            this.roomDrawingMode = 'polygon';
+            this.updateRoomToolTooltip();
+            window.sceneManager?.showStatus('Room tool set to Polygon mode', 'success');
+            cleanupMenu();
+        };
+        
+        // Use both mousedown and mouseup for better drag-and-release support
+        rectangleOption.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        rectangleOption.addEventListener('mouseup', selectRectangleMode);
+        rectangleOption.addEventListener('click', selectRectangleMode);
+        
+        polygonOption.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        polygonOption.addEventListener('mouseup', selectPolygonMode);
+        polygonOption.addEventListener('click', selectPolygonMode);
+        
+        menu.appendChild(rectangleOption);
+        menu.appendChild(polygonOption);
+        document.body.appendChild(menu);
+        
+        // Handle clicking outside menu
+        const outsideClickHandler = (e) => {
+            if (!menu.contains(e.target)) {
+                console.log('🏠 Clicking outside menu, closing');
+                cleanupMenu();
+            }
+        };
+        
+        // Add outside click detection with a small delay
+        setTimeout(() => {
+            document.addEventListener('click', outsideClickHandler);
+            document.addEventListener('mousedown', outsideClickHandler);
+        }, 150);
+        
+        console.log('🏠 Room mode menu shown');
+    }
+    
+    updateRoomToolTooltip() {
+        const roomTool = document.getElementById('room-tool');
+        if (this.roomDrawingMode === 'rectangle') {
+            roomTool.title = 'Draw Room Outline - Rectangle Mode (Long-click to change)';
+        } else {
+            roomTool.title = 'Draw Room Outline - Polygon Mode (Long-click to change)';
+        }
+    }
+    
+    setupRoomFillControls() {
+        console.log('🎨 Setting up room fill controls...');
+        
+        const colorPicker = document.getElementById('room-fill-color');
+        const opacitySlider = document.getElementById('room-fill-opacity');
+        
+        if (!colorPicker || !opacitySlider) {
+            console.warn('⚠️ Room fill controls not found in DOM');
+            return;
+        }
+        
+        // Initialize values
+        colorPicker.value = this.roomFillColor;
+        opacitySlider.value = this.roomFillOpacity * 100;
+        this.updateOpacitySliderBackground();
+        
+        // Color picker change handler
+        colorPicker.addEventListener('input', (e) => {
+            this.roomFillColor = e.target.value;
+            this.updateOpacitySliderBackground();
+            this.updateSelectedRoomFill();
+            console.log('🎨 Room fill color changed to:', this.roomFillColor);
+        });
+        
+        // Opacity slider change handler
+        opacitySlider.addEventListener('input', (e) => {
+            this.roomFillOpacity = e.target.value / 100;
+            this.updateSelectedRoomFill();
+            console.log('🎨 Room fill opacity changed to:', this.roomFillOpacity);
+        });
+        
+        console.log('✅ Room fill controls setup complete');
+    }
+    
+    updateOpacitySliderBackground() {
+        const opacitySlider = document.getElementById('room-fill-opacity');
+        if (opacitySlider) {
+            opacitySlider.style.setProperty('--fill-color', this.roomFillColor);
+        }
+    }
+    
+    updateSelectedRoomFill() {
+        const selectedObjects = this.canvas.getActiveObjects();
+        if (selectedObjects.length === 0) return;
+        
+        selectedObjects.forEach(obj => {
+            if (obj.roomObject || obj.roomOutline) {
+                const fillColor = this.hexToRgba(this.roomFillColor, this.roomFillOpacity);
+                obj.set('fill', fillColor);
+                console.log('🎨 Updated room object fill to:', fillColor);
+            }
+        });
+        
+        this.canvas.renderAll();
+    }
+    
+    hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    
+    getCurrentRoomFill() {
+        return this.hexToRgba(this.roomFillColor, this.roomFillOpacity);
+    }
+    
+    showLightStyleMenu(event) {
+        // Create popup menu for light style selection
+        const menu = document.createElement('div');
+        menu.className = 'light-style-menu';
+        menu.style.cssText = `
+            position: absolute;
+            background: var(--darker-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        `;
+        
+        const styles = [
+            { name: 'Circle', icon: '○', value: 'circle' },
+            { name: 'Bulb', icon: '●', value: 'bulb' },
+            { name: 'Recessed', icon: '◐', value: 'recessed' }
+        ];
+        
+        styles.forEach(style => {
+            const btn = document.createElement('button');
+            btn.innerHTML = `${style.icon} ${style.name}`;
+            btn.style.cssText = `
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                color: var(--text-color);
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: var(--transition);
+            `;
+            btn.addEventListener('click', () => {
+                this.lightIconStyle = style.value;
+                this.setTool('light');
+                document.body.removeChild(menu);
+                window.sceneManager?.showStatus(`Light style changed to ${style.name}`, 'info');
+            });
+            btn.addEventListener('mouseenter', () => {
+                btn.style.background = 'var(--primary-color)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.background = 'var(--card-bg)';
+            });
+            menu.appendChild(btn);
+        });
+        
+        // Position menu near the click
+        const rect = event.target.getBoundingClientRect();
+        menu.style.left = (rect.right + 10) + 'px';
+        menu.style.top = rect.top + 'px';
+        
+        document.body.appendChild(menu);
+        
+        // Remove menu when clicking elsewhere
+        setTimeout(() => {
+            const removeMenu = (e) => {
+                if (!menu.contains(e.target)) {
+                    document.body.removeChild(menu);
+                    document.removeEventListener('click', removeMenu);
+                }
+            };
+            document.addEventListener('click', removeMenu);
+        }, 100);
+    }
+    
+    setTool(tool) {
+        console.log(`🛠️ Setting tool to: ${tool}`);
+        this.currentTool = tool;
+        
+        // Update tool button states (both old and new interface)
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.ribbon-tool').forEach(btn => btn.classList.remove('active'));
+        
+        // Update the specific tool button
+        if (tool === 'rectangle') {
+            const roomTool = document.getElementById('room-tool');
+            if (roomTool) roomTool.classList.add('active');
+        } else {
+            const toolBtn = document.getElementById(tool + '-tool');
+            if (toolBtn) toolBtn.classList.add('active');
+        }
+        
+        // Update canvas interaction mode
+        if (tool === 'select') {
+            console.log('🎯 Enabling selection mode');
+            this.canvas.selection = true;
+            this.canvas.defaultCursor = 'default';
+            this.canvas.hoverCursor = 'move';
+            this.canvas.forEachObject(obj => {
+                if (!obj.gridLine) {
+                    obj.selectable = true;
+                    obj.evented = true;
+                    console.log(`  Making object selectable: ${obj.type}, lightObject: ${obj.lightObject}`);
+                }
+            });
+        } else {
+            console.log('🚫 Disabling selection mode');
+            this.canvas.selection = false;
+            this.canvas.defaultCursor = 'crosshair';
+            this.canvas.hoverCursor = 'crosshair';
+            this.canvas.discardActiveObject();
+            this.canvas.forEachObject(obj => {
+                obj.selectable = false;
+                obj.evented = false;
+            });
+        }
+        
+        // Update command status in CAD interface
+        if (window.cadInterface) {
+            window.cadInterface.updateCommandStatus(`Tool: ${tool}`);
+        }
+        
+        this.canvas.renderAll();
+        console.log(`✅ Tool set to: ${tool}, selection enabled: ${this.canvas.selection}`);
+    }
+    
+    drawGrid() {
+        if (!this.gridVisible || !this.canvas) {
+            console.log('❌ Grid not visible or canvas not ready');
+            return;
+        }
+        
+        // Get canvas dimensions
+        const canvasWidth = this.canvas.width || 800;
+        const canvasHeight = this.canvas.height || 600;
+        
+        // Get current zoom and viewport transform
+        const zoom = this.canvas.getZoom() || 1.0;
+        const vpt = this.canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const panX = vpt[4] || 0;
+        const panY = vpt[5] || 0;
+        
+        console.log('🎯 GRID DEBUG INFO:');
+        console.log('  Canvas size:', { canvasWidth, canvasHeight });
+        console.log('  Zoom level:', zoom);
+        console.log('  Pan offset:', { panX, panY });
+        console.log('  Grid size:', this.gridSize, `(${this.feetPerGrid}' per square)`);
+        
+        // Remove existing grid lines
+        const objectsToRemove = [];
+        this.canvas.forEachObject(obj => {
+            if (obj.gridLine) {
+                objectsToRemove.push(obj);
+            }
+        });
+        objectsToRemove.forEach(obj => this.canvas.remove(obj));
+        
+        // Grid color for better visibility
+        const gridColor = this.isDarkTheme ? 'rgba(0, 255, 0, 0.5)' : 'rgba(0, 100, 0, 0.6)';
+        
+        // Calculate visible area in canvas coordinates
+        // When zoomed out, we need to extend the grid much further
+        const buffer = Math.max(canvasWidth, canvasHeight) / zoom; // Dynamic buffer based on zoom
+        const visibleLeft = -panX / zoom - buffer;
+        const visibleTop = -panY / zoom - buffer;
+        const visibleRight = (-panX + canvasWidth) / zoom + buffer;
+        const visibleBottom = (-panY + canvasHeight) / zoom + buffer;
+        
+        console.log('  Visible area with buffer:', { 
+            left: visibleLeft, 
+            top: visibleTop, 
+            right: visibleRight, 
+            bottom: visibleBottom,
+            buffer: buffer
+        });
+        
+        // Draw vertical lines
+        let verticalLines = 0;
+        const startX = Math.floor(visibleLeft / this.gridSize) * this.gridSize;
+        const endX = Math.ceil(visibleRight / this.gridSize) * this.gridSize;
+        for (let x = startX; x <= endX; x += this.gridSize) {
+            const line = new fabric.Line([x, visibleTop, x, visibleBottom], {
+                stroke: gridColor,
+                strokeWidth: 1 / zoom, // Scale stroke width with zoom
+                selectable: false,
+                evented: false,
+                gridLine: true
+            });
+            this.canvas.add(line);
+            this.canvas.sendObjectToBack(line);
+            verticalLines++;
+        }
+        
+        // Draw horizontal lines
+        let horizontalLines = 0;
+        const startY = Math.floor(visibleTop / this.gridSize) * this.gridSize;
+        const endY = Math.ceil(visibleBottom / this.gridSize) * this.gridSize;
+        for (let y = startY; y <= endY; y += this.gridSize) {
+            const line = new fabric.Line([visibleLeft, y, visibleRight, y], {
+                stroke: gridColor,
+                strokeWidth: 1 / zoom, // Scale stroke width with zoom
+                selectable: false,
+                evented: false,
+                gridLine: true
+            });
+            this.canvas.add(line);
+            this.canvas.sendObjectToBack(line);
+            horizontalLines++;
+        }
+        
+        // Add grid scale labels (every 5th line for major markers)
+        const labelColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
+        const fontSize = Math.max(10, 12 / zoom);
+        const majorGridSpacing = this.gridSize * 4; // Major markers every 2 feet (4 * 0.5')
+        
+        // Add horizontal scale labels (bottom of view)
+        let labelCount = 0;
+        const maxLabels = 20; // Limit labels to prevent clutter
+        for (let x = startX; x <= endX && labelCount < maxLabels; x += majorGridSpacing) {
+            const distanceText = this.useMetric ? 
+                `${this.pixelsToMeters(x)}m` : 
+                `${this.pixelsToFeet(x)}'`;
+            const labelText = new fabric.Text(distanceText, {
+                left: x,
+                top: visibleBottom - 25 / zoom,
+                fontSize: fontSize,
+                fill: labelColor,
+                textAlign: 'center',
+                originX: 'center',
+                originY: 'center',
+                selectable: false,
+                evented: false,
+                gridLine: true
+            });
+            this.canvas.add(labelText);
+            this.canvas.sendObjectToBack(labelText);
+            labelCount++;
+        }
+        
+        // Add vertical scale labels (left side of view)
+        labelCount = 0;
+        for (let y = startY; y <= endY && labelCount < maxLabels; y += majorGridSpacing) {
+            const distanceText = this.useMetric ? 
+                `${this.pixelsToMeters(y)}m` : 
+                `${this.pixelsToFeet(y)}'`;
+            const labelText = new fabric.Text(distanceText, {
+                left: visibleLeft + 15 / zoom,
+                top: y,
+                fontSize: fontSize,
+                fill: labelColor,
+                textAlign: 'center',
+                originX: 'center',
+                originY: 'center',
+                selectable: false,
+                evented: false,
+                gridLine: true
+            });
+            this.canvas.add(labelText);
+            this.canvas.sendObjectToBack(labelText);
+            labelCount++;
+        }
+        
+        console.log('  Grid lines created:', { vertical: verticalLines, horizontal: horizontalLines, total: verticalLines + horizontalLines });
+        
+        // Force canvas to render
+        this.canvas.renderAll();
+        
+        console.log('✅ Grid drawn successfully with scale labels');
+    }
+    
+    // Utility functions for measurement conversion
+    pixelsToFeet(pixels) {
+        return (pixels / this.pixelsPerFoot).toFixed(1);
+    }
+    
+    feetToPixels(feet) {
+        return feet * this.pixelsPerFoot;
+    }
+    
+    pixelsToMeters(pixels) {
+        return (pixels / this.pixelsPerMeter).toFixed(2);
+    }
+    
+    metersToPixels(meters) {
+        return meters * this.pixelsPerMeter;
+    }
+    
+    formatDistance(pixels) {
+        if (this.useMetric) {
+            const meters = this.pixelsToMeters(pixels);
+            return `${meters}m`;
+        } else {
+            const feet = this.pixelsToFeet(pixels);
+            return `${feet}'`;
+        }
+    }
+    
+    snapToGrid(point) {
+        if (!this.snapEnabled) return point;
+        
+        return {
+            x: Math.round(point.x / this.gridSize) * this.gridSize,
+            y: Math.round(point.y / this.gridSize) * this.gridSize
+        };
+    }
+    
+    // Enhanced snapping to objects with visual feedback
+    snapToObjects(movingObject, targetPoint) {
+        if (!this.snapEnabled) return targetPoint;
+        
+        console.log('📐 snapToObjects called with:', {
+            movingObject: movingObject?.type,
+            targetPoint,
+            snapEnabled: this.snapEnabled
+        });
+        
+        let snappedPoint = { ...targetPoint };
+        let hasSnap = false;
+        
+        // Clear existing snap guides
+        this.clearSnapGuides();
+        
+        // Get all objects except the one being moved and grid lines
+        const otherObjects = this.canvas.getObjects().filter(obj => 
+            obj !== movingObject && 
+            !obj.gridLine && 
+            !obj.snapGuide && 
+            !obj.roomPreview &&
+            obj !== null && 
+            obj !== undefined
+        );
+        
+        console.log('📐 Found other objects for snapping:', otherObjects.length);
+        
+        // Safety check for movingObject
+        if (!movingObject || typeof movingObject.left !== 'number' || typeof movingObject.top !== 'number') {
+            console.warn('⚠️ movingObject is invalid:', movingObject);
+            return targetPoint;
+        }
+        
+        const movingCenter = {
+            x: targetPoint.x + (movingObject.width || movingObject.radius || 0) / 2,
+            y: targetPoint.y + (movingObject.height || movingObject.radius || 0) / 2
+        };
+        
+        console.log('📐 Moving object center:', movingCenter);
+        
+        // Check for horizontal and vertical alignment with object centers
+        otherObjects.forEach((obj, index) => {
+            // Enhanced safety checks for null objects and required properties
+            if (!obj || 
+                typeof obj.left !== 'number' || 
+                typeof obj.top !== 'number' ||
+                obj.left === null || 
+                obj.top === null ||
+                isNaN(obj.left) || 
+                isNaN(obj.top)) {
+                console.warn(`⚠️ Object ${index} has invalid position:`, obj);
+                return;
+            }
+            
+            // Additional safety checks for dimensions
+            const objWidth = (typeof obj.width === 'number' && !isNaN(obj.width)) ? obj.width : 0;
+            const objHeight = (typeof obj.height === 'number' && !isNaN(obj.height)) ? obj.height : 0;
+            const objRadius = (typeof obj.radius === 'number' && !isNaN(obj.radius)) ? obj.radius : 0;
+            
+            const objCenter = {
+                x: obj.left + (objWidth || objRadius) / 2,
+                y: obj.top + (objHeight || objRadius) / 2
+            };
+            
+            console.log(`📐 Object ${index} center:`, objCenter);
+            
+            // Vertical alignment (snap X coordinate)
+            if (Math.abs(movingCenter.x - objCenter.x) < this.snapTolerance) {
+                const snapX = objCenter.x - (movingObject.width || movingObject.radius || 0) / 2;
+                snappedPoint.x = snapX;
+                hasSnap = true;
+                console.log('📐 Vertical snap applied:', snapX);
+                
+                // Create vertical guide line
+                this.createSnapGuide(objCenter.x, 0, objCenter.x, this.canvas.height, 'vertical');
+            }
+            
+            // Horizontal alignment (snap Y coordinate)
+            if (Math.abs(movingCenter.y - objCenter.y) < this.snapTolerance) {
+                const snapY = objCenter.y - (movingObject.height || movingObject.radius || 0) / 2;
+                snappedPoint.y = snapY;
+                hasSnap = true;
+                console.log('📐 Horizontal snap applied:', snapY);
+                
+                // Create horizontal guide line
+                this.createSnapGuide(0, objCenter.y, this.canvas.width, objCenter.y, 'horizontal');
+            }
+        });
+        
+        console.log('📐 Snap result:', { hasSnap, snappedPoint });
+        return snappedPoint;
+    }
+    
+    createSnapGuide(x1, y1, x2, y2, type) {
+        const color = this.isDarkTheme ? 'rgba(255, 0, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+        
+        const line = new fabric.Line([x1, y1, x2, y2], {
+            stroke: color,
+            strokeWidth: 1,
+            strokeDashArray: [5, 5],
+            selectable: false,
+            evented: false,
+            snapGuide: true,
+            snapType: type
+        });
+        
+        this.canvas.add(line);
+        this.canvas.bringObjectToFront(line);
+        this.snapGuides.push(line);
+        this.canvas.renderAll();
+    }
+    
+    clearSnapGuides() {
+        this.snapGuides.forEach(guide => this.canvas.remove(guide));
+        this.snapGuides = [];
+    }
+    
+    // Distance measurement display functions
+    createMeasurementDisplay(startPoint, endPoint, showBoth = true) {
+        if (!this.showMeasurements) return;
+        
+        this.clearMeasurementDisplay();
+        
+        const deltaX = Math.abs(endPoint.x - startPoint.x);
+        const deltaY = Math.abs(endPoint.y - startPoint.y);
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        const zoom = this.canvas.getZoom();
+        const textColor = this.isDarkTheme ? '#ffffff' : '#000000';
+        const bgColor = this.isDarkTheme ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+        const fontSize = Math.max(12, 14 / zoom); // Scale font with zoom
+        
+        this.measurementDisplay = [];
+        
+        if (showBoth) {
+            // X distance (horizontal)
+            if (deltaX > 10) {
+                const xMidPoint = {
+                    x: Math.min(startPoint.x, endPoint.x) + deltaX / 2,
+                    y: Math.min(startPoint.y, endPoint.y) - 20 / zoom
+                };
+                
+                const xText = new fabric.Text(`${this.formatDistance(deltaX)}`, {
+                    left: xMidPoint.x,
+                    top: xMidPoint.y,
+                    fontSize: fontSize,
+                    fill: textColor,
+                    backgroundColor: bgColor,
+                    textAlign: 'center',
+                    originX: 'center',
+                    originY: 'center',
+                    selectable: false,
+                    evented: false,
+                    measurementOverlay: true
+                });
+                
+                this.canvas.add(xText);
+                this.measurementDisplay.push(xText);
+            }
+            
+            // Y distance (vertical)
+            if (deltaY > 10) {
+                const yMidPoint = {
+                    x: Math.max(startPoint.x, endPoint.x) + 20 / zoom,
+                    y: Math.min(startPoint.y, endPoint.y) + deltaY / 2
+                };
+                
+                const yText = new fabric.Text(`${this.formatDistance(deltaY)}`, {
+                    left: yMidPoint.x,
+                    top: yMidPoint.y,
+                    fontSize: fontSize,
+                    fill: textColor,
+                    backgroundColor: bgColor,
+                    textAlign: 'center',
+                    originX: 'center',
+                    originY: 'center',
+                    angle: 90, // Vertical text
+                    selectable: false,
+                    evented: false,
+                    measurementOverlay: true
+                });
+                
+                this.canvas.add(yText);
+                this.measurementDisplay.push(yText);
+            }
+        }
+        
+        // Total distance (diagonal for lines)
+        if (distance > 10) {
+            const midPoint = {
+                x: (startPoint.x + endPoint.x) / 2,
+                y: (startPoint.y + endPoint.y) / 2 + 15 / zoom
+            };
+            
+            const totalText = new fabric.Text(`${this.formatDistance(distance)}`, {
+                left: midPoint.x,
+                top: midPoint.y,
+                fontSize: fontSize,
+                fill: textColor,
+                backgroundColor: bgColor,
+                textAlign: 'center',
+                originX: 'center',
+                originY: 'center',
+                selectable: false,
+                evented: false,
+                measurementOverlay: true
+            });
+            
+            this.canvas.add(totalText);
+            this.measurementDisplay.push(totalText);
+        }
+        
+        this.canvas.renderAll();
+    }
+    
+    clearMeasurementDisplay() {
+        if (this.measurementDisplay) {
+            this.measurementDisplay.forEach(text => this.canvas.remove(text));
+            this.measurementDisplay = [];
+        }
+        
+        // Also clear any orphaned measurement overlays
+        const objectsToRemove = [];
+        this.canvas.forEachObject(obj => {
+            if (obj.measurementOverlay) {
+                objectsToRemove.push(obj);
+            }
+        });
+        objectsToRemove.forEach(obj => this.canvas.remove(obj));
+    }
+    
+    handleMouseDown(e) {
+        const pointer = this.canvas.getPointer(e.e);
+        const snappedPoint = this.snapToGrid(pointer);
+        
+        // Check for panning: middle mouse button, right mouse button in select mode, or spacebar + left click
+        const isMiddleButton = e.e.button === 1;
+        const isRightButton = e.e.button === 2;
+        const shouldPan = isMiddleButton || (isRightButton && this.currentTool === 'select') || (this.spacebarPressed && e.e.button === 0);
+        
+        if (shouldPan) {
+            console.log('🖱️ Starting pan mode');
+            this.isPanning = true;
+            this.panStart = { x: e.e.clientX, y: e.e.clientY };
+            this.canvas.selection = false; // Disable selection during panning
+            document.body.style.cursor = 'grabbing';
+            e.e.preventDefault();
+            return;
+        }
+        
+        if (this.currentTool === 'light') {
+            this.addLight(snappedPoint);
+        } else if (this.currentTool === 'text') {
+            this.addText(snappedPoint);
+        } else if (this.currentTool === 'line') {
+            this.handleLineDrawing(snappedPoint, 'down');
+        } else if (this.currentTool === 'room') {
+            if (this.roomDrawingMode === 'rectangle') {
+                this.handleRectangleDrawing(snappedPoint, 'down');
+            } else {
+                this.handleRoomDrawing(snappedPoint, 'down');
+            }
+        } else if (this.currentTool === 'rectangle') {
+            this.handleRectangleDrawing(snappedPoint, 'down');
+        }
+    }
+    
+    handleMouseMove(e) {
+        // Handle panning
+        if (this.isPanning && this.panStart) {
+            const deltaX = e.e.clientX - this.panStart.x;
+            const deltaY = e.e.clientY - this.panStart.y;
+            
+            // Update the viewport transform
+            const vpt = this.canvas.viewportTransform;
+            vpt[4] += deltaX;
+            vpt[5] += deltaY;
+            
+            this.canvas.setViewportTransform(vpt);
+            this.canvas.renderAll();
+            
+            // Update grid after panning
+            this.drawGrid();
+            
+            // Update pan start for next movement
+            this.panStart = { x: e.e.clientX, y: e.e.clientY };
+            return;
+        }
+        
+        if (this.currentTool === 'line' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToObjects(null, pointer);
+            this.handleLineDrawing(snappedPoint, 'move');
+        } else if (this.currentTool === 'room' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToGrid(pointer);
+            if (this.roomDrawingMode === 'rectangle') {
+                this.handleRectangleDrawing(snappedPoint, 'move');
+            } else {
+                this.handleRoomDrawing(snappedPoint, 'move');
+            }
+        } else if (this.currentTool === 'rectangle' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToGrid(pointer);
+            this.handleRectangleDrawing(snappedPoint, 'move');
+        }
+    }
+    
+    handleMouseUp(e) {
+        // End panning
+        if (this.isPanning) {
+            console.log('🖱️ Ending pan mode');
+            this.isPanning = false;
+            this.panStart = null;
+            this.canvas.selection = true; // Re-enable selection
+            document.body.style.cursor = this.spacebarPressed ? 'grab' : 'default';
+            return;
+        }
+        
+        if (this.currentTool === 'line' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToObjects(null, pointer);
+            this.handleLineDrawing(snappedPoint, 'up');
+        } else if (this.currentTool === 'room' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToGrid(pointer);
+            if (this.roomDrawingMode === 'rectangle') {
+                this.handleRectangleDrawing(snappedPoint, 'up');
+            } else {
+                this.handleRoomDrawing(snappedPoint, 'up');
+            }
+        } else if (this.currentTool === 'rectangle' && this.isDrawing) {
+            const pointer = this.canvas.getPointer(e.e);
+            const snappedPoint = this.snapToGrid(pointer);
+            this.handleRectangleDrawing(snappedPoint, 'up');
+        }
+    }
+
+    // Polygon editing methods removed - feature disabled
+    
+    handleRectangleDrawing(point, action) {
+        if (action === 'down') {
+            this.isDrawing = true;
+            this.drawingPoints = [point];
+        } else if (action === 'move' && this.isDrawing) {
+            // Remove existing preview
+            this.canvas.getObjects().forEach(obj => {
+                if (obj.rectanglePreview) {
+                    this.canvas.remove(obj);
+                }
+            });
+            
+            const startPoint = this.drawingPoints[0];
+            const width = Math.abs(point.x - startPoint.x);
+            const height = Math.abs(point.y - startPoint.y);
+            const left = Math.min(startPoint.x, point.x);
+            const top = Math.min(startPoint.y, point.y);
+            
+            // Theme-aware drawing colors
+            const strokeColor = this.isDarkTheme ? '#00ff00' : '#0066cc';
+            
+            const preview = new fabric.Rect({
+                left: left,
+                top: top,
+                width: width,
+                height: height,
+                fill: this.hexToRgba(this.roomFillColor, this.roomFillOpacity * 0.5), // Preview with lower opacity
+                stroke: strokeColor,
+                strokeWidth: 2,
+                strokeDashArray: [5, 5],
+                selectable: false,
+                evented: false,
+                rectanglePreview: true
+            });
+            
+            this.canvas.add(preview);
+            
+            // Show measurement display for width and height
+            this.createMeasurementDisplay(startPoint, point, true);
+            
+            this.canvas.renderAll();
+        } else if (action === 'up' && this.isDrawing) {
+            // Remove preview and measurements
+            this.canvas.getObjects().forEach(obj => {
+                if (obj.rectanglePreview) {
+                    this.canvas.remove(obj);
+                }
+            });
+            this.clearMeasurementDisplay();
+            
+            const startPoint = this.drawingPoints[0];
+            const width = Math.abs(point.x - startPoint.x);
+            const height = Math.abs(point.y - startPoint.y);
+            
+            if (width > 10 && height > 10) {
+                const left = Math.min(startPoint.x, point.x);
+                const top = Math.min(startPoint.y, point.y);
+                
+                // Theme-aware drawing colors
+                const strokeColor = this.isDarkTheme ? '#00ff00' : '#0066cc';
+                
+                const rectangle = new fabric.Rect({
+                    left: left,
+                    top: top,
+                    width: width,
+                    height: height,
+                    fill: this.getCurrentRoomFill(),
+                    stroke: strokeColor,
+                    strokeWidth: 2,
+                    roomObject: true
+                });
+                
+                this.canvas.add(rectangle);
+                window.sceneManager?.showStatus(`Rectangle added: ${this.formatDistance(width)} × ${this.formatDistance(height)}`, 'success');
+            }
+            
+            this.isDrawing = false;
+            this.drawingPoints = [];
+            this.canvas.renderAll();
+        }
+    }
+    
+    handleLineDrawing(point, action) {
+        if (action === 'down') {
+            this.isDrawing = true;
+            this.lineStartPoint = point;
+            this.linePreview = null;
+        } else if (action === 'move' && this.isDrawing) {
+            // Remove existing preview
+            if (this.linePreview) {
+                this.canvas.remove(this.linePreview);
+            }
+            
+            // Create preview line
+            const strokeColor = this.isDarkTheme ? '#00ff00' : '#0066cc';
+            
+            this.linePreview = new fabric.Line([
+                this.lineStartPoint.x, this.lineStartPoint.y,
+                point.x, point.y
+            ], {
+                stroke: strokeColor,
+                strokeWidth: 2,
+                strokeDashArray: [5, 5],
+                selectable: false,
+                evented: false,
+                linePreview: true
+            });
+            
+            this.canvas.add(this.linePreview);
+            
+            // Show measurement display for line length and x/y distances
+            this.createMeasurementDisplay(this.lineStartPoint, point, true);
+            
+            this.canvas.renderAll();
+        } else if (action === 'up' && this.isDrawing) {
+            // Remove preview and measurements
+            if (this.linePreview) {
+                this.canvas.remove(this.linePreview);
+            }
+            this.clearMeasurementDisplay();
+            
+            // Calculate line length
+            const length = Math.sqrt(
+                Math.pow(point.x - this.lineStartPoint.x, 2) + 
+                Math.pow(point.y - this.lineStartPoint.y, 2)
+            );
+            
+            // Only create line if it's long enough
+            if (length > 10) {
+                const strokeColor = this.isDarkTheme ? '#ffffff' : '#000000';
+                
+                const line = new fabric.Line([
+                    this.lineStartPoint.x, this.lineStartPoint.y,
+                    point.x, point.y
+                ], {
+                    stroke: strokeColor,
+                    strokeWidth: 2,
+                    selectable: true,
+                    evented: true,
+                    lineObject: true
+                });
+                
+                this.canvas.add(line);
+                window.sceneManager?.showStatus(`Line added: ${this.formatDistance(length)}`, 'success');
+                this.triggerAutoSave();
+            }
+            
+            this.isDrawing = false;
+            this.lineStartPoint = null;
+            this.linePreview = null;
+            this.canvas.renderAll();
+        }
+    }
+    
+    addLight(position) {
+        console.log('💡 Adding light at position:', position);
+        
+        let light;
+        
+        if (this.lightIconStyle === 'bulb') {
+            // Create bulb icon using fabric.Text with FontAwesome
+            light = new fabric.Text('\uf0eb', { // FontAwesome lightbulb
+                left: position.x - 12,
+                top: position.y - 12,
+                fontSize: 24,
+                fontFamily: 'FontAwesome',
+                fill: '#ffa500',
+                stroke: this.isDarkTheme ? '#ffffff' : '#000000',
+                strokeWidth: 1,
+                shadow: new fabric.Shadow({
+                    color: '#ffa500',
+                    blur: 8,
+                    offsetX: 0,
+                    offsetY: 0
+                }),
+                hasControls: false,
+                hasBorders: false,
+                selectable: true,
+                evented: true,
+                lightObject: true,
+                entityId: null,
+                iconStyle: 'bulb'
+            });
+        } else if (this.lightIconStyle === 'recessed') {
+            // Create recessed light icon
+            light = new fabric.Circle({
+                left: position.x - 8,
+                top: position.y - 8,
+                radius: 8,
+                fill: 'transparent',
+                stroke: '#ffa500',
+                strokeWidth: 3,
+                shadow: new fabric.Shadow({
+                    color: '#ffa500',
+                    blur: 6,
+                    offsetX: 0,
+                    offsetY: 0
+                }),
+                hasControls: false,
+                hasBorders: false,
+                selectable: true,
+                evented: true,
+                lightObject: true,
+                entityId: null,
+                iconStyle: 'recessed'
+            });
+        } else {
+            // Default circle style
+            light = new fabric.Circle({
+                left: position.x - 10,
+                top: position.y - 10,
+                radius: 10,
+                fill: '#ffa500',
+                stroke: this.isDarkTheme ? '#ffffff' : '#000000',
+                strokeWidth: 2,
+                shadow: new fabric.Shadow({
+                    color: '#ffa500',
+                    blur: 10,
+                    offsetX: 0,
+                    offsetY: 0
+                }),
+                hasControls: false,
+                hasBorders: false,
+                selectable: true,
+                evented: true,
+                lightObject: true,
+                entityId: null,
+                iconStyle: 'circle'
+            });
+        }
+        
+        console.log('💡 Created light object:', {
+            type: light.type,
+            selectable: light.selectable,
+            evented: light.evented,
+            lightObject: light.lightObject,
+            iconStyle: light.iconStyle,
+            position: { x: light.left, y: light.top }
+        });
+        
+        // Add comprehensive event handlers for selection debugging
+        light.on('selected', (e) => {
+            console.log('💡 Light object SELECTED event:', e);
+            console.log('  Light properties:', {
+                type: light.type,
+                entityId: light.entityId,
+                iconStyle: light.iconStyle
+            });
+            this.selectedLight = light;
+            this.updateControlsFromLight(light);
+        });
+        
+        light.on('deselected', (e) => {
+            console.log('💡 Light object DESELECTED event:', e);
+        });
+        
+        light.on('mousedown', (e) => {
+            console.log('💡 Light object MOUSE DOWN:', e);
+            console.log('  Button:', e.e?.button);
+            console.log('  Target:', e.target);
+            
+            // Right-click context menu
+            if (e.e && e.e.button === 2) { // Right click
+                e.e.preventDefault();
+                this.showLightContextMenu(light, e.e);
+            }
+        });
+        
+        light.on('mouseup', (e) => {
+            console.log('💡 Light object MOUSE UP:', e);
+        });
+        
+        light.on('mousedblclick', (e) => {
+            console.log('💡 Light object DOUBLE CLICK:', e);
+            this.assignEntityToLight(light);
+        });
+        
+        light.on('moving', (e) => {
+            console.log('💡 Light object MOVING:', e);
+        });
+        
+        light.on('moved', (e) => {
+            console.log('💡 Light object MOVED:', e);
+        });
+        
+        this.canvas.add(light);
+        this.lights.push(light);
+        this.canvas.renderAll();
+        
+        console.log('💡 Light added to canvas. Total lights:', this.lights.length);
+        console.log('💡 Canvas objects after adding light:', this.canvas.getObjects().length);
+        
+        // Show instructions
+        window.sceneManager?.showStatus('Light added! Double-click to assign entity, right-click for options', 'info');
+        
+        // Trigger auto-save
+        this.triggerAutoSave();
+        
+        return light;
+    }
+    
+    addText(position) {
+        // Prompt for text content
+        const textContent = prompt('Enter text label:', 'Label');
+        if (!textContent) return;
+        
+        // Theme-aware text colors
+        const textColor = this.isDarkTheme ? '#ffffff' : '#000000';
+        const strokeColor = this.isDarkTheme ? '#000000' : '#ffffff';
+        const shadowColor = this.isDarkTheme ? '#000000' : '#ffffff';
+        
+        const text = new fabric.Text(textContent, {
+            left: position.x,
+            top: position.y,
+            fontSize: 16,
+            fontFamily: 'Arial, sans-serif',
+            fill: textColor,
+            stroke: strokeColor,
+            strokeWidth: 0.5,
+            shadow: new fabric.Shadow({
+                color: shadowColor,
+                blur: 2,
+                offsetX: 1,
+                offsetY: 1
+            }),
+            hasControls: true,
+            hasBorders: true,
+            textObject: true
+        });
+        
+        // Add double-click handler for editing
+        text.on('mousedblclick', () => {
+            const newText = prompt('Edit text:', text.text);
+            if (newText !== null) {
+                text.set('text', newText);
+                this.canvas.renderAll();
+                this.triggerAutoSave();
+            }
+        });
+        
+        this.canvas.add(text);
+        this.texts.push(text);
+        this.canvas.renderAll();
+        
+        this.triggerAutoSave();
+    }
+    
+    showLightContextMenu(light, event) {
+        // Remove any existing context menu
+        const existingMenu = document.getElementById('lightContextMenu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.id = 'lightContextMenu';
+        menu.className = 'light-context-menu';
+        
+        // Position the menu near the click point
+        const rect = this.canvas.getElement().getBoundingClientRect();
+        const x = event.clientX || (rect.left + light.left);
+        const y = event.clientY || (rect.top + light.top);
+        
+        menu.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            z-index: 10000;
+            min-width: 200px;
+            backdrop-filter: blur(10px);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        
+        // Dark theme adjustments
+        if (this.isDarkTheme) {
+            menu.style.background = 'rgba(42, 42, 42, 0.98)';
+            menu.style.color = '#ffffff';
+        }
+        
+        // Menu items
+        const menuItems = [
+            {
+                icon: 'fas fa-link',
+                text: 'Assign Entity',
+                action: () => {
+                    // Use the new entity panel instead of old popup
+                    if (window.entityPanel) {
+                        window.entityPanel.setSelectedLight(light);
+                        window.sceneManager?.showStatus('Light selected. Choose an entity below to assign.', 'info');
+                    } else {
+                        // Fallback to old method if entity panel not available
+                        this.assignEntityToLight(light);
+                    }
+                    menu.remove();
+                }
+            },
+            {
+                icon: 'fas fa-palette', 
+                text: `Change Style (${light.iconStyle === 'circle' ? 'to bulb' : 'to circle'})`,
+                action: () => {
+                    const newStyle = light.iconStyle === 'circle' ? 'bulb' : 'circle';
+                    this.changeLightStyle(light, newStyle);
+                    menu.remove();
+                }
+            },
+            {
+                icon: 'fas fa-copy',
+                text: 'Duplicate Light',
+                action: () => {
+                    const newPosition = {
+                        x: light.left + 30,
+                        y: light.top + 30
+                    };
+                    const newLight = this.addLight(newPosition);
+                    if (light.entityId) {
+                        newLight.entityId = light.entityId;
+                        this.updateLightVisualState(newLight, window.lightEntities[light.entityId]);
+                    }
+                    window.sceneManager?.showStatus('Light duplicated', 'success');
+                    menu.remove();
+                }
+            },
+            {
+                icon: 'fas fa-info-circle',
+                text: 'Light Properties',
+                action: () => {
+                    const entity = light.entityId ? window.lightEntities[light.entityId] : null;
+                    const friendlyName = entity?.friendlyName || entity?.friendly_name || 'Not assigned';
+                    const status = entity?.state || 'Unknown';
+                    
+                    alert(`Light Information:\n\nStyle: ${light.iconStyle}\nEntity: ${light.entityId || 'Not assigned'}\nFriendly Name: ${friendlyName}\nStatus: ${status}\nPosition: (${Math.round(light.left)}, ${Math.round(light.top)})`);
+                    menu.remove();
+                }
+            },
+            {
+                icon: 'fas fa-trash',
+                text: 'Delete Light',
+                className: 'danger',
+                action: () => {
+                    if (confirm('Are you sure you want to delete this light?')) {
+                        this.canvas.remove(light);
+                        const index = this.lights.indexOf(light);
+                        if (index > -1) {
+                            this.lights.splice(index, 1);
+                        }
+                        this.triggerAutoSave();
+                        window.sceneManager?.showStatus('Light deleted', 'success');
+                    }
+                    menu.remove();
+                }
+            }
+        ];
+        
+        // Create menu HTML
+        menu.innerHTML = menuItems.map(item => `
+            <div class="context-menu-item ${item.className || ''}" data-action="${menuItems.indexOf(item)}">
+                <i class="${item.icon}"></i>
+                <span>${item.text}</span>
+            </div>
+        `).join('');
+        
+        // Add CSS styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .light-context-menu {
+                font-size: 14px;
+                user-select: none;
+            }
+            
+            .context-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            }
+            
+            .context-menu-item:last-child {
+                border-bottom: none;
+            }
+            
+            .context-menu-item:hover {
+                background: rgba(102, 126, 234, 0.1);
+            }
+            
+            .context-menu-item.danger {
+                color: #dc3545;
+            }
+            
+            .context-menu-item.danger:hover {
+                background: rgba(220, 53, 69, 0.1);
+            }
+            
+            .context-menu-item i {
+                width: 16px;
+                text-align: center;
+                flex-shrink: 0;
+            }
+            
+            .context-menu-item span {
+                flex: 1;
+            }
+            
+            /* Dark theme */
+            [data-theme="dark"] .context-menu-item {
+                border-bottom-color: rgba(255, 255, 255, 0.1);
+            }
+        `;
+        
+        // Add event listeners
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (item) {
+                const actionIndex = parseInt(item.dataset.action);
+                menuItems[actionIndex].action();
+            }
+        });
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                style.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        // Add to DOM
+        document.head.appendChild(style);
+        document.body.appendChild(menu);
+        
+        // Set up outside click handler
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 100);
+        
+        // Adjust position if menu goes off screen
+        setTimeout(() => {
+            const menuRect = menu.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            if (menuRect.right > windowWidth) {
+                menu.style.left = (windowWidth - menuRect.width - 10) + 'px';
+            }
+            
+            if (menuRect.bottom > windowHeight) {
+                menu.style.top = (windowHeight - menuRect.height - 10) + 'px';
+            }
+        }, 10);
+    }
+    
+    toggleLightStyle() {
+        // Toggle between circle and bulb styles
+        this.lightIconStyle = this.lightIconStyle === 'circle' ? 'bulb' : 'circle';
+        
+        // Update button to show current style
+        const styleBtn = document.getElementById('light-style-btn');
+        if (this.lightIconStyle === 'bulb') {
+            styleBtn.classList.add('active');
+            styleBtn.title = 'Light Style: Bulb Icon (Click for Circle)';
+        } else {
+            styleBtn.classList.remove('active');
+            styleBtn.title = 'Light Style: Circle (Click for Bulb Icon)';
+        }
+        
+        window.sceneManager?.showStatus(`Light style set to: ${this.lightIconStyle}`, 'info');
+    }
+    
+    toggleTheme() {
+        this.isDarkTheme = !this.isDarkTheme;
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const themeIcon = themeBtn.querySelector('i');
+        const themeText = themeBtn.querySelector('span');
+        
+        if (this.isDarkTheme) {
+            this.canvas.backgroundColor = '#1a1a1a';
+            themeIcon.className = 'fas fa-sun';
+            themeText.textContent = 'Light';
+        } else {
+            this.canvas.backgroundColor = '#ffffff';
+            themeIcon.className = 'fas fa-moon';
+            themeText.textContent = 'Dark';
+        }
+        
+        // Update grid colors
+        this.drawGrid();
+        
+        // Update text colors
+        this.canvas.forEachObject(obj => {
+            if (obj.textObject || obj.labelObject) {
+                obj.set({
+                    fill: this.isDarkTheme ? '#ffffff' : '#000000',
+                    backgroundColor: obj.labelObject ? 
+                        (this.isDarkTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)') : 
+                        obj.backgroundColor
+                });
+            }
+            if (obj.lightObject) {
+                obj.set({
+                    stroke: this.isDarkTheme ? '#ffffff' : '#000000'
+                });
+            }
+        });
+        
+        this.canvas.renderAll();
+        this.triggerAutoSave();
+    }
+    
+    toggleUnits() {
+        this.useMetric = !this.useMetric;
+        
+        // Update button visual state
+        const unitsBtn = document.getElementById('units-toggle-btn');
+        const unitsText = unitsBtn.querySelector('span');
+        
+        unitsText.textContent = this.useMetric ? 'Metric' : 'Imperial';
+        unitsBtn.title = this.useMetric ? 'Switch to Imperial (feet)' : 'Switch to Metric (meters)';
+        
+        // Redraw grid with new units
+        this.drawGrid();
+        
+        // Clear and redraw any measurement displays
+        this.clearMeasurementDisplay();
+        
+        // Update grid tooltip info
+        const gridBtn = document.getElementById('grid-toggle-btn');
+        if (gridBtn) {
+            const unitText = this.useMetric ? 'meters' : 'feet';
+            const gridSize = this.useMetric ? this.metersPerGrid.toFixed(2) : this.feetPerGrid;
+            gridBtn.title = `Toggle Grid (${gridSize} ${unitText} per square)`;
+        }
+        
+        // Save preference
+        this.triggerAutoSave();
+        
+        // Show status message
+        const unitName = this.useMetric ? 'metric (meters)' : 'imperial (feet)';
+        window.sceneManager?.showStatus(`Measurement units changed to ${unitName}`, 'info');
+        
+        console.log('📏 Units toggled to:', this.useMetric ? 'metric' : 'imperial');
+    }
+    
+    toggleLabels() {
+        this.showLabels = !this.showLabels;
+        const labelsBtn = document.getElementById('labels-toggle-btn');
+        
+        if (this.showLabels) {
+            labelsBtn.classList.add('active');
+            labelsBtn.title = 'Hide Entity Labels';
+            this.createLabels();
+        } else {
+            labelsBtn.classList.remove('active');
+            labelsBtn.title = 'Show Entity Labels';
+            this.removeLabels();
+        }
+        
+        window.sceneManager?.showStatus(`Entity labels ${this.showLabels ? 'shown' : 'hidden'}`, 'info');
+    }
+    
+    async toggleStateMode() {
+        this.showCurrentState = !this.showCurrentState;
+        const stateModeBtn = document.getElementById('state-mode-toggle-btn');
+        const icon = stateModeBtn.querySelector('i');
+        const text = stateModeBtn.querySelector('span');
+        
+        // Add switching animation
+        stateModeBtn.classList.add('switching');
+        setTimeout(() => stateModeBtn.classList.remove('switching'), 400);
+        
+        if (this.showCurrentState) {
+            stateModeBtn.classList.add('active');
+            icon.className = 'fas fa-home';
+            text.textContent = 'Current';
+            stateModeBtn.title = 'Showing: Current Home Assistant State (Click to show Scene Preview)';
+        } else {
+            stateModeBtn.classList.remove('active');
+            icon.className = 'fas fa-palette';
+            text.textContent = 'Scene';
+            stateModeBtn.title = 'Showing: Scene Preview (Click to show Current State)';
+        }
+        
+        // Update all light visuals based on new mode
+        await this.refreshAllLightStates();
+        
+        // Update the lights tab header text
+        if (window.lightController) {
+            window.lightController.updateLightsTabHeader();
+            // Also refresh the lights list display to show current values
+            window.lightController.renderFloorplanLightsList();
+        }
+        
+        if (window.sceneManager) {
+            const modeText = this.showCurrentState ? 'Current State' : 'Scene Preview';
+            window.sceneManager.showStatus(`Display Mode: ${modeText}`, 'info');
+        }
+        
+        this.triggerAutoSave();
+    }
+    
+    // toggleLabelMode function removed - always use entity names
+    
+    createLabels() {
+        this.removeLabels(); // Clear existing labels first
+        
+        this.lights.forEach(light => {
+            if (light.entityId && window.lightEntities[light.entityId]) {
+                const label = this.createLabelForLight(light);
+                if (label) {
+                    this.labels.push(label);
+                    this.canvas.add(label);
+                }
+            }
+        });
+        
+        this.canvas.renderAll();
+    }
+    
+    createLabelForLight(light) {
+        if (!light.entityId || !window.lightEntities) return null;
+        
+        const entity = window.lightEntities[light.entityId];
+        if (!entity) return null;
+        
+        // Always use entity_id, but format it nicely
+        let labelText = light.entityId;
+        if (entity.entity_id) {
+            // Extract readable name from entity_id (remove domain prefix and convert underscores)
+            labelText = entity.entity_id.replace(/^[^.]+\./, '').replace(/_/g, ' ');
+        }
+        
+        const centerX = light.left + (light.width || light.radius || 10);
+        const centerY = light.top - 25; // Position label above the light
+        
+        const label = new fabric.Text(labelText, {
+            left: centerX - 50, // Approximate center, will be adjusted after measuring
+            top: centerY,
+            fontSize: 12,
+            fontFamily: 'Arial, sans-serif',
+            fill: this.isDarkTheme ? '#ffffff' : '#000000',
+            backgroundColor: this.isDarkTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+            padding: 2,
+            selectable: false,
+            evented: false,
+            labelObject: true,
+            lightRef: light // Reference to the associated light
+        });
+        
+        // Center the label text
+        label.set('left', centerX - (label.width / 2));
+        
+        return label;
+    }
+    
+    removeLabels() {
+        this.labels.forEach(label => {
+            this.canvas.remove(label);
+        });
+        this.labels = [];
+        this.canvas.renderAll();
+    }
+    
+    updateLabels() {
+        if (this.showLabels) {
+            this.createLabels();
+        }
+    }
+
+    changeLightStyle(light, newStyle) {
+        const position = { x: light.left + 10, y: light.top + 10 };
+        const entityId = light.entityId;
+        
+        // Remove old light
+        this.canvas.remove(light);
+        const index = this.lights.indexOf(light);
+        if (index > -1) {
+            this.lights.splice(index, 1);
+        }
+        
+        // Set new style and create new light
+        this.lightIconStyle = newStyle;
+        this.addLight(position);
+        
+        // Restore entity assignment
+        if (entityId && this.lights.length > 0) {
+            const newLight = this.lights[this.lights.length - 1];
+            newLight.entityId = entityId;
+            const entity = window.lightEntities[entityId];
+            if (entity) {
+                newLight.set('fill', entity.state === 'on' ? '#ffff00' : '#ffa500');
+            }
+        }
+        
+        this.canvas.renderAll();
+        window.sceneManager?.showStatus(`Light icon changed to ${newStyle}`, 'info');
+    }
+    
+    handleRoomDrawing(point, action) {
+        if (action === 'down') {
+            if (!this.isDrawing) {
+                // Start drawing
+                this.isDrawing = true;
+                this.drawingPoints = [point];
+            } else {
+                // Add point or close room
+                const firstPoint = this.drawingPoints[0];
+                const distance = Math.sqrt(
+                    Math.pow(point.x - firstPoint.x, 2) + 
+                    Math.pow(point.y - firstPoint.y, 2)
+                );
+                
+                if (distance < this.gridSize && this.drawingPoints.length > 2) {
+                    // Close the room
+                    this.completeRoom();
+                } else {
+                    // Add new point
+                    this.drawingPoints.push(point);
+                }
+            }
+        }
+        
+        this.updateRoomPreview();
+    }
+    
+    updateRoomPreview() {
+        // Remove existing preview
+        this.canvas.getObjects().forEach(obj => {
+            if (obj.roomPreview) {
+                this.canvas.remove(obj);
+            }
+        });
+        
+        if (this.drawingPoints.length < 2) return;
+        
+        // Theme-aware room preview colors
+        const strokeColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+        
+        // Draw preview lines and show measurements for the last segment
+        for (let i = 0; i < this.drawingPoints.length - 1; i++) {
+            const p1 = this.drawingPoints[i];
+            const p2 = this.drawingPoints[i + 1];
+            
+            const line = new fabric.Line([p1.x, p1.y, p2.x, p2.y], {
+                stroke: strokeColor,
+                strokeWidth: 2,
+                strokeDashArray: [5, 5],
+                selectable: false,
+                evented: false,
+                roomPreview: true
+            });
+            
+            this.canvas.add(line);
+            
+            // Show measurement for the most recent segment being drawn
+            if (i === this.drawingPoints.length - 2) {
+                this.createMeasurementDisplay(p1, p2, false); // Only show total distance for polygons
+            }
+        }
+        
+        this.canvas.renderAll();
+    }
+    
+    completeRoom() {
+        // Remove preview lines and measurements
+        this.canvas.getObjects().forEach(obj => {
+            if (obj.roomPreview) {
+                this.canvas.remove(obj);
+            }
+        });
+        this.clearMeasurementDisplay();
+        
+        // Create room polygon
+        if (this.roomOutline) {
+            this.canvas.remove(this.roomOutline);
+        }
+        
+        const points = this.drawingPoints.map(p => ({ x: p.x, y: p.y }));
+        
+        // Calculate perimeter for status message
+        let perimeter = 0;
+        for (let i = 0; i < points.length; i++) {
+            const p1 = points[i];
+            const p2 = points[(i + 1) % points.length]; // Wrap to first point for last segment
+            const segmentLength = Math.sqrt(
+                Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)
+            );
+            perimeter += segmentLength;
+        }
+        
+        // Use selected room fill color
+        const fillColor = this.getCurrentRoomFill();
+        const strokeColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)';
+        
+        this.roomOutline = new fabric.Polygon(points, {
+            fill: fillColor,
+            stroke: strokeColor,
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+            selectable: true,
+            roomOutline: true
+        });
+        
+        this.canvas.add(this.roomOutline);
+        this.canvas.sendObjectToBack(this.roomOutline);
+        
+        window.sceneManager?.showStatus(`Room added: ${points.length} points, ${this.formatDistance(perimeter)} perimeter`, 'success');
+        
+        // Reset drawing state
+        this.isDrawing = false;
+        this.drawingPoints = [];
+        
+        this.canvas.renderAll();
+    }
+    
+    assignEntityToLight(light) {
+        // Get available entities and sort alphabetically by friendly name
+        const availableEntities = Object.keys(window.lightEntities || {});
+        
+        if (availableEntities.length === 0) {
+            window.sceneManager?.showStatus('No light entities available. Please check your Home Assistant connection.', 'warning');
+            return;
+        }
+
+        // Calculate light position on canvas and screen coordinates
+        const canvasElement = this.canvas.getElement();
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const zoom = this.canvas.getZoom();
+        const vpt = this.canvas.viewportTransform;
+        
+        // Transform light coordinates to screen coordinates
+        const lightScreenX = (light.left * zoom) + vpt[4] + canvasRect.left;
+        const lightScreenY = (light.top * zoom) + vpt[5] + canvasRect.top;
+        
+        // Determine popup position (left or right of light)
+        const popupWidth = 500;
+        const popupHeight = 600;
+        const margin = 30;
+        
+        const spaceOnRight = window.innerWidth - lightScreenX - margin;
+        const spaceOnLeft = lightScreenX - margin;
+        
+        let popupLeft, popupTop;
+        let showOnRight = spaceOnRight >= popupWidth;
+        let showOnLeft = spaceOnLeft >= popupWidth;
+        
+        if (showOnRight) {
+            // Position to the right of the light
+            popupLeft = lightScreenX + margin;
+        } else if (showOnLeft) {
+            // Position to the left of the light
+            popupLeft = lightScreenX - popupWidth - margin;
+        } else {
+            // Center on screen if no space on either side
+            popupLeft = (window.innerWidth - popupWidth) / 2;
+        }
+        
+        // Vertical positioning - center on light, but keep within viewport
+        popupTop = lightScreenY - (popupHeight / 2);
+        popupTop = Math.max(20, Math.min(popupTop, window.innerHeight - popupHeight - 20));
+
+        // Get current area for filtering
+        const currentArea = window.sceneManager?.selectedArea;
+        const currentAreaName = currentArea ? window.sceneManager?.getAreaName(currentArea) : 'No Area Selected';
+        
+        // Prepare entity data with area information
+        const entityData = availableEntities.map(entityId => {
+            const entity = window.lightEntities[entityId];
+            const friendlyName = entity.friendlyName || entity.friendly_name || entityId;
+            const areaId = entity.area_id || null;
+            const areaName = areaId ? window.sceneManager?.getAreaName(areaId) : 'No Area';
+            const isInCurrentArea = areaId === currentArea;
+            
+            return {
+                entityId,
+                entity,
+                friendlyName,
+                areaId,
+                areaName,
+                isInCurrentArea
+            };
+        });
+
+        // Sort entities alphabetically by friendly name
+        const sortedEntities = entityData.sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
+        
+        // Create positioned popup instead of modal
+        const popup = document.createElement('div');
+        popup.className = 'light-entity-popup';
+        popup.style.cssText = `
+            position: fixed;
+            left: ${popupLeft}px;
+            top: ${popupTop}px;
+            width: ${popupWidth}px;
+            height: ${popupHeight}px;
+            z-index: 10000;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+        `;
+        
+        popup.innerHTML = `
+            <div class="popup-content entity-assignment-popup-enhanced">
+                <div class="popup-header">
+                    <div class="popup-title">
+                        <i class="fas fa-link"></i> 
+                        <span>Assign Light Entity</span>
+                        <div class="light-indicator">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Light on Canvas</span>
+                        </div>
+                    </div>
+                    <button class="popup-close-btn" id="closePopup">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="entity-filter-bar">
+                    <div class="filter-controls">
+                        <div class="search-container">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="entitySearchInput" placeholder="Search entities..." class="entity-search-input-enhanced">
+                            <button class="clear-search-btn" id="clearSearch" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="area-filter-btn" id="areaFilterBtn" data-active="false" title="Show only entities in current area">
+                            <i class="fas fa-home"></i>
+                            <span class="area-filter-text">${currentAreaName}</span>
+                        </button>
+                    </div>
+                    <div class="entity-count">
+                        <span id="entityCount">${sortedEntities.length}</span> entities
+                    </div>
+                </div>
+                
+                <div class="entity-list-container">
+                    <div class="entity-list" id="entityList">
+                        <div class="entity-option no-selection" data-value="">
+                            <div class="entity-main">
+                                <div class="entity-name">No Entity Selected</div>
+                                <div class="entity-description">Click an entity below to assign it to this light</div>
+                            </div>
+                            <div class="entity-status">
+                                <span class="status-indicator unassigned">Unassigned</span>
+                            </div>
+                        </div>
+                        ${sortedEntities.map(({entityId, entity, friendlyName, areaName, isInCurrentArea}) => {
+                            const state = entity.state || 'unknown';
+                            const isOn = state === 'on';
+                            const brightness = entity.attributes?.brightness || 0;
+                            const brightnessPercent = Math.round((brightness / 255) * 100);
+                            
+                            return `
+                                <div class="entity-option" data-value="${entityId}" data-area="${areaName}" data-in-current-area="${isInCurrentArea}">
+                                    <div class="entity-main">
+                                        <div class="entity-name">${friendlyName}</div>
+                                        <div class="entity-id">${entityId}</div>
+                                        <div class="entity-area">
+                                            <i class="fas fa-home"></i>
+                                            <span>${areaName}</span>
+                                        </div>
+                                    </div>
+                                    <div class="entity-status">
+                                        <div class="status-indicator ${isOn ? 'on' : 'off'}">
+                                            ${isOn ? `ON ${brightness > 0 ? brightnessPercent + '%' : ''}` : 'OFF'}
+                                        </div>
+                                        ${isInCurrentArea ? '<div class="current-area-badge">Current Area</div>' : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                <div class="popup-footer">
+                    <div class="selected-entity-info" id="selectedEntityInfo" style="display: none;">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="selectedEntityText">No entity selected</span>
+                    </div>
+                    <div class="popup-actions">
+                        <button id="assignEntity" class="btn btn-primary" disabled>
+                            <i class="fas fa-link"></i>
+                            Assign Entity
+                        </button>
+                        <button id="cancelAssign" class="btn btn-secondary">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Arrow pointing to light -->
+                <div class="popup-arrow ${showOnRight ? 'arrow-left' : (showOnLeft ? 'arrow-right' : 'arrow-hidden')}"></div>
+            </div>
+        `;
+        
+        // Add enhanced CSS styles for positioned popup
+        const style = document.createElement('style');
+        style.textContent = `
+            .entity-assignment-popup-enhanced {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                background: var(--bg-color, #ffffff);
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.1);
+                position: relative;
+                border: 2px solid #667eea;
+            }
+            
+            .popup-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .popup-title {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 16px;
+                font-weight: 600;
+            }
+            
+            .light-indicator {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                background: rgba(255, 255, 255, 0.2);
+                padding: 4px 8px;
+                border-radius: 20px;
+                font-weight: 500;
+            }
+            
+            .popup-close-btn {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+                padding: 8px;
+                border-radius: 6px;
+                transition: background-color 0.2s;
+            }
+            
+            .popup-close-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            .entity-filter-bar {
+                padding: 12px 16px;
+                background: var(--header-bg, #f8f9fa);
+                border-bottom: 1px solid var(--border-color, #dee2e6);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            .filter-controls {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+            }
+            
+            .search-container {
+                position: relative;
+                flex: 1;
+                max-width: 250px;
+            }
+            
+            .search-icon {
+                position: absolute;
+                left: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--text-secondary, #6c757d);
+                font-size: 12px;
+            }
+            
+            .entity-search-input-enhanced {
+                width: 100%;
+                padding: 8px 32px 8px 28px;
+                border: 2px solid var(--border-color, #dee2e6);
+                border-radius: 6px;
+                font-size: 13px;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+            
+            .entity-search-input-enhanced:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+            }
+            
+            .clear-search-btn {
+                position: absolute;
+                right: 6px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                color: var(--text-secondary, #6c757d);
+                cursor: pointer;
+                padding: 3px;
+                border-radius: 3px;
+                transition: background-color 0.2s;
+            }
+            
+            .clear-search-btn:hover {
+                background: var(--hover-bg, rgba(0, 0, 0, 0.05));
+            }
+            
+            .area-filter-btn {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 12px;
+                background: var(--bg-color, #ffffff);
+                border: 2px solid var(--border-color, #dee2e6);
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 12px;
+                color: var(--text-color, #333);
+                white-space: nowrap;
+            }
+            
+            .area-filter-btn:hover {
+                background: var(--hover-bg, #f8f9fa);
+            }
+            
+            .area-filter-btn[data-active="true"] {
+                background: #667eea;
+                border-color: #667eea;
+                color: white;
+            }
+            
+            .area-filter-text {
+                max-width: 100px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .entity-count {
+                font-size: 12px;
+                color: var(--text-secondary, #6c757d);
+                font-weight: 500;
+                white-space: nowrap;
+            }
+            
+            .entity-list-container {
+                flex: 1;
+                overflow: hidden;
+                background: var(--bg-color, #ffffff);
+            }
+            
+            .entity-list {
+                height: 100%;
+                overflow-y: auto;
+                padding: 6px;
+            }
+            
+            .entity-option {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px;
+                margin-bottom: 6px;
+                border: 2px solid var(--border-light, #e9ecef);
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                background: var(--bg-color, #ffffff);
+            }
+            
+            .entity-option:hover {
+                border-color: #667eea;
+                background: rgba(102, 126, 234, 0.05);
+                transform: translateY(-1px);
+                box-shadow: 0 3px 8px rgba(102, 126, 234, 0.15);
+            }
+            
+            .entity-option.selected {
+                border-color: #667eea;
+                background: rgba(102, 126, 234, 0.1);
+                box-shadow: 0 3px 8px rgba(102, 126, 234, 0.2);
+            }
+            
+            .entity-option.no-selection {
+                border-style: dashed;
+                border-color: var(--border-color, #dee2e6);
+            }
+            
+            .entity-option.no-selection:hover {
+                border-color: #667eea;
+                border-style: solid;
+            }
+            
+            .entity-main {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .entity-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-color, #333);
+                margin-bottom: 3px;
+                line-height: 1.3;
+            }
+            
+            .entity-id {
+                font-size: 11px;
+                color: var(--text-secondary, #6c757d);
+                font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                margin-bottom: 4px;
+                line-height: 1.2;
+            }
+            
+            .entity-area {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 10px;
+                color: var(--text-secondary, #6c757d);
+            }
+            
+            .entity-status {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 4px;
+            }
+            
+            .status-indicator {
+                padding: 3px 8px;
+                border-radius: 16px;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            
+            .status-indicator.on {
+                background: #28a745;
+                color: white;
+            }
+            
+            .status-indicator.off {
+                background: #6c757d;
+                color: white;
+            }
+            
+            .status-indicator.unassigned {
+                background: var(--border-color, #dee2e6);
+                color: var(--text-secondary, #6c757d);
+            }
+            
+            .current-area-badge {
+                background: #17a2b8;
+                color: white;
+                padding: 2px 6px;
+                border-radius: 10px;
+                font-size: 9px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.2px;
+            }
+            
+            .popup-footer {
+                padding: 12px 16px;
+                background: var(--header-bg, #f8f9fa);
+                border-top: 1px solid var(--border-color, #dee2e6);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .selected-entity-info {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                color: #28a745;
+                font-weight: 500;
+                font-size: 12px;
+            }
+            
+            .popup-actions {
+                display: flex;
+                gap: 8px;
+            }
+            
+            .btn {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            
+            .btn-primary {
+                background: #667eea;
+                color: white;
+            }
+            
+            .btn-primary:hover:not(:disabled) {
+                background: #5a6fd8;
+                transform: translateY(-1px);
+                box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+            }
+            
+            .btn-primary:disabled {
+                background: #ccc;
+                color: #999;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .btn-secondary {
+                background: var(--bg-color, #ffffff);
+                color: var(--text-color, #333);
+                border: 2px solid var(--border-color, #dee2e6);
+            }
+            
+            .btn-secondary:hover {
+                background: var(--hover-bg, #f8f9fa);
+                transform: translateY(-1px);
+            }
+            
+            .entity-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            
+            .entity-list::-webkit-scrollbar-track {
+                background: var(--bg-color, #f1f1f1);
+                border-radius: 3px;
+            }
+            
+            .entity-list::-webkit-scrollbar-thumb {
+                background: var(--border-color, #c1c1c1);
+                border-radius: 3px;
+            }
+            
+            .entity-list::-webkit-scrollbar-thumb:hover {
+                background: var(--text-secondary, #a1a1a1);
+            }
+            
+            /* Arrow pointing to light */
+            .popup-arrow {
+                position: absolute;
+                width: 0;
+                height: 0;
+                z-index: 1;
+            }
+            
+            .popup-arrow.arrow-left {
+                left: -12px;
+                top: 50%;
+                transform: translateY(-50%);
+                border-top: 12px solid transparent;
+                border-bottom: 12px solid transparent;
+                border-right: 12px solid #667eea;
+            }
+            
+            .popup-arrow.arrow-right {
+                right: -12px;
+                top: 50%;
+                transform: translateY(-50%);
+                border-top: 12px solid transparent;
+                border-bottom: 12px solid transparent;
+                border-left: 12px solid #667eea;
+            }
+            
+            .popup-arrow.arrow-hidden {
+                display: none;
+            }
+            
+            /* Dark theme support */
+            [data-theme="dark"] .entity-assignment-popup-enhanced {
+                --bg-color: #2a2a2a;
+                --header-bg: #333;
+                --border-color: #555;
+                --border-light: #444;
+                --text-color: #ffffff;
+                --text-secondary: #aaa;
+                --hover-bg: rgba(255, 255, 255, 0.1);
+            }
+            
+            /* Entry animation */
+            .light-entity-popup.show {
+                opacity: 1;
+                transform: scale(1);
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(popup);
+        
+        // Animate popup in
+        requestAnimationFrame(() => {
+            popup.classList.add('show');
+        });
+        
+        // Setup enhanced functionality
+        const entityList = document.getElementById('entityList');
+        const searchInput = document.getElementById('entitySearchInput');
+        const clearSearchBtn = document.getElementById('clearSearch');
+        const areaFilterBtn = document.getElementById('areaFilterBtn');
+        const entityCount = document.getElementById('entityCount');
+        const assignButton = document.getElementById('assignEntity');
+        const selectedEntityInfo = document.getElementById('selectedEntityInfo');
+        const selectedEntityText = document.getElementById('selectedEntityText');
+        
+        let selectedEntityId = null;
+        let isAreaFilterActive = false;
+        let currentSearchTerm = '';
+        
+        // Filter and display functions
+        const filterAndDisplayEntities = () => {
+            const options = entityList.querySelectorAll('.entity-option:not(.no-selection)');
+            let visibleCount = 0;
+            
+            options.forEach(option => {
+                const entityId = option.dataset.value;
+                const entityInfo = sortedEntities.find(e => e.entityId === entityId);
+                const isInCurrentArea = option.dataset.inCurrentArea === 'true';
+                
+                // Text search
+                const searchMatch = !currentSearchTerm || 
+                    entityInfo.friendlyName.toLowerCase().includes(currentSearchTerm) ||
+                    entityInfo.entityId.toLowerCase().includes(currentSearchTerm) ||
+                    entityInfo.areaName.toLowerCase().includes(currentSearchTerm);
+                
+                // Area filter
+                const areaMatch = !isAreaFilterActive || isInCurrentArea;
+                
+                const shouldShow = searchMatch && areaMatch;
+                option.style.display = shouldShow ? 'flex' : 'none';
+                
+                if (shouldShow) visibleCount++;
+            });
+            
+            entityCount.textContent = visibleCount;
+        };
+        
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            currentSearchTerm = e.target.value.toLowerCase();
+            clearSearchBtn.style.display = currentSearchTerm ? 'block' : 'none';
+            filterAndDisplayEntities();
+        });
+        
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            currentSearchTerm = '';
+            clearSearchBtn.style.display = 'none';
+            filterAndDisplayEntities();
+            searchInput.focus();
+        });
+        
+        // Area filter functionality
+        areaFilterBtn.addEventListener('click', () => {
+            isAreaFilterActive = !isAreaFilterActive;
+            areaFilterBtn.dataset.active = isAreaFilterActive;
+            filterAndDisplayEntities();
+        });
+        
+        // Entity selection
+        entityList.addEventListener('click', (e) => {
+            const option = e.target.closest('.entity-option');
+            if (!option || option.style.display === 'none') return;
+            
+            // Remove previous selection
+            entityList.querySelectorAll('.entity-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Add selection to clicked option
+            option.classList.add('selected');
+            
+            selectedEntityId = option.dataset.value;
+            const entityInfo = selectedEntityId ? sortedEntities.find(e => e.entityId === selectedEntityId) : null;
+            
+            if (selectedEntityId && entityInfo) {
+                assignButton.disabled = false;
+                selectedEntityInfo.style.display = 'flex';
+                selectedEntityText.textContent = `${entityInfo.friendlyName} (${entityInfo.areaName})`;
+            } else {
+                assignButton.disabled = true;
+                selectedEntityInfo.style.display = 'none';
+                selectedEntityId = null;
+            }
+        });
+        
+        // Handle assignment
+        assignButton.addEventListener('click', () => {
+            if (selectedEntityId) {
+                light.entityId = selectedEntityId;
+                const entity = window.lightEntities[selectedEntityId];
+                
+                // Update visual state based on current entity state
+                this.updateLightVisualState(light, entity);
+                
+                // Update labels if they're visible
+                if (this.showLabels) {
+                    this.updateLabels();
+                }
+                
+                // If this light is selected, update controls
+                if (this.selectedLight === light) {
+                    this.updateControlsFromLight(light);
+                }
+                
+                const entityInfo = sortedEntities.find(e => e.entityId === selectedEntityId);
+                window.sceneManager?.showStatus(`Light assigned to ${entityInfo.friendlyName}`, 'success');
+                
+                // Refresh the floorplan lights list since we have a new assigned entity
+                if (window.sceneManager) {
+                    window.sceneManager.renderFloorplanLightsList();
+                }
+                
+                closePopup();
+                this.triggerAutoSave();
+            }
+        });
+        
+        // Close handlers
+        const closePopup = () => {
+            popup.style.opacity = '0';
+            popup.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                if (popup.parentNode) {
+                    document.body.removeChild(popup);
+                }
+                if (style.parentNode) {
+                    document.head.removeChild(style);
+                }
+            }, 300);
+        };
+        
+        document.getElementById('closePopup').addEventListener('click', closePopup);
+        document.getElementById('cancelAssign').addEventListener('click', closePopup);
+        
+        // Handle clicking outside popup to close
+        document.addEventListener('click', function outsideClickHandler(e) {
+            if (!popup.contains(e.target)) {
+                closePopup();
+                document.removeEventListener('click', outsideClickHandler);
+            }
+        });
+        
+        // Handle Escape key to close popup
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closePopup();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        // Focus the search input
+        setTimeout(() => {
+            searchInput.focus();
+        }, 100);
+        
+        // Initial filter display
+        filterAndDisplayEntities();
+    }
+    
+    setupEntitySearchableSelect(selectElement, onSelect) {
+        const input = selectElement.querySelector('input');
+        const dropdown = selectElement.querySelector('.dropdown-options');
+        let isOpen = false;
+        let selectedValue = '';
+        
+        // Open dropdown when input is focused or clicked
+        const openDropdown = () => {
+            if (!isOpen) {
+                dropdown.classList.add('show');
+                isOpen = true;
+                input.removeAttribute('readonly');
+                
+                // Reset search filter when opening
+                this.filterEntityDropdownOptions(dropdown, '');
+            }
+        };
+        
+        const closeDropdown = () => {
+            if (isOpen) {
+                dropdown.classList.remove('show');
+                isOpen = false;
+                input.setAttribute('readonly', true);
+            }
+        };
+        
+        // Handle input focus and click
+        input.addEventListener('focus', openDropdown);
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDropdown();
+        });
+        
+        // Search functionality
+        input.addEventListener('input', () => {
+            if (!isOpen) openDropdown();
+            
+            const searchTerm = input.value.toLowerCase();
+            this.filterEntityDropdownOptions(dropdown, searchTerm);
+        });
+        
+        // Option selection with improved click handling
+        dropdown.addEventListener('click', (e) => {
+            // Use event delegation to handle clicks anywhere within dropdown options
+            const option = e.target.closest('.dropdown-option');
+            if (!option || option.classList.contains('no-results')) return;
+            
+            e.stopPropagation();
+            e.preventDefault();
+            
+            const entityId = option.dataset.value;
+            const friendlyName = option.querySelector('.entity-name')?.textContent || '';
+            
+            // Ensure we have a valid entity ID for selection
+            if (entityId && entityId.trim() !== '') {
+                input.value = friendlyName;
+                selectedValue = entityId;
+                selectElement.dataset.selectedValue = entityId;
+                closeDropdown();
+                
+                // Call the onSelect callback to update the assignment logic
+                if (onSelect) onSelect(entityId, friendlyName);
+                
+                console.log('🔗 Entity selected:', { entityId, friendlyName });
+            }
+        });
+        
+        // Keyboard navigation
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeDropdown();
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.navigateEntityDropdownOptions(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const highlighted = dropdown.querySelector('.dropdown-option.highlighted');
+                if (highlighted) {
+                    highlighted.click();
+                }
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!selectElement.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+    }
+    
+    filterEntityDropdownOptions(dropdown, searchTerm) {
+        const options = dropdown.querySelectorAll('.dropdown-option');
+        let hasVisibleOptions = false;
+        
+        options.forEach(option => {
+            const friendlyName = option.querySelector('.entity-name')?.textContent.toLowerCase() || '';
+            const entityId = option.querySelector('.entity-id')?.textContent.toLowerCase() || '';
+            const isMatch = !searchTerm || friendlyName.includes(searchTerm) || entityId.includes(searchTerm);
+            
+            option.style.display = isMatch ? 'block' : 'none';
+            if (isMatch) hasVisibleOptions = true;
+            
+            // Remove any existing highlighting
+            option.classList.remove('highlighted');
+        });
+        
+        // Show/hide no results message
+        let noResults = dropdown.querySelector('.no-results');
+        if (!hasVisibleOptions && searchTerm) {
+            if (!noResults) {
+                noResults = document.createElement('div');
+                noResults.className = 'no-results dropdown-option';
+                noResults.innerHTML = `
+                    <div class="entity-name">No matching entities found</div>
+                    <div class="entity-id">Try a different search term</div>
+                `;
+                dropdown.appendChild(noResults);
+            }
+            noResults.style.display = 'block';
+        } else if (noResults) {
+            noResults.style.display = 'none';
+        }
+    }
+    
+    navigateEntityDropdownOptions(dropdown, direction) {
+        const visibleOptions = Array.from(dropdown.querySelectorAll('.dropdown-option'))
+            .filter(option => option.style.display !== 'none' && !option.classList.contains('no-results'));
+        
+        if (visibleOptions.length === 0) return;
+        
+        const currentHighlighted = dropdown.querySelector('.dropdown-option.highlighted');
+        let newIndex = 0;
+        
+        if (currentHighlighted) {
+            const currentIndex = visibleOptions.indexOf(currentHighlighted);
+            newIndex = currentIndex + direction;
+            currentHighlighted.classList.remove('highlighted');
+        }
+        
+        // Wrap around
+        if (newIndex < 0) newIndex = visibleOptions.length - 1;
+        if (newIndex >= visibleOptions.length) newIndex = 0;
+        
+        visibleOptions[newIndex].classList.add('highlighted');
+        visibleOptions[newIndex].scrollIntoView({ block: 'nearest' });
+    }
+    
+    importBackground() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                console.log('📷 Loading background image:', file.name);
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log('✅ Image loaded, creating fabric object');
+                        
+                        // Remove existing background
+                        if (this.backgroundImage) {
+                            this.canvas.remove(this.backgroundImage);
+                        }
+                        
+                        const fabricImg = new fabric.Image(img);
+                        
+                        // Scale image to fit canvas
+                        const scaleX = this.canvas.width / img.width;
+                        const scaleY = this.canvas.height / img.height;
+                        const scale = Math.min(scaleX, scaleY) * 0.8;
+                        
+                        fabricImg.scale(scale);
+                        fabricImg.center();
+                        fabricImg.set({
+                            opacity: 0.6,
+                            selectable: false,
+                            evented: false,
+                            backgroundImage: true
+                        });
+                        
+                        this.backgroundImage = fabricImg;
+                        this.canvas.add(fabricImg);
+                        this.canvas.sendObjectToBack(fabricImg);
+                        
+                        // Make sure grid stays behind everything but above background
+                        this.canvas.forEachObject(obj => {
+                            if (obj.gridLine) {
+                                this.canvas.bringForward(obj);
+                            }
+                        });
+                        
+                        this.canvas.renderAll();
+                        this.triggerAutoSave();
+                        
+                        window.sceneManager?.showStatus('Background image imported successfully', 'success');
+                    };
+                    img.onerror = () => {
+                        console.error('❌ Failed to load image');
+                        window.sceneManager?.showStatus('Failed to load background image', 'error');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.onerror = () => {
+                    console.error('❌ Failed to read file');
+                    window.sceneManager?.showStatus('Failed to read image file', 'error');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        
+        input.click();
+    }
+    
+    zoomIn() {
+        // Ensure zoomLevel is properly initialized
+        if (!this.zoomLevel || isNaN(this.zoomLevel)) {
+            this.zoomLevel = this.canvas ? this.canvas.getZoom() : 1.0;
+        }
+        
+        this.zoomLevel = Math.min(this.zoomLevel * 1.2, 5);
+        this.canvas.setZoom(this.zoomLevel);
+        this.updateZoomDisplay();
+        this.drawGrid(); // Redraw grid after zoom
+        this.canvas.renderAll();
+    }
+    
+    zoomOut() {
+        // Ensure zoomLevel is properly initialized
+        if (!this.zoomLevel || isNaN(this.zoomLevel)) {
+            this.zoomLevel = this.canvas ? this.canvas.getZoom() : 1.0;
+        }
+        
+        this.zoomLevel = Math.max(this.zoomLevel / 1.2, 0.1);
+        this.canvas.setZoom(this.zoomLevel);
+        this.updateZoomDisplay();
+        this.drawGrid(); // Redraw grid after zoom
+        this.canvas.renderAll();
+    }
+    
+    fitToScreen() {
+        this.zoomLevel = 1;
+        this.canvas.setZoom(1);
+        this.canvas.absolutePan(new fabric.Point(0, 0));
+        this.updateZoomDisplay();
+        this.drawGrid(); // Redraw grid after zoom
+        this.canvas.renderAll();
+    }
+    
+    rotateSelected() {
+        const activeObject = this.canvas.getActiveObject();
+        if (activeObject) {
+            activeObject.rotate(activeObject.angle + 15);
+            this.canvas.renderAll();
+        }
+    }
+    
+    deleteSelected() {
+        const activeObjects = this.canvas.getActiveObjects();
+        activeObjects.forEach(obj => {
+            if (obj.lightObject) {
+                const index = this.lights.indexOf(obj);
+                if (index > -1) {
+                    this.lights.splice(index, 1);
+                }
+            } else if (obj.textObject) {
+                const index = this.texts.indexOf(obj);
+                if (index > -1) {
+                    this.texts.splice(index, 1);
+                }
+            }
+            this.canvas.remove(obj);
+        });
+        
+        // Update labels after deleting lights
+        if (this.showLabels) {
+            this.updateLabels();
+        }
+        
+        this.canvas.discardActiveObject();
+        this.canvas.renderAll();
+        
+        // Trigger auto-save to update localStorage immediately after deletion
+        this.triggerAutoSave();
+    }
+
+    bringToFront() {
+        const activeObjects = this.canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            // Only manipulate user-created objects, not grid lines or system elements
+            const objectsToManipulate = activeObjects.filter(obj => 
+                !obj.gridLine && 
+                !obj.snapGuide && 
+                !obj.roomPreview && 
+                !obj.selectionRing &&
+                obj.selectable !== false
+            );
+            
+            if (objectsToManipulate.length > 0) {
+                objectsToManipulate.forEach(obj => {
+                    this.canvas.bringObjectToFront(obj);
+                    // Also bring associated label to front if it exists
+                    if (obj.lightObject && obj.labelObject) {
+                        this.canvas.bringObjectToFront(obj.labelObject);
+                    }
+                });
+                this.canvas.renderAll();
+                this.triggerAutoSave();
+                console.log('📤 Brought objects to front:', objectsToManipulate.length);
+            }
+        }
+    }
+
+    sendToBack() {
+        const activeObjects = this.canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            // Only manipulate user-created objects, not grid lines or system elements
+            const objectsToManipulate = activeObjects.filter(obj => 
+                !obj.gridLine && 
+                !obj.snapGuide && 
+                !obj.roomPreview && 
+                !obj.selectionRing &&
+                obj.selectable !== false
+            );
+            
+            if (objectsToManipulate.length > 0) {
+                objectsToManipulate.forEach(obj => {
+                    this.canvas.sendObjectToBack(obj);
+                    // Also send associated label to back if it exists
+                    if (obj.lightObject && obj.labelObject) {
+                        this.canvas.sendObjectToBack(obj.labelObject);
+                    }
+                });
+                this.canvas.renderAll();
+                this.triggerAutoSave();
+                console.log('📥 Sent objects to back:', objectsToManipulate.length);
+            }
+        }
+    }
+
+    updateLayerControlButtons() {
+        const activeObjects = this.canvas.getActiveObjects();
+        const hasSelectableObjects = activeObjects.some(obj => 
+            !obj.gridLine && 
+            !obj.snapGuide && 
+            !obj.roomPreview && 
+            !obj.selectionRing &&
+            obj.selectable !== false
+        );
+
+        const bringToFrontBtn = document.getElementById('bring-to-front-btn');
+        const sendToBackBtn = document.getElementById('send-to-back-btn');
+        const rotateBtn = document.getElementById('rotate-btn');
+        const deleteBtn = document.getElementById('delete-btn');
+
+        // Update front/back buttons
+        if (bringToFrontBtn && sendToBackBtn) {
+            if (hasSelectableObjects) {
+                bringToFrontBtn.disabled = false;
+                sendToBackBtn.disabled = false;
+                bringToFrontBtn.classList.remove('disabled');
+                sendToBackBtn.classList.remove('disabled');
+            } else {
+                bringToFrontBtn.disabled = true;
+                sendToBackBtn.disabled = true;
+                bringToFrontBtn.classList.add('disabled');
+                sendToBackBtn.classList.add('disabled');
+            }
+        }
+
+        // Update rotate and delete buttons
+        if (rotateBtn) {
+            if (hasSelectableObjects) {
+                rotateBtn.disabled = false;
+                rotateBtn.classList.remove('disabled');
+            } else {
+                rotateBtn.disabled = true;
+                rotateBtn.classList.add('disabled');
+            }
+        }
+
+        if (deleteBtn) {
+            if (hasSelectableObjects) {
+                deleteBtn.disabled = false;
+                deleteBtn.classList.remove('disabled');
+            } else {
+                deleteBtn.disabled = true;
+                deleteBtn.classList.add('disabled');
+            }
+        }
+    }
+    
+    toggleGrid() {
+        this.gridVisible = !this.gridVisible;
+        const gridBtn = document.getElementById('grid-toggle-btn');
+        
+        console.log('🔄 Grid toggle clicked, gridVisible now:', this.gridVisible);
+        
+        if (this.gridVisible) {
+            gridBtn.classList.add('active');
+            console.log('🎯 Attempting to draw grid...');
+            this.drawGrid();
+        } else {
+            gridBtn.classList.remove('active');
+            console.log('🗑️ Removing grid lines...');
+            const gridObjects = this.canvas.getObjects().filter(obj => obj.gridLine);
+            console.log('  Found', gridObjects.length, 'grid objects to remove');
+            gridObjects.forEach(obj => this.canvas.remove(obj));
+            this.canvas.renderAll();
+        }
+    }
+    
+    forceGridRefresh() {
+        console.log('🔥 FORCE GRID REFRESH - Manual Debug');
+        console.log('  Canvas ready:', !!this.canvas);
+        console.log('  Grid visible setting:', this.gridVisible);
+        
+        if (!this.canvas) {
+            console.log('  ❌ Canvas not ready for grid refresh');
+            return;
+        }
+        
+        // Force remove all grid objects
+        const allObjects = this.canvas.getObjects();
+        console.log('  Total objects in canvas:', allObjects.length);
+        
+        const gridObjects = allObjects.filter(obj => obj.gridLine || obj.debugLine || obj.testLine);
+        console.log('  Grid/debug objects found:', gridObjects.length);
+        gridObjects.forEach(obj => this.canvas.remove(obj));
+        
+        // Force a simple test to see if we can draw anything
+        console.log('  Creating simple test rectangle...');
+        const testRect = new fabric.Rect({
+            left: 50,
+            top: 50,
+            width: 100,
+            height: 100,
+            fill: 'rgba(255, 0, 0, 0.5)',
+            stroke: 'red',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            testRect: true
+        });
+        
+        this.canvas.add(testRect);
+        this.canvas.renderAll();
+        
+        console.log('  Test rectangle added, now attempting grid...');
+        
+        // Now try to draw grid
+        if (this.gridVisible) {
+            this.drawGrid();
+        }
+        
+        // Remove test rectangle after 3 seconds
+        setTimeout(() => {
+            this.canvas.remove(testRect);
+            this.canvas.renderAll();
+            console.log('  Test rectangle removed');
+        }, 3000);
+    }
+    
+    toggleSnap() {
+        this.snapEnabled = !this.snapEnabled;
+        const snapBtn = document.getElementById('snap-toggle-btn');
+        
+        if (this.snapEnabled) {
+            snapBtn.classList.add('active');
+        } else {
+            snapBtn.classList.remove('active');
+        }
+    }
+    
+    updateZoomDisplay() {
+        // Use canvas zoom level if available, otherwise fall back to this.zoomLevel
+        const currentZoom = this.canvas ? this.canvas.getZoom() : this.zoomLevel;
+        const zoomPercent = Math.round((currentZoom || 1.0) * 100);
+        document.getElementById('zoom-level').textContent = zoomPercent + '%';
+        
+        // Update CAD interface zoom level
+        if (window.cadInterface) {
+            window.cadInterface.updateZoomLevel(currentZoom || 1.0);
+        }
+    }
+    
+    handleObjectSelected(e) {
+        console.log('🔍 handleObjectSelected triggered:', e);
+        console.log('  Event type:', e.type);
+        console.log('  Event target:', e.target);
+        console.log('  Event selected array:', e.selected);
+        
+        const obj = e.selected ? e.selected[0] : e.target;
+        console.log('🔍 Selected object:', obj);
+        console.log('🔍 Object details:', {
+            type: obj?.type,
+            lightObject: obj?.lightObject,
+            entityId: obj?.entityId,
+            iconStyle: obj?.iconStyle,
+            selectable: obj?.selectable,
+            evented: obj?.evented,
+            position: obj ? { x: obj.left, y: obj.top } : null
+        });
+
+        // Update layer control button states
+        this.updateLayerControlButtons();
+        
+        // Update selection count based on total selected objects
+        const selectedObjects = this.canvas.getActiveObjects();
+        const selectedCount = selectedObjects.length;
+        console.log('📊 Total selected objects:', selectedCount);
+        
+        if (obj && obj.lightObject) {
+            console.log('🎯 Light object detected! Entity ID:', obj.entityId);
+            
+            // Clear any previous selection first
+            if (this.selectedLight && this.selectedLight !== obj) {
+                console.log('🔄 Clearing previous selection');
+                this.removeHighlightFromLight(this.selectedLight);
+            }
+            
+            this.selectedLight = obj;
+            this.updateControlsFromLight(obj);
+            this.highlightSelectedLight(obj);
+            
+            // Update CAD interface selection indicators
+            this.updateSelectedLightIndicator(obj);
+            if (window.cadInterface) {
+                window.cadInterface.updateSelectedCount(selectedCount);
+            }
+            
+            // If the light has an entity assigned, add it to the scene manager's selection
+            if (obj.entityId && window.sceneManager) {
+                console.log('🔗 Integrating with scene manager');
+                
+                // Clear other selections when clicking a light
+                window.sceneManager.selectedFloorplanLights.clear();
+                document.querySelectorAll('.light-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                
+                // Add this light to the selection
+                window.sceneManager.selectedFloorplanLights.add(obj.entityId);
+                const lightBtn = document.querySelector(`[data-entity-id="${obj.entityId}"]`);
+                if (lightBtn) {
+                    lightBtn.classList.add('selected');
+                }
+                
+                // Highlight the corresponding light card in Scene Lights
+                document.querySelectorAll('.light-card').forEach(card => {
+                    card.classList.remove('selected-from-floorplan');
+                });
+                const lightCard = document.querySelector(`[data-entity-id="${obj.entityId}"]`);
+                if (lightCard) {
+                    lightCard.classList.add('selected-from-floorplan');
+                    console.log('🎯 Added highlighting to Scene Lights card:', obj.entityId);
+                } else {
+                    console.log('⚠️ Light card not found for:', obj.entityId);
+                }
+                
+                // Switch to individual mode if not already
+                if (!window.sceneManager.individualMode) {
+                    console.log('🔄 Switching to individual mode');
+                    const individualModeToggle = document.getElementById('individualMode');
+                    if (individualModeToggle) {
+                        individualModeToggle.checked = true;
+                        window.sceneManager.toggleControlMode();
+                    }
+                }
+                
+                // Update the individual controls
+                window.sceneManager.updateSelectionUI();
+                
+                // ✅ Refresh floorplan lights list when a light is selected
+                console.log('🔄 Refreshing floorplan lights list due to light selection');
+                window.sceneManager.renderFloorplanLightsList();
+            } else {
+                console.log('⚠️ Light has no entity assigned');
+            }
+            
+            // Notify the entity panel about the selected light
+            if (window.entityPanel) {
+                window.entityPanel.setSelectedLight(obj);
+            }
+        } else {
+            console.log('🔍 Non-light object selected:', obj ? obj.type : 'null', obj);
+            if (obj) {
+                console.log('  Object properties:', {
+                    type: obj.type,
+                    selectable: obj.selectable,
+                    evented: obj.evented,
+                    gridLine: obj.gridLine,
+                    snapGuide: obj.snapGuide,
+                    roomPreview: obj.roomPreview
+                });
+                
+                // Update CAD interface for non-light objects
+                this.hideSelectedLightIndicator();
+                if (window.cadInterface) {
+                    window.cadInterface.updateSelectedCount(selectedCount);
+                }
+            } else {
+                // No object selected
+                this.hideSelectedLightIndicator();
+                if (window.cadInterface) {
+                    window.cadInterface.updateSelectedCount(selectedCount);
+                }
+            }
+        }
+    }
+    
+    handleSelectionCleared() {
+        if (this.selectedLight) {
+            this.removeHighlightFromLight(this.selectedLight);
+            this.selectedLight = null;
+        }
+        
+        // Update CAD interface selection indicators
+        this.hideSelectedLightIndicator();
+        if (window.cadInterface) {
+            window.cadInterface.updateSelectedCount(0);
+        }
+        
+        // Clear highlighting from Scene Lights cards
+        document.querySelectorAll('.light-card').forEach(card => {
+            card.classList.remove('selected-from-floorplan');
+        });
+        
+        // Remove any orphaned selection rings
+        this.clearAllSelectionRings();
+        this.clearSnapGuides();
+
+        // Update layer control button states
+        this.updateLayerControlButtons();
+    }
+    
+    clearAllSelectionRings() {
+        const objectsToRemove = [];
+        this.canvas.forEachObject(obj => {
+            if (obj.selectionRing) {
+                objectsToRemove.push(obj);
+            }
+        });
+        objectsToRemove.forEach(obj => this.canvas.remove(obj));
+        
+        if (objectsToRemove.length > 0) {
+            this.canvas.renderAll();
+        }
+    }
+    
+    handleKeyDown(e) {
+        // Note: SHIFT key is automatically handled by fabric.js for:
+        // - Proportional scaling (hold SHIFT while resizing objects)
+        // - Constrained rotation (hold SHIFT while rotating - snaps to 15° increments)
+        // - Constrained movement (hold SHIFT while moving - locks to horizontal/vertical)
+        // - Uniform scaling (prevents aspect ratio distortion)
+        
+        switch(e.key) {
+            case ' ': // Spacebar for pan mode
+                if (!this.spacebarPressed) {
+                    e.preventDefault();
+                    this.spacebarPressed = true;
+                    document.body.style.cursor = 'grab';
+                    console.log('🖱️ Spacebar pressed - pan mode enabled');
+                }
+                break;
+            case 'Delete':
+            case 'Backspace':
+                e.preventDefault();
+                this.deleteSelected();
+                break;
+            case 'Escape':
+                if (this.isDrawing) {
+                    this.cancelRoomDrawing();
+                }
+                break;
+            case '+':
+            case '=':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    this.zoomIn();
+                }
+                break;
+            case '-':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    this.zoomOut();
+                }
+                break;
+            case 'g':
+            case 'G':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    console.log('🔥 Manual grid refresh triggered by Ctrl+G');
+                    this.forceGridRefresh();
+                }
+                break;
+        }
+    }
+    
+    handleKeyUp(e) {
+        switch(e.key) {
+            case ' ': // Spacebar release
+                this.spacebarPressed = false;
+                document.body.style.cursor = 'default';
+                console.log('🖱️ Spacebar released - pan mode disabled');
+                break;
+        }
+    }
+    
+    cancelRoomDrawing() {
+        // Remove preview lines and measurements
+        this.canvas.getObjects().forEach(obj => {
+            if (obj.roomPreview) {
+                this.canvas.remove(obj);
+            }
+        });
+        this.clearMeasurementDisplay();
+        
+        this.isDrawing = false;
+        this.drawingPoints = [];
+        this.canvas.renderAll();
+    }
+    
+    resizeCanvas() {
+        const workspace = document.querySelector('.drawing-area');
+        const canvasElement = document.getElementById('floorplan-canvas');
+        
+        if (!workspace || !canvasElement) {
+            console.warn('⚠️ Workspace or canvas element not found during resize');
+            return;
+        }
+        
+        if (!workspace.clientWidth || !workspace.clientHeight) {
+            console.warn('⚠️ Workspace dimensions not available yet, skipping resize');
+            return;
+        }
+        
+        const width = workspace.clientWidth;
+        const height = workspace.clientHeight;
+        
+        canvasElement.width = width;
+        canvasElement.height = height;
+        
+        if (this.canvas) {
+            this.canvas.setDimensions({
+                width: width,
+                height: height
+            });
+            
+            this.drawGrid();
+            this.canvas.renderAll();
+        }
+    }
+    
+    saveLayoutToFile() {
+        const data = this.saveLayout();
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `floorplan-${new Date().toISOString().slice(0,10)}.json`;
+        link.click();
+        
+        window.sceneManager?.showStatus('Layout saved to file', 'success');
+    }
+    
+    loadLayoutFromFile() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        // Call the data-parameter version of loadLayout directly (not the localStorage one)
+                        this.loadLayout(data);
+                        window.sceneManager?.showStatus('Layout loaded successfully', 'success');
+                    } catch (error) {
+                        window.sceneManager?.showStatus('Error loading layout file', 'error');
+                        console.error('Layout load error:', error);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+        
+        input.click();
+    }
+
+    saveLayout() {
+        // Get all objects and classify them
+        const allObjects = this.canvas.getObjects();
+        const data = {
+            version: '3.0.1',
+            timestamp: new Date().toISOString(),
+            canvas: {
+                width: this.canvas.width,
+                height: this.canvas.height,
+                backgroundColor: this.canvas.backgroundColor
+            },
+            settings: {
+                isDarkTheme: this.isDarkTheme,
+                showLabels: this.showLabels,
+                useFriendlyNames: this.useFriendlyNames,
+                gridSize: this.gridSize,
+                lightIconStyle: this.lightIconStyle,
+                gridVisible: this.gridVisible,
+                snapEnabled: this.snapEnabled,
+                roomFillColor: this.roomFillColor,
+                roomFillOpacity: this.roomFillOpacity,
+                roomDrawingMode: this.roomDrawingMode
+            },
+            objects: []
+        };
+        
+        // Save all objects (except UI elements like grid lines, snap guides, labels)
+        allObjects.forEach(obj => {
+            // Skip UI elements and temporary objects
+            if (obj.gridLine || obj.snapGuide || obj.roomPreview || obj.rectanglePreview || obj.linePreview || obj.entityLabel || obj.measurementOverlay) {
+                return;
+            }
+            
+            // Get only the essential properties for recreation (exclude internal fabric.js properties)
+            const objectData = obj.toObject([
+                'left', 'top', 'width', 'height', 'angle', 'scaleX', 'scaleY', 'skewX', 'skewY', 'flipX', 'flipY',
+                'fill', 'stroke', 'strokeWidth', 'opacity', 'visible', 'selectable', 'evented',
+                'text', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textAlign', 'underline',
+                'x1', 'y1', 'x2', 'y2', 'radius', 'points', 'rx', 'ry'
+            ]);
+            
+            // Add custom properties
+            if (obj.lightObject) {
+                objectData.lightObject = true;
+                objectData.entityId = obj.entityId;
+                objectData.iconStyle = obj.iconStyle;
+            }
+            
+            if (obj.textObject) {
+                objectData.textObject = true;
+            }
+            
+            if (obj.roomOutline) {
+                objectData.roomOutline = true;
+            }
+            
+            if (obj.roomObject) {
+                objectData.roomObject = true;
+            }
+            
+            if (obj.lineObject) {
+                objectData.lineObject = true;
+            }
+            
+            if (obj.backgroundImage) {
+                objectData.backgroundImage = true;
+            }
+            
+            // Ensure all transformation properties are preserved
+            objectData.left = obj.left;
+            objectData.top = obj.top;
+            objectData.angle = obj.angle || 0;
+            objectData.scaleX = obj.scaleX || 1;
+            objectData.scaleY = obj.scaleY || 1;
+            objectData.skewX = obj.skewX || 0;
+            objectData.skewY = obj.skewY || 0;
+            objectData.flipX = obj.flipX || false;
+            objectData.flipY = obj.flipY || false;
+            
+            data.objects.push(objectData);
+        });
+        
+        // Also save separate arrays for backward compatibility
+        data.lights = this.lights.map(light => ({
+            ...light.toObject(),
+            entityId: light.entityId,
+            iconStyle: light.iconStyle
+        }));
+        
+        data.texts = this.texts.map(text => text.toObject());
+        
+        data.roomOutline = this.roomOutline ? this.roomOutline.toObject() : null;
+        
+        data.backgroundImage = this.backgroundImage ? this.backgroundImage.toObject() : null;
+        
+        return data;
+    }
+    
+    loadLayout(data, onComplete) {
+        // Set loading flag to prevent auto-save during loading
+        this.isLoadingLayout = true;
+        
+        console.log('🔄 DEBUG - Starting loadLayout process...');
+        console.log('   Data has objects array:', !!(data.objects && data.objects.length > 0));
+        console.log('   Data has legacy lights:', !!(data.lights && data.lights.length > 0));
+        
+        // Clear canvas and reset arrays
+        this.canvas.clear();
+        this.lights = [];
+        this.texts = [];
+        this.labels = [];
+        this.roomOutline = null;
+        this.backgroundImage = null;
+        
+        // Load settings
+        if (data.settings) {
+            this.isDarkTheme = data.settings.isDarkTheme !== undefined ? data.settings.isDarkTheme : true;
+            this.showLabels = data.settings.showLabels || false;
+            this.useFriendlyNames = data.settings.useFriendlyNames !== undefined ? data.settings.useFriendlyNames : true;
+            this.gridSize = data.settings.gridSize || 20;
+            this.lightIconStyle = data.settings.lightIconStyle || 'circle';
+            this.gridVisible = data.settings.gridVisible !== undefined ? data.settings.gridVisible : true;
+            this.snapEnabled = data.settings.snapEnabled !== undefined ? data.settings.snapEnabled : true;
+            this.roomFillColor = data.settings.roomFillColor || '#cccccc';
+            this.roomFillOpacity = data.settings.roomFillOpacity !== undefined ? data.settings.roomFillOpacity : 0.3;
+            this.roomDrawingMode = data.settings.roomDrawingMode || 'rectangle';
+            
+            // Update UI buttons to match settings
+            this.updateUIFromSettings();
+        }
+        
+        // Restore canvas properties
+        if (data.canvas) {
+            this.canvas.setWidth(data.canvas.width || this.canvas.width);
+            this.canvas.setHeight(data.canvas.height || this.canvas.height);
+            this.canvas.backgroundColor = data.canvas.backgroundColor || (this.isDarkTheme ? '#1a1a1a' : '#f5f5f5');
+        } else {
+            this.canvas.backgroundColor = this.isDarkTheme ? '#1a1a1a' : '#f5f5f5';
+        }
+        
+        this.drawGrid();
+        
+        // Load all objects from the comprehensive objects array (new format)
+        if (data.objects && data.objects.length > 0) {
+            console.log(`🔄 Loading ${data.objects.length} objects using direct manual restoration...`);
+            console.log('ℹ️ Skipping fabric.util.enlivenObjects due to known compatibility issues');
+            
+            // Use manual restoration directly (more reliable than fabric.util.enlivenObjects)
+            this.manualObjectRestoration(data.objects, onComplete);
+                        return;
+        } else {
+            // Fallback to old format for backward compatibility
+            console.log('🔄 Using legacy format loader...');
+            this.loadLegacyFormat(data, onComplete);
+        }
+    }
+
+    // Manual object restoration method to bypass fabric.util.enlivenObjects issues
+    manualObjectRestoration(objectsData, onComplete) {
+        console.log('🔧 Manual object restoration starting...');
+        
+        let lightsRestored = 0;
+        let objectsProcessed = 0;
+        
+        objectsData.forEach((objData, index) => {
+            console.log(`🔍 Manually processing object ${index + 1}:`, {
+                type: objData.type,
+                lightObject: objData.lightObject,
+                textObject: objData.textObject,
+                roomObject: objData.roomObject,
+                lineObject: objData.lineObject
+            });
+            
+            try {
+                let fabricObject = null;
+                
+                // Normalize type to lowercase for comparison
+                const objType = objData.type.toLowerCase();
+                console.log(`   🔧 Processing type: "${objData.type}" (normalized: "${objType}")`);
+                
+                // Create objects based on type
+                if (objType === 'line') {
+                    console.log(`   ➡️ Creating Line with points: [${objData.x1}, ${objData.y1}, ${objData.x2}, ${objData.y2}]`);
+                    fabricObject = new fabric.Line([objData.x1, objData.y1, objData.x2, objData.y2], {
+                        left: objData.left,
+                        top: objData.top,
+                        stroke: objData.stroke,
+                        strokeWidth: objData.strokeWidth || 1
+                    });
+                } else if (objType === 'text' || objType === 'i-text') {
+                    console.log(`   📝 Creating Text: "${objData.text}" at (${objData.left}, ${objData.top})`);
+                    fabricObject = new fabric.Text(objData.text || '', {
+                        left: objData.left,
+                        top: objData.top,
+                        fontSize: objData.fontSize || 16,
+                        fill: objData.fill || '#000000'
+                    });
+                } else if (objType === 'circle') {
+                    console.log(`   ⭕ Creating Circle with radius ${objData.radius} at (${objData.left}, ${objData.top})`);
+                    fabricObject = new fabric.Circle({
+                        left: objData.left,
+                        top: objData.top,
+                        radius: objData.radius || 10,
+                        fill: objData.fill,
+                        stroke: objData.stroke
+                    });
+                } else if (objType === 'rect') {
+                    console.log(`   ⬜ Creating Rect ${objData.width}x${objData.height} at (${objData.left}, ${objData.top})`);
+                    fabricObject = new fabric.Rect({
+                        left: objData.left,
+                        top: objData.top,
+                        width: objData.width,
+                        height: objData.height,
+                        fill: objData.fill,
+                        stroke: objData.stroke
+                    });
+                } else if (objType === 'polygon') {
+                    console.log(`   🔺 Creating Polygon with ${objData.points?.length || 0} points`);
+                    fabricObject = new fabric.Polygon(objData.points || [], {
+                        left: objData.left,
+                        top: objData.top,
+                        fill: objData.fill,
+                        stroke: objData.stroke
+                    });
+                } else {
+                    console.log(`   ❓ Unknown object type: "${objData.type}"`);
+                }
+                
+                if (fabricObject) {
+                    console.log(`   ✅ Successfully created fabric object of type: ${fabricObject.type}`);
+                    
+                    // Set common properties
+                    try {
+                        fabricObject.set({
+                            angle: objData.angle || 0,
+                            scaleX: objData.scaleX || 1,
+                            scaleY: objData.scaleY || 1,
+                            flipX: objData.flipX || false,
+                            flipY: objData.flipY || false
+                        });
+                        console.log(`   ⚙️ Set common properties for object`);
+                    } catch (error) {
+                        console.error(`   ❌ Error setting common properties:`, error);
+                    }
+                    
+                    // Set custom properties
+                    if (objData.lightObject) {
+                        fabricObject.lightObject = true;
+                        fabricObject.entityId = objData.entityId;
+                        fabricObject.iconStyle = objData.iconStyle || 'circle';
+                        
+                        // Add event handlers
+                        fabricObject.on('mousedblclick', () => {
+                            this.assignEntityToLight(fabricObject);
+                        });
+                        
+                        fabricObject.on('mousedown', (e) => {
+                            if (e.e.button === 2) { // Right click
+                                e.e.preventDefault();
+                                this.showLightContextMenu(fabricObject, e.e);
+                            }
+                        });
+                        
+                        this.lights.push(fabricObject);
+                        lightsRestored++;
+                        console.log(`   🔆 Manually restored light ${lightsRestored}: ${fabricObject.entityId || 'unassigned'}`);
+                    }
+                    
+                    if (objData.textObject) {
+                        fabricObject.textObject = true;
+                        fabricObject.on('mousedblclick', () => {
+                            const newText = prompt('Edit text:', fabricObject.text);
+                            if (newText !== null) {
+                                fabricObject.set('text', newText);
+                                this.canvas.renderAll();
+                            }
+                        });
+                        this.texts.push(fabricObject);
+                    }
+                    
+                    if (objData.roomOutline) {
+                        fabricObject.roomOutline = true;
+                        this.roomOutline = fabricObject;
+                    }
+                    
+                    if (objData.roomObject) {
+                        fabricObject.roomObject = true;
+                    }
+                    
+                    if (objData.lineObject) {
+                        fabricObject.lineObject = true;
+                    }
+                    
+                    if (objData.backgroundImage) {
+                        fabricObject.backgroundImage = true;
+                        fabricObject.set({
+                            selectable: false,
+                            evented: false
+                        });
+                        this.backgroundImage = fabricObject;
+                    }
+                    
+                    this.canvas.add(fabricObject);
+                    objectsProcessed++;
+                    console.log(`   ➕ Manually added object ${objectsProcessed} to canvas (type: ${fabricObject.type})`);
+                    
+                    // Send background elements to back
+                    if (objData.backgroundImage) {
+                        this.canvas.sendObjectToBack(fabricObject);
+                        console.log(`   ⬇️ Sent background image to back`);
+                    } else if (objData.roomOutline) {
+                        this.canvas.sendObjectToBack(fabricObject);
+                        console.log(`   ⬇️ Sent room outline to back`);
+                    }
+                } else {
+                    console.warn(`⚠️ Could not create object for type: ${objData.type}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error manually creating object ${index + 1}:`, error);
+            }
+        });
+        
+        console.log(`✅ Manual restoration complete: ${objectsProcessed} objects processed, ${lightsRestored} lights restored`);
+        
+        // Create labels if they should be shown
+        if (this.showLabels) {
+            console.log('🏷️ Creating labels...');
+            this.createLabels();
+        }
+        
+        console.log('🎨 Rendering canvas...');
+        this.canvas.renderAll();
+        
+        // Debug: Check final canvas state
+        const finalObjectCount = this.canvas.getObjects().length;
+        const visibleObjects = this.canvas.getObjects().filter(obj => obj.visible !== false).length;
+        console.log(`📊 Final canvas state: ${finalObjectCount} total objects, ${visibleObjects} visible`);
+        console.log('📊 Lights array length:', this.lights.length);
+        console.log('📊 Texts array length:', this.texts.length);
+        
+        // Clear loading flag
+        console.log('🏁 Clearing isLoadingLayout flag...');
+        this.isLoadingLayout = false;
+        
+        // Call completion callback if provided
+        if (onComplete && typeof onComplete === 'function') {
+            console.log('🎯 Calling manual restoration completion callback...');
+            try {
+                onComplete();
+                console.log('✅ Manual restoration completion callback executed successfully');
+            } catch (error) {
+                console.error('❌ Error in manual restoration completion callback:', error);
+            }
+        } else {
+            console.log('⚠️ No completion callback provided or not a function:', typeof onComplete);
+        }
+    }
+    
+    loadLegacyFormat(data, onComplete) {
+        console.log('🔄 Loading legacy format data...');
+        
+        let pendingOperations = 0;
+        let completedOperations = 0;
+        
+        const checkCompletion = () => {
+            completedOperations++;
+            console.log(`Legacy loading progress: ${completedOperations}/${pendingOperations}`);
+            
+            if (completedOperations >= pendingOperations) {
+                // Clear loading flag
+                this.isLoadingLayout = false;
+                
+                console.log('✅ Legacy format loading complete');
+                
+                // Call completion callback if provided
+                if (onComplete && typeof onComplete === 'function') {
+                    console.log('🎯 Calling legacy loadLayout completion callback...');
+                    onComplete();
+                }
+            }
+        };
+        
+        // Count operations that need to complete
+        if (data.backgroundImage) pendingOperations++;
+        if (data.roomOutline) pendingOperations++;
+        if (data.texts && data.texts.length > 0) pendingOperations++;
+        if (data.lights && data.lights.length > 0) pendingOperations++;
+        
+        // If no async operations, call completion immediately
+        if (pendingOperations === 0) {
+            this.isLoadingLayout = false;
+            if (onComplete && typeof onComplete === 'function') {
+                console.log('🎯 No legacy operations needed, calling completion callback...');
+                onComplete();
+            }
+            return;
+        }
+        
+        // Load background image
+        if (data.backgroundImage) {
+            fabric.util.enlivenObjects([data.backgroundImage], (objects) => {
+                const img = objects[0];
+                img.set({
+                    selectable: false,
+                    evented: false,
+                    backgroundImage: true
+                });
+                this.backgroundImage = img;
+                this.canvas.add(img);
+                this.canvas.sendObjectToBack(img);
+                checkCompletion();
+            });
+        }
+        
+        // Load room outline
+        if (data.roomOutline) {
+            fabric.util.enlivenObjects([data.roomOutline], (objects) => {
+                this.roomOutline = objects[0];
+                this.roomOutline.set('roomOutline', true);
+                this.canvas.add(this.roomOutline);
+                this.canvas.sendObjectToBack(this.roomOutline);
+                checkCompletion();
+            });
+        }
+        
+        // Load texts
+        if (data.texts && data.texts.length > 0) {
+            fabric.util.enlivenObjects(data.texts, (objects) => {
+                objects.forEach((text) => {
+                    text.textObject = true;
+                    text.on('mousedblclick', () => {
+                        const newText = prompt('Edit text:', text.text);
+                        if (newText !== null) {
+                            text.set('text', newText);
+                            this.canvas.renderAll();
+                        }
+                    });
+                    this.texts.push(text);
+                    this.canvas.add(text);
+                });
+                checkCompletion();
+            });
+        }
+        
+        // Load lights
+        if (data.lights && data.lights.length > 0) {
+            fabric.util.enlivenObjects(data.lights, (objects) => {
+                console.log(`✅ Legacy lights callback received ${objects.length} lights`);
+                
+                objects.forEach((light, index) => {
+                    light.entityId = data.lights[index].entityId;
+                    light.iconStyle = data.lights[index].iconStyle || 'circle';
+                    light.lightObject = true;
+                    
+                    // Add event handlers
+                    light.on('mousedblclick', () => {
+                        this.assignEntityToLight(light);
+                    });
+                    
+                    light.on('mousedown', (e) => {
+                        if (e.e.button === 2) { // Right click
+                            e.e.preventDefault();
+                            this.showLightContextMenu(light, e.e);
+                        }
+                    });
+                    
+                    this.lights.push(light);
+                    this.canvas.add(light);
+                    console.log(`   🔆 Restored legacy light: ${light.entityId || 'unassigned'}`);
+                });
+                
+                // Create labels if they should be shown
+                if (this.showLabels) {
+                    this.createLabels();
+                }
+                
+                this.canvas.renderAll();
+                checkCompletion();
+            });
+        }
+    }
+    
+    updateUIFromSettings() {
+        // Update theme button
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        if (this.isDarkTheme) {
+            themeBtn.innerHTML = '<i class="fas fa-sun"></i><span>Light</span>';
+            themeBtn.classList.remove('active');
+        } else {
+            themeBtn.innerHTML = '<i class="fas fa-moon"></i><span>Dark</span>';
+            themeBtn.classList.add('active');
+        }
+        
+        // Update labels button
+        const labelsBtn = document.getElementById('labels-toggle-btn');
+        if (this.showLabels) {
+            labelsBtn.classList.add('active');
+        } else {
+            labelsBtn.classList.remove('active');
+        }
+        
+        // Update room fill controls
+        const colorPicker = document.getElementById('room-fill-color');
+        const opacitySlider = document.getElementById('room-fill-opacity');
+        if (colorPicker && opacitySlider) {
+            colorPicker.value = this.roomFillColor;
+            opacitySlider.value = this.roomFillOpacity * 100;
+            this.updateOpacitySliderBackground();
+        }
+        
+        // Update room tool tooltip
+        this.updateRoomToolTooltip();
+        
+        // Label mode button removed - always use entity names
+    }
+    
+    // Auto-save functionality
+    startAutoSave() {
+        this.autoSaveTimer = setInterval(() => {
+            this.autoSaveLayout();
+        }, this.autoSaveInterval); // Auto-save every 30 seconds
+    }
+    
+    triggerAutoSave() {
+        // Don't auto-save if we're currently loading a layout
+        if (this.isLoadingLayout) {
+            console.log('⏸️ Skipping auto-save during layout loading (isLoadingLayout = true)');
+            return;
+        }
+        
+        console.log('🔄 triggerAutoSave called - scheduling auto-save in', this.saveDelay, 'ms');
+        
+        // Debounced auto-save - save 2 seconds after last change
+        clearTimeout(this.autoSaveDebounce);
+        this.autoSaveDebounce = setTimeout(() => {
+            console.log('⏰ Auto-save timer fired');
+            this.autoSaveLayout();
+        }, this.saveDelay);
+    }
+    
+    autoSaveLayout() {
+        try {
+            const data = {
+                version: '1.2.15',
+                timestamp: new Date().toISOString(),
+                canvas: {
+                    width: this.canvas.width,
+                    height: this.canvas.height,
+                    backgroundColor: this.canvas.backgroundColor
+                },
+                settings: {
+                    gridSize: this.gridSize,
+                    gridVisible: this.gridVisible,
+                    snapEnabled: this.snapEnabled,
+                    isDarkTheme: this.isDarkTheme,
+                    showLabels: this.showLabels,
+                    useFriendlyNames: this.useFriendlyNames,
+                    lightIconStyle: this.lightIconStyle
+                },
+                lights: this.lights.map(light => ({
+                    left: light.left,
+                    top: light.top,
+                    entityId: light.entityId,
+                    iconStyle: light.iconStyle,
+                    radius: light.radius,
+                    fontSize: light.fontSize,
+                    fill: light.fill,
+                    stroke: light.stroke
+                })),
+                texts: this.texts.map(text => ({
+                    left: text.left,
+                    top: text.top,
+                    text: text.text,
+                    fontSize: text.fontSize,
+                    fill: text.fill
+                })),
+                backgroundImage: this.backgroundImage ? {
+                    src: this.backgroundImage.getSrc(),
+                    left: this.backgroundImage.left,
+                    top: this.backgroundImage.top,
+                    scaleX: this.backgroundImage.scaleX,
+                    scaleY: this.backgroundImage.scaleY,
+                    opacity: this.backgroundImage.opacity
+                } : null,
+                rooms: this.canvas.getObjects().filter(obj => obj.roomObject).map(room => ({
+                    left: room.left,
+                    top: room.top,
+                    width: room.width,
+                    height: room.height,
+                    points: room.points,
+                    stroke: room.stroke,
+                    fill: room.fill,
+                    type: room.type
+                })),
+                lines: this.canvas.getObjects().filter(obj => obj.type === 'line' && !obj.gridLine && !obj.snapGuide).map(line => ({
+                    x1: line.x1,
+                    y1: line.y1,
+                    x2: line.x2,
+                    y2: line.y2,
+                    left: line.left,
+                    top: line.top,
+                    stroke: line.stroke,
+                    strokeWidth: line.strokeWidth
+                }))
+            };
+            
+            localStorage.setItem('floorplan_layout', JSON.stringify(data));
+            console.log('💾 Layout auto-saved');
+        } catch (error) {
+            console.error('❌ Failed to auto-save layout:', error);
+        }
+    }
+    
+    loadLayoutFromAutoSave() {
+        // Legacy auto-load method for backward compatibility
+        console.log('🔍 loadLayoutFromAutoSave() called for legacy auto-loading');
+        
+        // Prevent automatic loading after initial load (except for manual file loading)
+        if (this.initialLoadComplete) {
+            console.log('⏸️ Skipping automatic layout loading - initial load already complete');
+            return;
+        }
+        
+        try {
+            const savedData = localStorage.getItem('floorplan_layout');
+            if (!savedData) {
+                console.log('📄 No saved layout found');
+                this.initialLoadComplete = true;
+                return;
+            }
+            
+            const data = JSON.parse(savedData);
+            console.log('📂 Loading layout version:', data.version);
+            
+            // Set loading flag to prevent auto-save conflicts
+            this.isLoadingLayout = true;
+            
+            // Clear existing objects (except grid)
+            const objectsToRemove = [];
+            this.canvas.forEachObject(obj => {
+                if (!obj.gridLine) {
+                    objectsToRemove.push(obj);
+                }
+            });
+            objectsToRemove.forEach(obj => this.canvas.remove(obj));
+            
+            this.lights = [];
+            this.texts = [];
+            this.labels = [];
+            
+            // Restore settings
+            if (data.settings) {
+                this.gridSize = data.settings.gridSize || 20;
+                this.gridVisible = data.settings.gridVisible !== false;
+                this.snapEnabled = data.settings.snapEnabled !== false;
+                this.isDarkTheme = data.settings.isDarkTheme !== false;
+                this.showLabels = data.settings.showLabels || false;
+                this.useFriendlyNames = data.settings.useFriendlyNames !== false;
+                this.lightIconStyle = data.settings.lightIconStyle || 'circle';
+            }
+            
+            // Restore canvas settings
+            if (data.canvas) {
+                this.canvas.backgroundColor = data.canvas.backgroundColor || (this.isDarkTheme ? '#1a1a1a' : '#ffffff');
+            }
+            
+            // Restore background image
+            if (data.backgroundImage) {
+                const img = new Image();
+                img.onload = () => {
+                    const fabricImg = new fabric.Image(img);
+                    fabricImg.set({
+                        left: data.backgroundImage.left,
+                        top: data.backgroundImage.top,
+                        scaleX: data.backgroundImage.scaleX,
+                        scaleY: data.backgroundImage.scaleY,
+                        opacity: data.backgroundImage.opacity,
+                        selectable: false,
+                        evented: false,
+                        backgroundImage: true
+                    });
+                                         this.backgroundImage = fabricImg;
+                     this.canvas.add(fabricImg);
+                     this.canvas.sendObjectToBack(fabricImg);
+                    this.canvas.renderAll();
+                };
+                img.src = data.backgroundImage.src;
+            }
+            
+            // Restore rooms
+            if (data.rooms) {
+                data.rooms.forEach(roomData => {
+                    let room;
+                    if (roomData.points) {
+                        // Polygon room
+                        room = new fabric.Polygon(roomData.points, {
+                            left: roomData.left,
+                            top: roomData.top,
+                            fill: roomData.fill || 'transparent',
+                            stroke: roomData.stroke || (this.isDarkTheme ? '#00ff00' : '#0066cc'),
+                            strokeWidth: 2,
+                            roomObject: true
+                        });
+                    } else {
+                        // Rectangle room
+                        room = new fabric.Rect({
+                            left: roomData.left,
+                            top: roomData.top,
+                            width: roomData.width,
+                            height: roomData.height,
+                            fill: roomData.fill || 'transparent',
+                            stroke: roomData.stroke || (this.isDarkTheme ? '#00ff00' : '#0066cc'),
+                            strokeWidth: 2,
+                            roomObject: true
+                        });
+                    }
+                    this.canvas.add(room);
+                });
+            }
+            
+            // Restore lights
+            if (data.lights) {
+                data.lights.forEach(lightData => {
+                    let light;
+                    if (lightData.iconStyle === 'bulb') {
+                        light = new fabric.Text('\uf0eb', {
+                            left: lightData.left,
+                            top: lightData.top,
+                            fontSize: lightData.fontSize || 24,
+                            fontFamily: 'FontAwesome',
+                            fill: lightData.fill || '#ffa500',
+                            stroke: lightData.stroke || (this.isDarkTheme ? '#ffffff' : '#000000'),
+                            strokeWidth: 1,
+                            hasControls: false,
+                            hasBorders: false,
+                            lightObject: true,
+                            entityId: lightData.entityId,
+                            iconStyle: 'bulb'
+                        });
+                    } else if (lightData.iconStyle === 'recessed') {
+                        light = new fabric.Circle({
+                            left: lightData.left,
+                            top: lightData.top,
+                            radius: lightData.radius || 8,
+                            fill: 'transparent',
+                            stroke: lightData.stroke || '#ffa500',
+                            strokeWidth: 3,
+                            hasControls: false,
+                            hasBorders: false,
+                            lightObject: true,
+                            entityId: lightData.entityId,
+                            iconStyle: 'recessed'
+                        });
+                    } else {
+                        light = new fabric.Circle({
+                            left: lightData.left,
+                            top: lightData.top,
+                            radius: lightData.radius || 10,
+                            fill: lightData.fill || '#ffa500',
+                            stroke: lightData.stroke || (this.isDarkTheme ? '#ffffff' : '#000000'),
+                            strokeWidth: 2,
+                            hasControls: false,
+                            hasBorders: false,
+                            lightObject: true,
+                            entityId: lightData.entityId,
+                            iconStyle: 'circle'
+                        });
+                    }
+                    
+                    // Add event handlers
+                    light.on('mousedblclick', () => this.assignEntityToLight(light));
+                    light.on('mousedown', (e) => {
+                        if (e.e.button === 2) {
+                            e.e.preventDefault();
+                            this.showLightContextMenu(light, e.e);
+                        }
+                    });
+                    
+                    this.canvas.add(light);
+                    this.lights.push(light);
+                });
+            }
+            
+            // Restore texts
+            if (data.texts) {
+                data.texts.forEach(textData => {
+                    const text = new fabric.Text(textData.text, {
+                        left: textData.left,
+                        top: textData.top,
+                        fontSize: textData.fontSize || 16,
+                        fontFamily: 'Arial, sans-serif',
+                        fill: textData.fill || (this.isDarkTheme ? '#ffffff' : '#000000'),
+                        hasControls: true,
+                        hasBorders: true,
+                        textObject: true
+                    });
+                    
+                    text.on('mousedblclick', () => {
+                        const newText = prompt('Edit text:', text.text);
+                        if (newText !== null) {
+                            text.set('text', newText);
+                            this.canvas.renderAll();
+                            this.triggerAutoSave();
+                        }
+                    });
+                    
+                    this.canvas.add(text);
+                    this.texts.push(text);
+                });
+            }
+            
+            // Restore lines
+            if (data.lines) {
+                data.lines.forEach(lineData => {
+                    const line = new fabric.Line([lineData.x1, lineData.y1, lineData.x2, lineData.y2], {
+                        left: lineData.left,
+                        top: lineData.top,
+                        stroke: lineData.stroke || (this.isDarkTheme ? '#00ff00' : '#0066cc'),
+                        strokeWidth: lineData.strokeWidth || 2,
+                        hasControls: true,
+                        hasBorders: true
+                    });
+                    
+                    this.canvas.add(line);
+                });
+            }
+            
+            // Update UI from loaded settings
+            this.updateUIFromSettings();
+            
+            // Redraw grid
+            this.drawGrid();
+            
+            // Restore labels if they were shown
+            if (this.showLabels) {
+                this.createLabels();
+            }
+            
+            this.canvas.renderAll();
+            
+            // Clear loading flag and mark initial load as complete
+            this.isLoadingLayout = false;
+            this.initialLoadComplete = true;
+            
+            console.log('✅ Layout loaded successfully');
+            window.sceneManager?.showStatus('Layout loaded automatically', 'success');
+            
+        } catch (error) {
+            console.error('❌ Failed to load layout:', error);
+            // Clear loading flag even on error and mark initial load as complete
+            this.isLoadingLayout = false;
+            this.initialLoadComplete = true;
+            window.sceneManager?.showStatus('Failed to load saved layout', 'error');
+        }
+    }
+    
+    updateUIFromSettings() {
+        // Update grid toggle button
+        const gridBtn = document.getElementById('grid-toggle-btn');
+        if (this.gridVisible) {
+            gridBtn.classList.add('active');
+        } else {
+            gridBtn.classList.remove('active');
+        }
+        
+        // Update snap toggle button
+        const snapBtn = document.getElementById('snap-toggle-btn');
+        if (this.snapEnabled) {
+            snapBtn.classList.add('active');
+        } else {
+            snapBtn.classList.remove('active');
+        }
+        
+        // Update theme button
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const themeIcon = themeBtn.querySelector('i');
+        const themeText = themeBtn.querySelector('span');
+        if (this.isDarkTheme) {
+            themeIcon.className = 'fas fa-sun';
+            themeText.textContent = 'Light';
+        } else {
+            themeIcon.className = 'fas fa-moon';
+            themeText.textContent = 'Dark';
+        }
+        
+        // Update labels button
+        const labelsBtn = document.getElementById('labels-toggle-btn');
+        if (this.showLabels) {
+            labelsBtn.classList.add('active');
+        } else {
+            labelsBtn.classList.remove('active');
+        }
+        
+        // Label mode button removed - always use entity names
+    }
+    
+    handleObjectMoving(e) {
+        const obj = e.target;
+        
+        // Apply snapping during movement
+        if (this.snapEnabled && !obj.gridLine && !obj.snapGuide) {
+            const snappedPoint = this.snapToObjects(obj, { x: obj.left, y: obj.top });
+            
+            obj.set({
+                left: snappedPoint.x,
+                top: snappedPoint.y
+            });
+        }
+        
+        // Update label position in real-time when light is moving
+        if (obj.lightObject && this.showLabels) {
+            this.updateLabelForLight(obj);
+        }
+        
+        // ✅ Update selection ring position when light is moving
+        if (obj.lightObject && this.selectedLight === obj && obj._selectionRing) {
+            this.updateSelectionRingPosition(obj);
+        }
+        
+        // Don't update controls during movement - preserve scene colors
+    }
+    
+    handleObjectMoved(e) {
+        const obj = e.target;
+        
+        // Clear snap guides after movement
+        this.clearSnapGuides();
+        
+        // Update label position after light is moved
+        if (obj.lightObject && this.showLabels) {
+            this.updateLabelForLight(obj);
+        }
+        
+        // ✅ Update selection ring position after light is moved (final position)
+        if (obj.lightObject && this.selectedLight === obj && obj._selectionRing) {
+            this.updateSelectionRingPosition(obj);
+        }
+        
+        // Update controls if this is the selected light
+        if (obj.lightObject && this.selectedLight === obj) {
+            this.updateControlsFromLight(obj);
+        }
+        
+        this.triggerAutoSave();
+    }
+    
+    updateLabelForLight(light) {
+        // Find and update the label for this specific light
+        const existingLabel = this.labels.find(label => label.lightRef === light);
+        if (existingLabel) {
+            const centerX = light.left + (light.width || light.radius || 10);
+            const centerY = light.top - 25; // Position label above the light
+            
+            existingLabel.set({
+                left: centerX - (existingLabel.width / 2),
+                top: centerY
+            });
+            this.canvas.renderAll();
+        }
+    }
+    
+    updateControlsFromLight(light) {
+        if (!light.entityId || !window.lightEntities) return;
+        
+        const entity = window.lightEntities[light.entityId];
+        if (!entity) return;
+        
+        // Check if there's a scene color set for this light
+        const sceneColor = window.sceneManager?.getLastColorForEntity(light.entityId);
+        
+        if (sceneColor) {
+            // Preserve scene color - don't override with HA state
+            console.log('🎨 Preserving scene color during light movement for', light.entityId, sceneColor);
+            window.sceneManager.updateFloorplanLightColor(light.entityId, sceneColor.hue, sceneColor.saturation);
+        } else {
+            // No scene color set, update with HA state
+            this.updateLightVisualState(light, entity);
+        }
+        
+        // Switch to individual mode and create controls for selected light
+        if (window.sceneManager) {
+            // Switch to individual mode
+            window.sceneManager.individualMode = true;
+            const individualModeToggle = document.getElementById('individualMode');
+            if (individualModeToggle) {
+                individualModeToggle.checked = true;
+                window.sceneManager.toggleControlMode();
+            }
+            
+            // Create individual controls for this specific light
+            this.createIndividualControlsForLight(light, entity);
+        }
+    }
+    
+    createIndividualControlsForLight(light, entity) {
+        const container = document.getElementById('individualControlsList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Generate a friendly display name
+        const friendlyName = entity.friendly_name && entity.friendly_name !== light.entityId 
+            ? entity.friendly_name 
+            : light.entityId.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const brightness = entity.attributes?.brightness || 255;
+        const colorTemp = entity.attributes?.color_temp || 3000;
+        const hue = entity.attributes?.hs_color ? entity.attributes.hs_color[0] : 60;
+        const saturation = entity.attributes?.hs_color ? entity.attributes.hs_color[1] : 100;
+        
+        const controlDiv = document.createElement('div');
+        controlDiv.className = 'individual-light-control selected-light-control';
+        controlDiv.innerHTML = `
+                            <h4>${friendlyName}</h4>
+            <div class="entity-info">
+                <small>Entity: ${light.entityId}</small>
+            </div>
+            <div class="control-group">
+                <label>Brightness (%)</label>
+                <input type="range" id="selectedLightBrightness" min="0" max="100" value="${Math.round((brightness / 255) * 100)}">
+                <span id="selectedLightBrightnessValue">${Math.round((brightness / 255) * 100)}%</span>
+            </div>
+            <div class="control-group">
+                <label>Color Temperature (K)</label>
+                <input type="range" id="selectedLightColorTemp" min="2000" max="6500" value="${colorTemp}" step="100">
+                <span id="selectedLightColorTempValue">${colorTemp}K</span>
+            </div>
+            <div class="control-group">
+                <label>Hue (°)</label>
+                <input type="range" id="selectedLightHue" min="0" max="360" value="${Math.round(hue)}">
+                <span id="selectedLightHueValue">${Math.round(hue)}°</span>
+            </div>
+            <div class="control-group">
+                <label>Saturation (%)</label>
+                <input type="range" id="selectedLightSaturation" min="0" max="100" value="${Math.round(saturation)}">
+                <span id="selectedLightSaturationValue">${Math.round(saturation)}%</span>
+            </div>
+            <div class="control-group">
+                <label>Color Preview</label>
+                <div class="color-preview" id="selectedLightColorPreview">
+                    <div class="color-preview-box" id="selectedLightColorPreviewBox"></div>
+                    <span id="selectedLightColorText">RGB</span>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(controlDiv);
+        
+        // Setup event listeners for real-time updates
+        this.setupSelectedLightControlListeners(light);
+        
+        // Update initial color preview
+        this.updateSelectedLightColorPreview(light);
+    }
+    
+    setupSelectedLightControlListeners(light) {
+        const brightnessSlider = document.getElementById('selectedLightBrightness');
+        const colorTempSlider = document.getElementById('selectedLightColorTemp');
+        const hueSlider = document.getElementById('selectedLightHue');
+        const saturationSlider = document.getElementById('selectedLightSaturation');
+        
+        if (brightnessSlider) {
+            brightnessSlider.addEventListener('input', (e) => {
+                document.getElementById('selectedLightBrightnessValue').textContent = e.target.value + '%';
+                this.updateSelectedLightColorPreview(light);
+                this.updateLightVisualStateFromSliders(light);
+            });
+        }
+        
+        if (colorTempSlider) {
+            colorTempSlider.addEventListener('input', (e) => {
+                document.getElementById('selectedLightColorTempValue').textContent = e.target.value + 'K';
+                this.updateSelectedLightColorPreview(light);
+                this.updateLightVisualStateFromSliders(light);
+            });
+        }
+        
+        if (hueSlider) {
+            hueSlider.addEventListener('input', (e) => {
+                document.getElementById('selectedLightHueValue').textContent = e.target.value + '°';
+                this.updateSelectedLightColorPreview(light);
+                this.updateLightVisualStateFromSliders(light);
+            });
+        }
+        
+        if (saturationSlider) {
+            saturationSlider.addEventListener('input', (e) => {
+                document.getElementById('selectedLightSaturationValue').textContent = e.target.value + '%';
+                this.updateSelectedLightColorPreview(light);
+                this.updateLightVisualStateFromSliders(light);
+            });
+        }
+    }
+    
+    updateSelectedLightColorPreview(light) {
+        const hue = parseInt(document.getElementById('selectedLightHue')?.value || 60);
+        const saturation = parseInt(document.getElementById('selectedLightSaturation')?.value || 100);
+        const brightness = parseInt(document.getElementById('selectedLightBrightness')?.value || 100);
+        
+        const rgb = this.hsvToRgb(hue, saturation, brightness);
+        const rgbString = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+        
+        const previewBox = document.getElementById('selectedLightColorPreviewBox');
+        const colorText = document.getElementById('selectedLightColorText');
+        
+        if (previewBox) {
+            previewBox.style.backgroundColor = rgbString;
+        }
+        
+        if (colorText) {
+            colorText.textContent = rgbString;
+        }
+    }
+    
+    updateLightVisualStateFromSliders(light) {
+        let brightness, hue, saturation;
+        
+        // Try to get values from selected light controls first
+        if (this.selectedLight === light) {
+            brightness = parseInt(document.getElementById('selectedLightBrightness')?.value || 100);
+            hue = parseInt(document.getElementById('selectedLightHue')?.value || 60);
+            saturation = parseInt(document.getElementById('selectedLightSaturation')?.value || 100);
+        } else {
+            // Fall back to global slider values for preview
+            brightness = parseInt(document.getElementById('globalBrightness')?.value || 100);
+            hue = parseInt(document.getElementById('globalHue')?.value || 60);
+            saturation = parseInt(document.getElementById('globalSaturation')?.value || 100);
+        }
+        
+        // Use HSV values for color representation
+        const h = hue / 360;
+        const s = saturation / 100;
+        const v = brightness / 100;
+        
+        const rgb = this.hsvToRgb(h, s, v);
+        const fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+        
+        // Update the light's visual appearance
+        light.set('fill', fillColor);
+        this.canvas.renderAll();
+    }
+    
+    updateLightVisualState(light, entity) {
+        if (!entity) return;
+        
+        let fillColor = '#ffa500'; // default orange
+        
+        if (this.showCurrentState) {
+            // Show Home Assistant current state with glow effects
+            const isOn = entity.state === 'on';
+            const brightness = entity.attributes?.brightness || 255;
+            const colorTemp = entity.attributes?.color_temp;
+            const hsColor = entity.attributes?.hs_color;
+            
+            if (isOn) {
+                if (hsColor && hsColor.length >= 2) {
+                    // Convert HSV to RGB at full brightness for fill color
+                    const h = hsColor[0] / 360;
+                    const s = hsColor[1] / 100;
+                    const rgb = this.hsvToRgb(h, s, 1); // Full brightness for fill color
+                    fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+                } else if (colorTemp) {
+                    // Convert color temperature to RGB at full brightness for fill color  
+                    const rgb = this.colorTempToRgb(colorTemp);
+                    fillColor = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`;
+                } else {
+                    // Default warm white at full brightness for fill color
+                    fillColor = `rgb(255, 255, 200)`;
+                }
+                
+                // Apply glow effect based on current brightness
+                const brightnessPct = Math.round((brightness / 255) * 100); // Convert to percentage
+                const glowIntensity = brightnessPct / 100; // 0.0 to 1.0
+                const glowSize = Math.max(5, brightnessPct * 0.4); // Glow radius extension (5px to 40px)
+                const glowOpacity = Math.max(0.1, 0.4 - (glowIntensity * 0.3)); // 0.4 at 0% brightness, 0.1 at 100% brightness
+                
+                // Remove any existing glow circle
+                if (light.glowCircle) {
+                    this.canvas.remove(light.glowCircle);
+                    light.glowCircle = null;
+                }
+                
+                // Create a separate larger circle behind the main light for glow effect
+                const glowCircle = new fabric.Circle({
+                    left: light.left + light.radius - (light.radius + glowSize),
+                    top: light.top + light.radius - (light.radius + glowSize),
+                    radius: light.radius + glowSize,
+                    fill: fillColor,
+                    opacity: glowOpacity,
+                    selectable: false,
+                    evented: false,
+                    excludeFromExport: true
+                });
+                
+                // Add glow circle behind the main light
+                this.canvas.add(glowCircle);
+                this.canvas.sendObjectToBack(glowCircle);
+                this.canvas.bringObjectToFront(light);
+                
+                // Store reference to glow circle for cleanup
+                light.glowCircle = glowCircle;
+                
+                // Add outline to main light and set fill
+                light.set({
+                    fill: fillColor,
+                    stroke: window.sceneManager?.getContrastingColor(fillColor) || '#000000',
+                    strokeWidth: 2,
+                    shadow: null
+                });
+                
+                console.log('🌟 Applied current state glow effect - Brightness:', brightnessPct + '%', 'Glow Size:', glowSize, 'Opacity:', glowOpacity);
+            } else {
+                // Light is off - remove glow and use dim appearance
+                if (light.glowCircle) {
+                    this.canvas.remove(light.glowCircle);
+                    light.glowCircle = null;
+                }
+                
+                fillColor = this.isDarkTheme ? '#333333' : '#cccccc';
+                light.set({
+                    fill: fillColor,
+                    stroke: null,
+                    strokeWidth: 0,
+                    shadow: null
+                });
+                
+                console.log('🌙 Light is off - removed glow effect');
+            }
+        } else {
+            // Show scene preview from sliders
+            this.updateLightVisualStateFromSliders(light);
+            return; // updateLightVisualStateFromSliders handles rendering
+        }
+        
+        this.canvas.renderAll();
+    }
+    
+    highlightSelectedLight(light) {
+        console.log('🎯 highlightSelectedLight called for light:', {
+            type: light.type,
+            entityId: light.entityId,
+            position: { x: light.left, y: light.top },
+            radius: light.radius,
+            bounds: light.getBoundingRect()
+        });
+        
+        // Remove any existing selection ring first
+        this.removeHighlightFromLight(light);
+        
+        // Create a highly visible selection ring around the light
+        const bounds = light.getBoundingRect();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        const radius = Math.max(bounds.width, bounds.height) / 2 + 8; // Add 8px padding
+        
+        console.log('💍 Creating selection ring:', {
+            centerX, centerY, radius,
+            bounds: bounds
+        });
+        
+        // Create bright selection ring
+        const selectionRing = new fabric.Circle({
+            left: centerX,
+            top: centerY,
+            radius: radius,
+            fill: 'transparent',
+            stroke: '#00ff00', // Bright green
+            strokeWidth: 4,
+            strokeDashArray: [8, 4], // Dashed line for extra visibility
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            selectionRing: true,
+            lightId: light.lightObject ? (light.entityId || 'unassigned') : null
+        });
+        
+        console.log('💍 Selection ring created:', selectionRing);
+        
+        // Add pulsing animation
+        console.log('💍 Starting pulsing animation');
+        const animate = () => {
+            if (selectionRing && this.canvas.getObjects().includes(selectionRing)) {
+                selectionRing.animate('strokeWidth', selectionRing.strokeWidth === 4 ? 6 : 4, {
+                    duration: 800,
+                    onChange: this.canvas.renderAll.bind(this.canvas),
+                    onComplete: animate
+                });
+            }
+        };
+        animate();
+        
+        this.canvas.add(selectionRing);
+        this.canvas.bringObjectToFront(selectionRing);
+        this.canvas.renderAll();
+        
+        // Store reference for easy removal
+        light._selectionRing = selectionRing;
+        
+        console.log('🎯 Light selected with visible highlight:', light.entityId || 'unassigned');
+        console.log('💍 Canvas objects after adding ring:', this.canvas.getObjects().length);
+        console.log('💍 Selection rings in canvas:', this.canvas.getObjects().filter(obj => obj.selectionRing).length);
+    }
+    
+    removeHighlightFromLight(light) {
+        if (light._selectionRing) {
+            this.canvas.remove(light._selectionRing);
+            light._selectionRing = null;
+            this.canvas.renderAll();
+        }
+        
+        // Also remove any orphaned selection rings for this light
+        const lightId = light.entityId || 'unassigned';
+        const objectsToRemove = [];
+        this.canvas.forEachObject(obj => {
+            if (obj.selectionRing && obj.lightId === lightId) {
+                objectsToRemove.push(obj);
+            }
+        });
+        objectsToRemove.forEach(obj => this.canvas.remove(obj));
+        
+        if (objectsToRemove.length > 0) {
+            this.canvas.renderAll();
+        }
+    }
+    
+    updateSelectionRingPosition(light) {
+        console.log('🔄 Updating selection ring position for light:', light.entityId);
+        
+        if (!light._selectionRing) {
+            console.log('❌ No selection ring found on light object');
+            return;
+        }
+        
+        const bounds = light.getBoundingRect();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        
+        console.log('🎯 New ring position:', { centerX, centerY });
+        
+        light._selectionRing.set({
+            left: centerX,
+            top: centerY
+        });
+        
+        this.canvas.renderAll();
+    }
+    
+    // HSV to RGB conversion
+    hsvToRgb(h, s, v) {
+        let r, g, b;
+        
+        const i = Math.floor(h * 6);
+        const f = h * 6 - i;
+        const p = v * (1 - s);
+        const q = v * (1 - f * s);
+        const t = v * (1 - (1 - f) * s);
+        
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+        
+        return {
+            r: r * 255,
+            g: g * 255,
+            b: b * 255
+        };
+    }
+    
+    rgbToHsv(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        
+        let h = 0;
+        const s = max === 0 ? 0 : delta / max;
+        const v = max;
+        
+        if (delta !== 0) {
+            if (max === r) {
+                h = ((g - b) / delta) % 6;
+            } else if (max === g) {
+                h = (b - r) / delta + 2;
+            } else {
+                h = (r - g) / delta + 4;
+            }
+            h /= 6;
+            if (h < 0) h += 1;
+        }
+        
+        return { h, s, v };
+    }
+    
+    rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+    
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+    }
+    
+    // Color temperature to RGB approximation
+    colorTempToRgb(colorTemp) {
+        // Simplified color temperature to RGB conversion
+        const temp = colorTemp / 100;
+        let r, g, b;
+        
+        if (temp <= 66) {
+            r = 255;
+            g = temp;
+            g = 99.4708025861 * Math.log(g) - 161.1195681661;
+            
+            if (temp >= 19) {
+                b = temp - 10;
+                b = 138.5177312231 * Math.log(b) - 305.0447927307;
+            } else {
+                b = 0;
+            }
+        } else {
+            r = temp - 60;
+            r = 329.698727446 * Math.pow(r, -0.1332047592);
+            
+            g = temp - 60;
+            g = 288.1221695283 * Math.pow(g, -0.0755148492);
+            
+            b = 255;
+        }
+        
+        return {
+            r: Math.max(0, Math.min(255, r)),
+            g: Math.max(0, Math.min(255, g)),
+            b: Math.max(0, Math.min(255, b))
+        };
+    }
+    
+    // Clean up glow effects for all lights
+    cleanupAllGlowEffects() {
+        this.lights.forEach(light => {
+            if (light.glowCircle) {
+                this.canvas.remove(light.glowCircle);
+                light.glowCircle = null;
+            }
+        });
+    }
+    
+    // Refresh all light visual states
+    async refreshAllLightStates() {
+        // Clean up existing glow effects before applying new ones
+        this.cleanupAllGlowEffects();
+        
+        if (this.showCurrentState) {
+            // Fetch fresh current state data from Home Assistant
+            await this.fetchCurrentLightStates();
+        }
+        
+        this.lights.forEach(light => {
+            if (light.entityId && window.lightEntities[light.entityId]) {
+                this.updateLightVisualState(light, window.lightEntities[light.entityId]);
+            }
+        });
+        this.canvas.renderAll();
+    }
+    
+    // Fetch fresh current state data from Home Assistant
+    async fetchCurrentLightStates() {
+        try {
+            console.log('🔄 Fetching fresh light states from Home Assistant...');
+            const response = await fetch(`${API_BASE}/api/lights`);
+            if (!response.ok) {
+                throw new Error(`Lights request failed: ${response.status} ${response.statusText}`);
+            }
+            const freshLights = await response.json();
+            
+            // Update window.lightEntities with fresh current state data
+            freshLights.forEach(light => {
+                if (window.lightEntities[light.entityId]) {
+                    // Update the existing entity with fresh state data - map to expected structure
+                    window.lightEntities[light.entityId] = {
+                        ...window.lightEntities[light.entityId],
+                        state: light.state,
+                        attributes: {
+                            ...window.lightEntities[light.entityId].attributes,
+                            brightness: light.brightness,
+                            color_temp_kelvin: light.colorTemp,
+                            hs_color: light.hsColor
+                        }
+                    };
+                    
+                    console.log('🔄 Updated entity:', light.entityId, {
+                        state: light.state,
+                        brightness: light.brightness,
+                        colorTemp: light.colorTemp,
+                        hsColor: light.hsColor
+                    });
+                }
+            });
+            console.log('✅ Updated light states with fresh data from Home Assistant');
+        } catch (error) {
+            console.error('❌ Error fetching fresh light states:', error);
+        }
+    }
+    
+    updateSelectedLightIndicator(light) {
+        const indicator = document.getElementById('selectedLightIndicator');
+        const lightName = document.getElementById('selectedLightName');
+        
+        if (indicator && lightName) {
+            // Show the indicator
+            indicator.style.display = 'flex';
+            
+            // Update the light name
+            if (light.entityId) {
+                // Get friendly name from Home Assistant entity
+                const entity = window.lightEntities ? window.lightEntities[light.entityId] : null;
+                let displayName = light.entityId;
+                
+                if (entity) {
+                    // Try multiple ways to get the friendly name
+                    displayName = entity.attributes?.friendly_name || 
+                                 entity.friendly_name || 
+                                 entity.attributes?.friendlyName ||
+                                 light.entityId;
+                }
+                
+                lightName.textContent = displayName;
+            } else {
+                lightName.textContent = 'Unassigned Light';
+            }
+        }
+    }
+    
+    hideSelectedLightIndicator() {
+        const indicator = document.getElementById('selectedLightIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+
+    showLoadingState() {
+        console.log('📋 Showing loading state on canvas...');
+        
+        // Clear the canvas immediately
+        this.canvas.clear();
+        this.lights = [];
+        this.texts = [];
+        this.labels = [];
+        this.roomOutline = null;
+        this.backgroundImage = null;
+        
+        // Set canvas background
+        this.canvas.backgroundColor = this.isDarkTheme ? '#1a1a1a' : '#f5f5f5';
+        
+        // Create loading message
+        const loadingText = new fabric.Text('Loading floorplan...', {
+            left: this.canvas.width / 2,
+            top: this.canvas.height / 2,
+            fontSize: 32,
+            fill: this.isDarkTheme ? '#ffffff' : '#333333',
+            fontFamily: 'Arial, sans-serif',
+            textAlign: 'center',
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+            isLoadingMessage: true
+        });
+        
+        // Create spinning indicator
+        const spinner = new fabric.Text('⟳', {
+            left: this.canvas.width / 2,
+            top: this.canvas.height / 2 + 60,
+            fontSize: 24,
+            fill: this.isDarkTheme ? '#ffffff' : '#333333',
+            fontFamily: 'Arial, sans-serif',
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+            isLoadingSpinner: true
+        });
+        
+        this.canvas.add(loadingText);
+        this.canvas.add(spinner);
+        this.canvas.renderAll();
+        
+        // Start spinner animation
+        this.startSpinnerAnimation(spinner);
+    }
+
+    hideLoadingState() {
+        console.log('📋 Hiding loading state from canvas...');
+        
+        // Remove loading message and spinner
+        const loadingObjects = this.canvas.getObjects().filter(obj => 
+            obj.isLoadingMessage || obj.isLoadingSpinner
+        );
+        
+        loadingObjects.forEach(obj => this.canvas.remove(obj));
+        
+        // Stop any running spinner animation
+        this.stopSpinnerAnimation();
+        
+        this.canvas.renderAll();
+    }
+
+    startSpinnerAnimation(spinner) {
+        if (this.spinnerAnimationId) {
+            this.stopSpinnerAnimation();
+        }
+        
+        let rotation = 0;
+        const animate = () => {
+            if (spinner && this.canvas.contains(spinner)) {
+                rotation += 30; // 30 degrees per frame
+                spinner.set('angle', rotation);
+                this.canvas.renderAll();
+                this.spinnerAnimationId = requestAnimationFrame(animate);
+            }
+        };
+        
+        this.spinnerAnimationId = requestAnimationFrame(animate);
+    }
+
+    stopSpinnerAnimation() {
+        if (this.spinnerAnimationId) {
+            cancelAnimationFrame(this.spinnerAnimationId);
+            this.spinnerAnimationId = null;
+        }
+    }
+}
+
+// ========================================
+// Application Initialization
+// ========================================
+
+// Initialize the application when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOM loaded, starting LightMapper CAD...');
+    new LightMapperController();
+});
+
+// ========================================
+// CAD Interface Integration Complete
+// ========================================
+console.log('✅ LightMapper CAD Interface modules loaded successfully'); 

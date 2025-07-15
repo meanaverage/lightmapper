@@ -1,0 +1,29 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: LightMapper
+# Handles service termination
+# ==============================================================================
+
+EXIT_CODE=$1
+SIGNAL=$2
+
+echo "🔄 LightMapper service finished with exit code: $EXIT_CODE"
+
+if [ "$EXIT_CODE" -eq 0 ]; then
+    bashio::log.info "LightMapper service stopped normally"
+    echo "✅ Service stopped normally"
+elif [ "$EXIT_CODE" -eq 256 ]; then
+    bashio::log.warning "LightMapper service was terminated by signal: $SIGNAL"
+    echo "⚠️ Service terminated by signal: $SIGNAL"
+    case "$SIGNAL" in
+        15) echo "  Signal 15 (SIGTERM) - Normal termination request" ;;
+        9)  echo "  Signal 9 (SIGKILL) - Force killed" ;;
+        2)  echo "  Signal 2 (SIGINT) - Interrupted" ;;
+        *)  echo "  Unknown signal: $SIGNAL" ;;
+    esac
+else
+    bashio::log.error "LightMapper service crashed with exit code: $EXIT_CODE"
+    echo "❌ Service crashed with exit code: $EXIT_CODE"
+fi
+
+echo "🔄 Service will be restarted by supervisor" 
