@@ -549,6 +549,8 @@ export class LayersPanel extends BasePanel {
     async bringForward() {
         if (!this.selectedLayerId || !this.layerManager) return;
         
+        console.log('🔍 LayersPanel: bringForward called for layer:', this.selectedLayerId);
+        
         // Call API endpoint
         try {
             await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/bring-forward`, {
@@ -559,19 +561,33 @@ export class LayersPanel extends BasePanel {
         }
         
         const canvasPanel = window.panelManager?.getPanel('canvas');
-        if (!canvasPanel) return;
+        if (!canvasPanel) {
+            console.error('❌ CanvasPanel not found');
+            return;
+        }
         
         const layer = this.layerManager.layers[this.selectedLayerId];
-        if (!layer) return;
+        if (!layer) {
+            console.error('❌ Layer not found:', this.selectedLayerId);
+            return;
+        }
         
+        console.log('🔍 Looking for object with ID:', layer.objectId);
         const object = canvasPanel.findObjectById(layer.objectId);
         if (object) {
+            console.log('✅ Found object:', object.type, 'ID:', object.id);
             const editor = canvasPanel.getEditor();
             if (editor) {
                 editor.canvas.setActiveObject(object);
                 editor.bringForward();
                 this.refresh();
+                console.log('✅ Brought object forward');
+            } else {
+                console.error('❌ Editor not found');
             }
+        } else {
+            console.error('❌ Object not found with ID:', layer.objectId);
+            console.log('Available objects:', canvasPanel.getEditor()?.canvas.getObjects().map(obj => ({type: obj.type, id: obj.id})));
         }
     }
 
@@ -580,6 +596,8 @@ export class LayersPanel extends BasePanel {
      */
     async sendBackward() {
         if (!this.selectedLayerId || !this.layerManager) return;
+        
+        console.log('🔍 LayersPanel: sendBackward called for layer:', this.selectedLayerId);
         
         // Call API endpoint
         try {
@@ -591,19 +609,33 @@ export class LayersPanel extends BasePanel {
         }
         
         const canvasPanel = window.panelManager?.getPanel('canvas');
-        if (!canvasPanel) return;
+        if (!canvasPanel) {
+            console.error('❌ CanvasPanel not found');
+            return;
+        }
         
         const layer = this.layerManager.layers[this.selectedLayerId];
-        if (!layer) return;
+        if (!layer) {
+            console.error('❌ Layer not found:', this.selectedLayerId);
+            return;
+        }
         
+        console.log('🔍 Looking for object with ID:', layer.objectId);
         const object = canvasPanel.findObjectById(layer.objectId);
         if (object) {
+            console.log('✅ Found object:', object.type, 'ID:', object.id);
             const editor = canvasPanel.getEditor();
             if (editor) {
                 editor.canvas.setActiveObject(object);
                 editor.sendBackward();
                 this.refresh();
+                console.log('✅ Sent object backward');
+            } else {
+                console.error('❌ Editor not found');
             }
+        } else {
+            console.error('❌ Object not found with ID:', layer.objectId);
+            console.log('Available objects:', canvasPanel.getEditor()?.canvas.getObjects().map(obj => ({type: obj.type, id: obj.id})));
         }
     }
 
