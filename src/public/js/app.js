@@ -10441,15 +10441,20 @@ class FloorplanEditor {
 function setupTertiaryPanelCollapse() {
     const tertiaryDock = document.getElementById('dockTertiary');
     const collapseToggle = document.getElementById('tertiaryCollapseToggle');
+    const expandToggle = document.getElementById('tertiaryExpandToggle');
     
-    if (!tertiaryDock || !collapseToggle) return;
+    if (!tertiaryDock || !collapseToggle || !expandToggle) return;
     
+    // Collapse button handler
     collapseToggle.addEventListener('click', () => {
-        tertiaryDock.classList.toggle('collapsed');
-        
-        // Store collapse state in localStorage
-        const isCollapsed = tertiaryDock.classList.contains('collapsed');
-        localStorage.setItem('tertiaryPanelCollapsed', isCollapsed);
+        tertiaryDock.classList.add('collapsed');
+        localStorage.setItem('tertiaryPanelCollapsed', 'true');
+    });
+    
+    // Expand button handler
+    expandToggle.addEventListener('click', () => {
+        tertiaryDock.classList.remove('collapsed');
+        localStorage.setItem('tertiaryPanelCollapsed', 'false');
     });
     
     // Restore collapse state from localStorage

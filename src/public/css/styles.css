@@ -413,8 +413,48 @@ body {
   order: 4;
 }
 
-/* Tertiary Panel Collapse Toggle */
-.tertiary-collapse-toggle {
+/* Tertiary Panel Header */
+.tertiary-panel-header {
+  height: 40px;
+  background: var(--cad-bg-secondary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 8px;
+}
+
+/* Tertiary Panel Collapse Button */
+.tertiary-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--cad-text-secondary);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tertiary-collapse-btn:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.tertiary-collapse-btn i {
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+.dock-tertiary.collapsed .tertiary-collapse-btn i {
+  transform: rotate(180deg);
+}
+
+/* Collapsed State - Show toggle button on the edge */
+.dock-tertiary.collapsed::after {
+  content: '';
   position: absolute;
   left: 0;
   top: 50%;
@@ -429,23 +469,42 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
-  transition: all 0.3s ease;
 }
 
-.tertiary-collapse-toggle:hover {
+.tertiary-expand-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  background: var(--cad-bg-tertiary);
+  border: 1px solid var(--cad-border-primary);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.dock-tertiary.collapsed .tertiary-expand-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tertiary-expand-toggle:hover {
   background: var(--cad-hover);
   border-color: var(--cad-blue-primary);
 }
 
-.tertiary-collapse-toggle i {
+.tertiary-expand-toggle i {
   font-size: 12px;
   color: var(--cad-text-secondary);
-  transition: transform 0.3s ease;
-}
-
-.dock-tertiary.collapsed .tertiary-collapse-toggle i {
-  transform: rotate(180deg);
 }
 
 /* Tertiary Panel Content */
@@ -461,6 +520,10 @@ body {
 .dock-tertiary.collapsed .tertiary-panel {
   opacity: 0;
   pointer-events: none;
+}
+
+.dock-tertiary.collapsed .tertiary-panel-header {
+  display: none;
 }
 
 /* Removed dock-bottom - using only left and right docks */
