@@ -212,7 +212,7 @@ console.log('  Static files served from:', staticPath);
 console.log('  Current __dirname:', __dirname);
 console.log('  Ingress mode:', isIngress);
 if (isIngress) {
-  console.log('  Ingress entry path:', INGRESS_ENTRY || INGRESS_URL);
+  console.log('  Ingress entry path:', config.ingressPath);
 }
 
 // API Key Authentication Middleware for external API access
