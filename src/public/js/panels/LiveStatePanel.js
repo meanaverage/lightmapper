@@ -4,7 +4,7 @@ export class LiveStatePanel extends BasePanel {
     constructor() {
         super('liveState', 'Live State', 'fa-broadcast-tower');
         this.updateInterval = null;
-        this.refreshRate = 5000; // 5 seconds
+        this.refreshRate = 30000; // 30 seconds - more reasonable default
     }
 
     render() {
@@ -16,7 +16,7 @@ export class LiveStatePanel extends BasePanel {
                         <i class="fas fa-sync-alt"></i>
                     </button>
                     <label class="auto-refresh-toggle">
-                        <input type="checkbox" id="autoRefreshToggle" checked>
+                        <input type="checkbox" id="autoRefreshToggle">
                         <span>Auto Refresh</span>
                     </label>
                 </div>
@@ -27,9 +27,10 @@ export class LiveStatePanel extends BasePanel {
                     <select id="refreshRateSelect">
                         <option value="1000">1 second</option>
                         <option value="2000">2 seconds</option>
-                        <option value="5000" selected>5 seconds</option>
+                        <option value="5000">5 seconds</option>
                         <option value="10000">10 seconds</option>
-                        <option value="30000">30 seconds</option>
+                        <option value="30000" selected>30 seconds</option>
+                        <option value="60000">1 minute</option>
                     </select>
                 </label>
             </div>
@@ -37,7 +38,8 @@ export class LiveStatePanel extends BasePanel {
         `;
         
         this.bindEvents();
-        this.startAutoRefresh();
+        // Load initial data once, but don't start auto-refresh by default
+        this.refreshStates();
     }
 
     bindEvents() {
@@ -232,7 +234,7 @@ export class LiveStatePanel extends BasePanel {
 
     onShow() {
         super.onShow();
-        // Resume auto-refresh when panel is shown
+        // Only resume auto-refresh if user explicitly enabled it
         if (document.getElementById('autoRefreshToggle')?.checked) {
             this.startAutoRefresh();
         }
