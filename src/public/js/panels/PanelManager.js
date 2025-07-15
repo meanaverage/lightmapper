@@ -16,6 +16,28 @@ export class PanelManager {
         this.activePanel = null;
         /** @type {Map<string, HTMLElement>} Map of panel IDs to their container elements */
         this.panelContainers = new Map();
+        /** @type {Map<string, string>} Map of panel IDs to their dock positions */
+        this.dockPositions = new Map();
+        
+        // Define default dock positions for panels
+        this.defaultDockPositions = {
+            // Left sidebar panels
+            'lights': 'left',
+            'liveState': 'left',
+            'layers': 'left',
+            'debug': 'left',
+            
+            // Right sidebar panels
+            'properties': 'right',
+            'scenes': 'right',
+            'sceneEditor': 'right',
+            
+            // Bottom panels
+            'entities': 'bottom',
+            
+            // Main area
+            'canvas': 'main'
+        };
     }
 
     /**
@@ -37,6 +59,9 @@ export class PanelManager {
      * @description Sets up panel containers, initializes each panel, and sets up tab switching
      */
     init() {
+        // Setup dock containers
+        this.setupDockContainers();
+        
         // Initialize panel containers from the sidebar
         this.setupPanelContainers();
         
@@ -45,7 +70,10 @@ export class PanelManager {
             const container = this.panelContainers.get(id);
             if (container) {
                 panel.init(container);
-                console.log(`✅ Initialized panel: ${id}`);
+                // Set dock position
+                const dockPosition = this.defaultDockPositions[id] || 'left';
+                this.dockPositions.set(id, dockPosition);
+                console.log(`✅ Initialized panel: ${id} in dock: ${dockPosition}`);
             } else {
                 console.warn(`⚠️ No container found for panel: ${id}`);
             }
@@ -56,6 +84,20 @@ export class PanelManager {
         
         // Show the first panel by default (lights/scenes)
         this.showPanel('lights');
+    }
+    
+    /**
+     * Set up the dock containers
+     * @private
+     */
+    setupDockContainers() {
+        this.dockContainers = {
+            left: document.getElementById('dockLeft'),
+            center: document.getElementById('dockCenter'),
+            right: document.getElementById('dockRight'),
+            bottom: document.getElementById('dockBottom'),
+            main: document.getElementById('canvas-container')
+        };
     }
 
     /**
@@ -107,30 +149,26 @@ export class PanelManager {
      * per group can be visible at a time
      */
     showPanel(panelId) {
-        // Determine which group this panel belongs to
-        const leftPanels = ['lights', 'liveState', 'layers', 'debug'];
-        const rightPanels = ['properties', 'scenes', 'sceneEditor'];
-        const entityPanels = ['entities'];
+        // Get the dock position for this panel
+        const dockPosition = this.dockPositions.get(panelId) || this.defaultDockPositions[panelId];
         
-        // Hide panels in the same group
-        if (leftPanels.includes(panelId)) {
-            // Hide all left panels
-            leftPanels.forEach(id => {
+        // Get all panels in the same dock
+        const panelsInSameDock = [];
+        this.panels.forEach((panel, id) => {
+            const panelDock = this.dockPositions.get(id) || this.defaultDockPositions[id];
+            if (panelDock === dockPosition && id !== panelId) {
+                panelsInSameDock.push(id);
+            }
+        });
+        
+        // Hide panels in the same dock (except bottom panels which can stay visible)
+        if (dockPosition !== 'bottom') {
+            panelsInSameDock.forEach(id => {
                 const section = document.querySelector(`[data-section="${id}"]`);
                 if (section) section.classList.remove('active');
                 const panel = this.panels.get(id);
                 if (panel) panel.hide();
             });
-        } else if (rightPanels.includes(panelId)) {
-            // Hide all right panels
-            rightPanels.forEach(id => {
-                const section = document.querySelector(`[data-section="${id}"]`);
-                if (section) section.classList.remove('active');
-                const panel = this.panels.get(id);
-                if (panel) panel.hide();
-            });
-        } else if (entityPanels.includes(panelId)) {
-            // Entity panel is always visible, just switch content
         }
         
         // Show the selected panel

@@ -367,13 +367,48 @@ body {
 }
 
 /* ========================================
-   Main Interface Layout
+   Main Interface Layout with Dock System
    ======================================== */
 .main-interface {
   display: flex;
   flex: 1;
   overflow: hidden;
   position: relative;
+}
+
+/* Dock Containers */
+.dock-container {
+  display: flex;
+  position: relative;
+}
+
+.dock-left {
+  width: var(--cad-panel-width);
+  flex-shrink: 0;
+  order: 1;
+}
+
+.dock-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  order: 2;
+}
+
+.dock-right {
+  width: var(--cad-panel-width);
+  flex-shrink: 0;
+  order: 3;
+}
+
+.dock-bottom {
+  height: 250px;
+  flex-shrink: 0;
+  width: 100%;
+  order: 2;
+  display: flex;
+  position: relative;
+  border-top: 1px solid var(--cad-border-primary);
 }
 
 /* ========================================
@@ -867,8 +902,6 @@ body {
   background: var(--cad-bg-canvas);
   position: relative;
   overflow: hidden;
-  margin-bottom: 250px;
-  transition: margin-bottom 0.3s ease;
 }
 
 .drawing-area.drag-over {
@@ -1906,16 +1939,11 @@ body {
    Entity Panel - Photoshop Style
    ======================================== */
 .entity-panel {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: var(--cad-bg-secondary);
   border-top: 1px solid var(--cad-border-primary);
-  height: 250px;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  z-index: 100;
   transition: height 0.3s ease;
 }
 

@@ -4361,30 +4361,26 @@ class LightMapperController {
     setupEntityPanelToggle() {
         const toggleBtn = document.getElementById('entityPanelToggle');
         const panel = document.getElementById('entityPanel');
-        const drawingArea = document.querySelector('.drawing-area');
+        const dockBottom = document.getElementById('dockBottom');
         
-        if (!toggleBtn || !panel) {
+        if (!toggleBtn || !panel || !dockBottom) {
             console.warn('⚠️ Entity panel toggle elements not found');
             return;
         }
         
         toggleBtn.addEventListener('click', () => {
-            panel.classList.toggle('collapsed');
+            const isCollapsed = dockBottom.style.display === 'none';
             
-            if (panel.classList.contains('collapsed')) {
-                toggleBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
-                toggleBtn.title = 'Expand Entities Panel';
-                // Expand drawing area when panel is collapsed
-                if (drawingArea) {
-                    drawingArea.style.marginBottom = '0';
-                }
-            } else {
+            if (isCollapsed) {
+                // Show the dock
+                dockBottom.style.display = 'flex';
                 toggleBtn.innerHTML = '&raquo;';
                 toggleBtn.title = 'Collapse Entity Panel';
-                // Restore drawing area margin
-                if (drawingArea) {
-                    drawingArea.style.marginBottom = '250px';
-                }
+            } else {
+                // Hide the dock
+                dockBottom.style.display = 'none';
+                toggleBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
+                toggleBtn.title = 'Expand Entities Panel';
             }
             
             // Trigger canvas resize to adjust to new space
@@ -4395,17 +4391,16 @@ class LightMapperController {
     }
     
     setupPanelResizing() {
-        const entityPanel = document.getElementById('entityPanel');
-        const drawingArea = document.querySelector('.drawing-area');
+        const dockBottom = document.getElementById('dockBottom');
         
-        if (!entityPanel || !drawingArea) {
-            console.warn('⚠️ Entity panel or drawing area not found for resizing');
+        if (!dockBottom) {
+            console.warn('⚠️ Dock bottom not found for resizing');
             return;
         }
         
-        // Create resize handle at the top of entity panel
+        // Create resize handle at the top of dock bottom
         const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'entity-panel-resize-handle';
+        resizeHandle.className = 'dock-resize-handle';
         resizeHandle.style.cssText = `
             position: absolute;
             top: 0;
@@ -4416,7 +4411,7 @@ class LightMapperController {
             background: transparent;
             z-index: 10;
         `;
-        entityPanel.appendChild(resizeHandle);
+        dockBottom.appendChild(resizeHandle);
         
         let isResizing = false;
         let startY = 0;
@@ -4425,7 +4420,7 @@ class LightMapperController {
         resizeHandle.addEventListener('mousedown', (e) => {
             isResizing = true;
             startY = e.clientY;
-            startHeight = entityPanel.offsetHeight;
+            startHeight = dockBottom.offsetHeight;
             document.body.style.cursor = 'ns-resize';
             e.preventDefault();
         });
@@ -4436,8 +4431,7 @@ class LightMapperController {
             const deltaY = startY - e.clientY;
             const newHeight = Math.max(150, Math.min(600, startHeight + deltaY));
             
-            entityPanel.style.height = newHeight + 'px';
-            drawingArea.style.marginBottom = newHeight + 'px';
+            dockBottom.style.height = newHeight + 'px';
             
             // Update canvas size
             if (window.floorplanEditor) {
