@@ -13,11 +13,6 @@ export class EntitiesPanel extends BasePanel {
         this.container.innerHTML = `
             <div class="entities-panel-wrapper">
                 <div class="entities-header-fixed">
-                    <div class="entities-header-actions">
-                        <button id="refreshEntities" class="btn btn-icon-only" title="Refresh Entities">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
                     <div class="entities-controls">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
@@ -44,17 +39,48 @@ export class EntitiesPanel extends BasePanel {
         
         this.bindEvents();
         this.loadEntities();
+        
+        // Set up WebSocket listeners for real-time updates
+        this.setupWebSocketListeners();
+    }
+    
+    setupWebSocketListeners() {
+        // Wait for WebSocket client to be available
+        if (!window.haWsClient) {
+            setTimeout(() => this.setupWebSocketListeners(), 100);
+            return;
+        }
+        
+        // Listen for real-time light state changes
+        window.haWsClient.on('light_state_changed', (data) => {
+            this.updateEntityState(data.entityId, data.state);
+        });
+        
+        console.log('✅ EntitiesPanel: WebSocket listeners set up');
+    }
+    
+    updateEntityState(entityId, newState) {
+        console.log(`💡 EntitiesPanel: Updating ${entityId} state`, newState);
+        
+        // Update the entity in our local array
+        const entityIndex = this.entities.findIndex(e => e.entity_id === entityId);
+        if (entityIndex !== -1) {
+            // Update the entity data
+            this.entities[entityIndex].state = newState.state;
+            if (newState.attributes) {
+                this.entities[entityIndex].attributes = {
+                    ...this.entities[entityIndex].attributes,
+                    ...newState.attributes
+                };
+            }
+            
+            // Re-apply filters to update the display
+            this.applyFilters();
+            this.updateStats();
+        }
     }
 
     bindEvents() {
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshEntities');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
-                this.loadEntities();
-            });
-        }
-
         // Search input
         const searchInput = document.getElementById('entitySearch');
         if (searchInput) {

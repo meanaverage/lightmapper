@@ -351,13 +351,6 @@
     border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
 }
 
-.entities-header-actions {
-    padding: 8px 12px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
-}
 
 .entities-scrollable {
     flex: 1;
