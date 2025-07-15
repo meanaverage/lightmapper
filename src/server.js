@@ -218,7 +218,7 @@ if (isIngress) {
 // API Key Authentication Middleware for external API access
 const authenticateApiKey = (req, res, next) => {
   // Skip auth for internal requests and if external API is not enabled
-  if (!userOptions.enable_external_api) {
+  if (!settings.api.enableExternal) {
     return next();
   }
   
@@ -240,7 +240,7 @@ const authenticateApiKey = (req, res, next) => {
     return res.status(401).json({ error: 'API key required' });
   }
   
-  if (apiKey !== userOptions.api_key) {
+  if (apiKey !== settings.api.apiKey) {
     return res.status(401).json({ error: 'Invalid API key' });
   }
   
