@@ -1439,7 +1439,6 @@ async function startServer() {
     
     // Original LightMapper WebSocket server for internal messages
     const wss = new WebSocket.Server({ 
-        server,
         noServer: true  // We'll handle the upgrade manually
     });
     global.wsClients = new Set();
@@ -1468,7 +1467,6 @@ async function startServer() {
     // Home Assistant WebSocket proxy for ingress mode
     // Handle both direct and ingress paths
     const haWss = new WebSocket.Server({ 
-        server,
         noServer: true  // We'll handle the upgrade manually
     });
     
