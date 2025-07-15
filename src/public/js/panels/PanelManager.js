@@ -37,7 +37,8 @@ export class PanelManager {
     }
 
     setupPanelContainers() {
-        // These are the actual sidebar panels
+        // Map panel IDs to their container elements
+        this.panelContainers.set('canvas', document.getElementById('canvas-container'));
         this.panelContainers.set('lights', document.getElementById('lightsPanel'));
         this.panelContainers.set('scenes', document.getElementById('scenesPanel'));
         this.panelContainers.set('liveState', document.getElementById('liveStatePanel'));
@@ -64,23 +65,40 @@ export class PanelManager {
     }
 
     showPanel(panelId) {
-        // Hide all panels
-        this.panelContainers.forEach((container, id) => {
-            if (container) {
-                container.style.display = 'none';
-            }
-            const panel = this.panels.get(id);
-            if (panel) {
-                panel.hide();
-            }
-        });
+        // Determine which group this panel belongs to
+        const leftPanels = ['lights', 'liveState'];
+        const rightPanels = ['properties', 'scenes', 'sceneEditor'];
+        const entityPanels = ['entities'];
         
-        // Show selected panel
-        const container = this.panelContainers.get(panelId);
+        // Hide panels in the same group
+        if (leftPanels.includes(panelId)) {
+            // Hide all left panels
+            leftPanels.forEach(id => {
+                const section = document.querySelector(`[data-section="${id}"]`);
+                if (section) section.classList.remove('active');
+                const panel = this.panels.get(id);
+                if (panel) panel.hide();
+            });
+        } else if (rightPanels.includes(panelId)) {
+            // Hide all right panels
+            rightPanels.forEach(id => {
+                const section = document.querySelector(`[data-section="${id}"]`);
+                if (section) section.classList.remove('active');
+                const panel = this.panels.get(id);
+                if (panel) panel.hide();
+            });
+        } else if (entityPanels.includes(panelId)) {
+            // Entity panel is always visible, just switch content
+        }
+        
+        // Show the selected panel
+        const section = document.querySelector(`[data-section="${panelId}"]`);
+        if (section) {
+            section.classList.add('active');
+        }
+        
         const panel = this.panels.get(panelId);
-        
-        if (container && panel) {
-            container.style.display = 'block';
+        if (panel) {
             panel.show();
             this.activePanel = panelId;
             console.log(`👁️ Showing panel: ${panelId}`);
