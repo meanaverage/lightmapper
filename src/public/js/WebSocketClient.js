@@ -204,9 +204,20 @@ class WebSocketClient {
         this.emit('connected');
         
         // Set up periodic polling for state changes
+        // Only poll when there are active listeners for state changes
         this.pollingInterval = setInterval(() => {
-            this.pollForStateChanges();
-        }, 5000); // Poll every 5 seconds
+            if (this.hasStateChangeListeners()) {
+                this.pollForStateChanges();
+            }
+        }, 15000); // Poll every 15 seconds (more reasonable for ingress mode)
+    }
+    
+    /**
+     * Check if there are active listeners for state changes
+     */
+    hasStateChangeListeners() {
+        return this.listeners.has('light_state_changed') && 
+               this.listeners.get('light_state_changed').length > 0;
     }
     
     /**
