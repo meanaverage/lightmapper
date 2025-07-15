@@ -1,8 +1,20 @@
 import { BasePanel } from './BasePanel.js';
 
+/**
+ * Lights Panel - Manages scene light settings and controls
+ * @class LightsPanel
+ * @extends BasePanel
+ * @description Displays lights assigned in the floorplan and allows users to configure
+ * scene settings for each light including brightness, color temperature, and color.
+ */
 export class LightsPanel extends BasePanel {
+    /**
+     * Creates a new LightsPanel instance
+     * @constructor
+     */
     constructor() {
         super('lights', 'Scene Lights', 'fa-lightbulb');
+        /** @type {Map<string, Object>} Scene settings for each light entity */
         this.sceneLightSettings = new Map();
     }
 

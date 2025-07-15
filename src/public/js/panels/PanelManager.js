@@ -1,10 +1,28 @@
+/**
+ * Panel Manager - Central registry and coordinator for all panels
+ * @class PanelManager
+ * @description Manages panel registration, initialization, visibility, and inter-panel communication
+ * through an event broadcasting system.
+ */
 export class PanelManager {
+    /**
+     * Creates a new PanelManager instance
+     * @constructor
+     */
     constructor() {
+        /** @type {Map<string, BasePanel>} Registry of all panels */
         this.panels = new Map();
+        /** @type {string|null} ID of the currently active panel */
         this.activePanel = null;
+        /** @type {Map<string, HTMLElement>} Map of panel IDs to their container elements */
         this.panelContainers = new Map();
     }
 
+    /**
+     * Register a panel with the manager
+     * @param {BasePanel} panel - The panel instance to register
+     * @throws {Error} If panel doesn't have required id and title properties
+     */
     register(panel) {
         if (!panel.id || !panel.title) {
             throw new Error('Panel must have id and title properties');
@@ -14,6 +32,10 @@ export class PanelManager {
         console.log(`📦 Registered panel: ${panel.id}`);
     }
 
+    /**
+     * Initialize all registered panels
+     * @description Sets up panel containers, initializes each panel, and sets up tab switching
+     */
     init() {
         // Initialize panel containers from the sidebar
         this.setupPanelContainers();
@@ -36,6 +58,10 @@ export class PanelManager {
         this.showPanel('lights');
     }
 
+    /**
+     * Set up the mapping between panel IDs and their DOM containers
+     * @private
+     */
     setupPanelContainers() {
         // Map panel IDs to their container elements
         this.panelContainers.set('canvas', document.getElementById('canvas-container'));
@@ -47,6 +73,10 @@ export class PanelManager {
         this.panelContainers.set('sceneEditor', document.getElementById('sceneEditorPanel'));
     }
 
+    /**
+     * Set up click handlers for panel tab switching
+     * @private
+     */
     setupTabSwitching() {
         // Setup sidebar tab buttons
         const tabButtons = document.querySelectorAll('.sidebar-tab');
@@ -64,6 +94,12 @@ export class PanelManager {
         });
     }
 
+    /**
+     * Show a specific panel and hide others in the same group
+     * @param {string} panelId - The ID of the panel to show
+     * @description Panels are grouped (left, right, entity) and only one panel
+     * per group can be visible at a time
+     */
     showPanel(panelId) {
         // Determine which group this panel belongs to
         const leftPanels = ['lights', 'liveState'];
@@ -105,10 +141,19 @@ export class PanelManager {
         }
     }
 
+    /**
+     * Get a panel instance by ID
+     * @param {string} panelId - The panel ID
+     * @returns {BasePanel|undefined} The panel instance or undefined if not found
+     */
     getPanel(panelId) {
         return this.panels.get(panelId);
     }
 
+    /**
+     * Refresh a specific panel
+     * @param {string} panelId - The ID of the panel to refresh
+     */
     refreshPanel(panelId) {
         const panel = this.panels.get(panelId);
         if (panel && panel.refresh) {
@@ -116,6 +161,9 @@ export class PanelManager {
         }
     }
 
+    /**
+     * Refresh all registered panels
+     */
     refreshAllPanels() {
         this.panels.forEach(panel => {
             if (panel.refresh) {
@@ -124,7 +172,15 @@ export class PanelManager {
         });
     }
 
-    // Utility method to broadcast events to all panels
+    /**
+     * Broadcast an event to all panels
+     * @param {string} eventName - The event method name to call on each panel
+     * @param {*} data - Data to pass to the event handler
+     * @description If a panel has a method matching eventName, it will be called with data
+     * @example
+     * // Broadcast object selection to all panels
+     * panelManager.broadcast('onObjectSelected', { object: selectedObject });
+     */
     broadcast(eventName, data) {
         this.panels.forEach(panel => {
             if (panel[eventName] && typeof panel[eventName] === 'function') {

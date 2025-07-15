@@ -1,9 +1,22 @@
 import { BasePanel } from './BasePanel.js';
 
+/**
+ * Canvas Panel - Provides a clean API for interacting with the Fabric.js floorplan editor
+ * @class CanvasPanel
+ * @extends BasePanel
+ * @description This panel wraps the FloorplanEditor to provide a technology-agnostic API
+ * that other panels can use to interact with the canvas without direct Fabric.js dependency.
+ */
 export class CanvasPanel extends BasePanel {
+    /**
+     * Creates a new CanvasPanel instance
+     * @constructor
+     */
     constructor() {
         super('canvas', 'Floorplan Canvas', 'fa-draw-polygon');
+        /** @type {FloorplanEditor|null} The wrapped floorplan editor instance */
         this.floorplanEditor = null;
+        /** @type {boolean} Whether the panel has been initialized */
         this.isInitialized = false;
     }
 
@@ -66,6 +79,11 @@ export class CanvasPanel extends BasePanel {
     
     /**
      * Get all lights from the canvas
+     * @returns {Array<Object>} Array of light objects with their properties
+     * @returns {string} [].entityId - The assigned Home Assistant entity ID
+     * @returns {boolean} [].lightObject - Flag indicating this is a light
+     * @returns {number} [].left - X position
+     * @returns {number} [].top - Y position
      */
     getLights() {
         if (!this.floorplanEditor?.canvas) return [];
@@ -75,6 +93,11 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Get all assigned entities from floorplan lights
+     * @returns {Array<Object>} Array of Home Assistant entity objects
+     * @returns {string} [].entity_id - The entity ID
+     * @returns {string} [].friendly_name - Human-readable name
+     * @returns {string} [].state - Current state (on/off)
+     * @returns {Object} [].attributes - Entity attributes (brightness, color, etc.)
      */
     getAssignedEntities() {
         const lights = this.getLights();
@@ -96,6 +119,8 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Find a light by entity ID
+     * @param {string} entityId - The Home Assistant entity ID to search for
+     * @returns {Object|undefined} The light object if found, undefined otherwise
      */
     findLightByEntityId(entityId) {
         const lights = this.getLights();
@@ -104,6 +129,8 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Select an object on the canvas
+     * @param {Object} object - The fabric object to select
+     * @fires onObjectSelected - Broadcasts selection to all panels
      */
     selectObject(object) {
         if (!this.floorplanEditor?.canvas) return;
@@ -114,6 +141,8 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Center view on an object
+     * @param {Object} object - The fabric object to center on
+     * @description Adjusts the viewport to center the specified object in view
      */
     centerOnObject(object) {
         if (!this.floorplanEditor?.canvas) return;
@@ -130,6 +159,10 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Assign an entity to a light
+     * @param {Object} light - The light object to assign to
+     * @param {string} entityId - The Home Assistant entity ID
+     * @returns {boolean} True if assignment was successful
+     * @fires onLightEntityAssigned - Notifies panels of the assignment
      */
     assignEntityToLight(light, entityId) {
         if (!light || !light.lightObject) return false;
@@ -148,6 +181,13 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Update light appearance from scene settings
+     * @param {string} entityId - The entity ID of the light to update
+     * @param {Object} settings - Scene settings to apply
+     * @param {number} [settings.brightness] - Brightness percentage (0-100)
+     * @param {number} [settings.kelvin] - Color temperature in Kelvin
+     * @param {Object} [settings.color] - Color settings
+     * @param {number} settings.color.hue - Hue value (0-360)
+     * @param {number} settings.color.saturation - Saturation percentage (0-100)
      */
     updateLightFromSceneSettings(entityId, settings) {
         const light = this.findLightByEntityId(entityId);
@@ -159,6 +199,7 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Set the active tool
+     * @param {string} toolName - The tool to activate: 'select', 'light', 'room', 'line', 'text'
      */
     setTool(toolName) {
         if (this.floorplanEditor) {
@@ -186,6 +227,7 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Save floorplan layout
+     * @returns {Object|null} The serialized layout data or null if not available
      */
     saveLayout() {
         if (this.floorplanEditor) {
@@ -196,6 +238,8 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Load floorplan layout
+     * @param {Object} layoutData - The layout data to load
+     * @param {Function} [callback] - Optional callback when loading is complete
      */
     loadLayout(layoutData, callback) {
         if (this.floorplanEditor) {
@@ -217,6 +261,10 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Get canvas state for saving
+     * @returns {Object|null} Canvas state including objects, viewport, and zoom
+     * @returns {Array} .objects - Serialized canvas objects
+     * @returns {Array} .viewport - Current viewport transform
+     * @returns {number} .zoom - Current zoom level
      */
     getCanvasState() {
         if (!this.floorplanEditor?.canvas) return null;
@@ -234,6 +282,7 @@ export class CanvasPanel extends BasePanel {
 
     /**
      * Set display mode (current state vs scene preview)
+     * @param {boolean} showCurrentState - True to show current state, false for scene preview
      */
     setDisplayMode(showCurrentState) {
         if (this.floorplanEditor) {
