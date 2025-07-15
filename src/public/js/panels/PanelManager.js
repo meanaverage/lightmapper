@@ -71,6 +71,7 @@ export class PanelManager {
         this.panelContainers.set('entities', document.getElementById('entitiesPanel'));
         this.panelContainers.set('properties', document.getElementById('propertiesPanel'));
         this.panelContainers.set('sceneEditor', document.getElementById('sceneEditorPanel'));
+        this.panelContainers.set('layers', document.querySelector('[data-section="layers"]'));
     }
 
     /**
@@ -102,7 +103,7 @@ export class PanelManager {
      */
     showPanel(panelId) {
         // Determine which group this panel belongs to
-        const leftPanels = ['lights', 'liveState'];
+        const leftPanels = ['lights', 'liveState', 'layers'];
         const rightPanels = ['properties', 'scenes', 'sceneEditor'];
         const entityPanels = ['entities'];
         

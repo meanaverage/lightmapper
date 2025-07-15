@@ -339,4 +339,59 @@ export class CanvasPanel extends BasePanel {
     getEditor() {
         return this.floorplanEditor;
     }
+    
+    /**
+     * Find object by ID
+     * @param {number} objectId - The object ID
+     * @returns {fabric.Object|null} The object or null if not found
+     */
+    findObjectById(objectId) {
+        if (!this.floorplanEditor?.canvas) return null;
+        
+        return this.floorplanEditor.canvas.getObjects().find(obj => obj.id === objectId);
+    }
+    
+    /**
+     * Set object visibility
+     * @param {fabric.Object} obj - The object
+     * @param {boolean} visible - Whether the object should be visible
+     */
+    setObjectVisibility(obj, visible) {
+        if (!obj) return;
+        
+        obj.visible = visible;
+        obj.evented = visible;
+        
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    /**
+     * Set object locked state
+     * @param {fabric.Object} obj - The object
+     * @param {boolean} locked - Whether the object should be locked
+     */
+    setObjectLocked(obj, locked) {
+        if (!obj) return;
+        
+        obj.selectable = !locked;
+        obj.evented = !locked;
+        
+        // If object is currently selected and we're locking it, deselect it
+        if (locked && this.floorplanEditor.canvas.getActiveObject() === obj) {
+            this.floorplanEditor.canvas.discardActiveObject();
+        }
+        
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    /**
+     * Delete object from canvas
+     * @param {fabric.Object} obj - The object to delete
+     */
+    deleteObject(obj) {
+        if (!obj || !this.floorplanEditor?.canvas) return;
+        
+        this.floorplanEditor.canvas.remove(obj);
+        this.floorplanEditor.canvas.renderAll();
+    }
 }

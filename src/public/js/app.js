@@ -310,204 +310,266 @@ class EntityPanelManager {
 }
 
 // ========================================
-// Layer Management System
+// Layer Management System (Photoshop-style)
 // ========================================
 class LayerManager {
     constructor(floorplanEditor) {
         this.floorplanEditor = floorplanEditor;
-        this.layers = {
-            lights: { visible: true, locked: false, name: 'Lights' },
-            rooms: { visible: true, locked: false, name: 'Rooms' },
-            background: { visible: true, locked: false, name: 'Background' },
-            grid: { visible: true, locked: false, name: 'Grid' }
+        // Dynamic layers - each object gets its own layer
+        this.layers = {};
+        this.layerOrder = []; // Track layer stacking order (bottom to top)
+        
+        // Counter for generating unique layer names
+        this.layerCounters = {
+            room: 0,
+            light: 0,
+            text: 0,
+            object: 0
         };
         
-        console.log('🗂️ LayerManager initialized');
-        this.setupLayerControls();
-        this.updateLayerUI();
+        console.log('🗂️ LayerManager initialized with dynamic layers (Photoshop-style)');
     }
     
-    setupLayerControls() {
-        // Setup click handlers for visibility and lock toggles
-        document.querySelectorAll('[data-layer-toggle]').forEach(toggle => {
-            toggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const layerId = toggle.dataset.layerId;
-                const toggleType = toggle.dataset.layerToggle;
-                
-                if (toggleType === 'visibility') {
-                    this.toggleLayerVisibility(layerId);
-                } else if (toggleType === 'lock') {
-                    this.toggleLayerLock(layerId);
-                }
-            });
-        });
+    /**
+     * Create a new layer for an object
+     * @param {fabric.Object} obj - The fabric object
+     * @param {string} customName - Optional custom name for the layer
+     * @returns {string} The layer ID
+     */
+    createLayerForObject(obj, customName = null) {
+        if (!obj) return null;
         
-        console.log('🔧 Layer controls setup complete');
-    }
-    
-    toggleLayerVisibility(layerId) {
-        if (!this.layers[layerId]) return;
+        // Generate unique layer ID
+        const layerId = `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        this.layers[layerId].visible = !this.layers[layerId].visible;
-        const isVisible = this.layers[layerId].visible;
-        
-        console.log(`👁️ Layer "${layerId}" visibility: ${isVisible ? 'ON' : 'OFF'}`);
-        
-        // Update UI
-        this.updateLayerToggleUI(layerId, 'visibility', isVisible);
-        
-        // Apply visibility to canvas objects
-        this.applyLayerVisibility(layerId, isVisible);
-        
-        // Update command status
-        if (window.cadInterface) {
-            window.cadInterface.updateCommandStatus(
-                `Layer "${this.layers[layerId].name}" ${isVisible ? 'shown' : 'hidden'}`
-            );
-        }
-    }
-    
-    toggleLayerLock(layerId) {
-        if (!this.layers[layerId]) return;
-        
-        this.layers[layerId].locked = !this.layers[layerId].locked;
-        const isLocked = this.layers[layerId].locked;
-        
-        console.log(`🔒 Layer "${layerId}" lock: ${isLocked ? 'ON' : 'OFF'}`);
-        
-        // Update UI
-        this.updateLayerToggleUI(layerId, 'lock', !isLocked);
-        
-        // Apply lock state to canvas objects
-        this.applyLayerLock(layerId, isLocked);
-        
-        // Update command status
-        if (window.cadInterface) {
-            window.cadInterface.updateCommandStatus(
-                `Layer "${this.layers[layerId].name}" ${isLocked ? 'locked' : 'unlocked'}`
-            );
-        }
-    }
-    
-    updateLayerToggleUI(layerId, toggleType, state) {
-        const toggle = document.querySelector(`[data-layer-toggle="${toggleType}"][data-layer-id="${layerId}"]`);
-        if (!toggle) return;
-        
-        const icon = toggle.querySelector('i');
-        const layerItem = toggle.closest('.layer-item');
-        
-        if (toggleType === 'visibility') {
-            if (state) {
-                icon.className = 'fas fa-eye';
-                layerItem.classList.add('active');
+        // Determine layer name based on object type
+        let layerName = customName;
+        if (!layerName) {
+            if (obj.lightObject) {
+                this.layerCounters.light++;
+                layerName = obj.entityId ? `Light: ${obj.entityId.replace('light.', '')}` : `Light ${this.layerCounters.light}`;
+            } else if (obj.roomObject) {
+                this.layerCounters.room++;
+                layerName = `ROOM ${this.layerCounters.room}`;
+            } else if (obj.textObject) {
+                this.layerCounters.text++;
+                layerName = `Text ${this.layerCounters.text}`;
+            } else if (obj.labelObject) {
+                layerName = 'Label';
             } else {
-                icon.className = 'fas fa-eye-slash';
-                layerItem.classList.remove('active');
-            }
-        } else if (toggleType === 'lock') {
-            if (state) { // state = unlocked
-                icon.className = 'fas fa-unlock';
-            } else { // locked
-                icon.className = 'fas fa-lock';
-            }
-        }
-    }
-    
-    applyLayerVisibility(layerId, isVisible) {
-        if (!this.floorplanEditor?.canvas) return;
-        
-        this.floorplanEditor.canvas.getObjects().forEach(obj => {
-            const objectLayer = this.getObjectLayer(obj);
-            if (objectLayer === layerId) {
-                obj.visible = isVisible;
-                obj.evented = isVisible; // Disable events when hidden
-            }
-        });
-        
-        // Special handling for grid
-        if (layerId === 'grid') {
-            this.floorplanEditor.gridVisible = isVisible;
-            if (isVisible) {
-                this.floorplanEditor.drawGrid();
-            } else {
-                this.clearGrid();
+                this.layerCounters.object++;
+                layerName = `Object ${this.layerCounters.object}`;
             }
         }
         
-        this.floorplanEditor.canvas.renderAll();
+        // Create layer
+        const layer = {
+            id: layerId,
+            name: layerName,
+            visible: true,
+            locked: false,
+            objectId: obj.id || Date.now(),
+            objectType: this.getObjectType(obj),
+            zIndex: this.layerOrder.length,
+            // Light-specific properties
+            circleVisible: true,
+            brightnessVisible: true,
+            labelVisible: true
+        };
+        
+        // Add to layers and order
+        this.layers[layerId] = layer;
+        this.layerOrder.unshift(layerId); // Add to top
+        
+        // Set object's layer reference
+        obj.customLayer = layerId;
+        
+        // Update z-indices
+        this.updateAllZIndices();
+        
+        console.log(`🗂️ Created layer "${layerName}" (${layerId}) for object`);
+        return layerId;
     }
     
-    applyLayerLock(layerId, isLocked) {
-        if (!this.floorplanEditor?.canvas) return;
-        
-        this.floorplanEditor.canvas.getObjects().forEach(obj => {
-            const objectLayer = this.getObjectLayer(obj);
-            if (objectLayer === layerId) {
-                obj.selectable = !isLocked;
-                obj.evented = !isLocked;
-                
-                // If object is currently selected and we're locking its layer, deselect it
-                if (isLocked && this.floorplanEditor.canvas.getActiveObject() === obj) {
-                    this.floorplanEditor.canvas.discardActiveObject();
-                }
-            }
-        });
-        
-        this.floorplanEditor.canvas.renderAll();
-    }
-    
-    getObjectLayer(obj) {
-        // Determine which layer an object belongs to
-        if (obj.lightObject) return 'lights';
-        if (obj.roomObject || obj.roomOutline) return 'rooms';
+    /**
+     * Get object type for categorization
+     * @param {fabric.Object} obj - The fabric object
+     * @returns {string} The object type
+     */
+    getObjectType(obj) {
+        if (obj.lightObject) return 'light';
+        if (obj.roomObject) return 'room';
+        if (obj.textObject) return 'text';
+        if (obj.labelObject) return 'label';
         if (obj.backgroundImage) return 'background';
         if (obj.gridLine) return 'grid';
-        if (obj.textObject) return 'rooms'; // Text objects go with rooms
-        if (obj.lineObject) return 'rooms'; // Line objects go with rooms
-        
-        // Default layer
-        return 'rooms';
+        return 'object';
     }
     
-    clearGrid() {
-        if (!this.floorplanEditor?.canvas) return;
+    /**
+     * Remove a layer
+     * @param {string} layerId - The layer ID to remove
+     */
+    removeLayer(layerId) {
+        if (!this.layers[layerId]) return;
         
-        const gridObjects = this.floorplanEditor.canvas.getObjects().filter(obj => obj.gridLine);
-        gridObjects.forEach(obj => this.floorplanEditor.canvas.remove(obj));
-        this.floorplanEditor.canvas.renderAll();
+        // Remove from order
+        const index = this.layerOrder.indexOf(layerId);
+        if (index > -1) {
+            this.layerOrder.splice(index, 1);
+        }
+        
+        // Remove layer
+        delete this.layers[layerId];
+        
+        // Update z-indices
+        this.updateAllZIndices();
+        
+        console.log(`🗂️ Removed layer ${layerId}`);
     }
     
-    updateLayerUI() {
-        // Update all layer toggle states in the UI
-        Object.keys(this.layers).forEach(layerId => {
-            const layer = this.layers[layerId];
-            this.updateLayerToggleUI(layerId, 'visibility', layer.visible);
-            this.updateLayerToggleUI(layerId, 'lock', !layer.locked);
+    /**
+     * Update all layer z-indices based on order
+     */
+    updateAllZIndices() {
+        const totalLayers = this.layerOrder.length;
+        this.layerOrder.forEach((layerId, index) => {
+            if (this.layers[layerId]) {
+                // Top of layers panel = highest z-index
+                this.layers[layerId].zIndex = totalLayers - 1 - index;
+            }
         });
     }
     
-    isLayerVisible(layerId) {
-        return this.layers[layerId]?.visible ?? true;
+    /**
+     * Reorder layers
+     * @param {string} draggedLayerId - The ID of the dragged layer
+     * @param {string} targetLayerId - The ID of the target layer
+     */
+    reorderLayers(draggedLayerId, targetLayerId) {
+        const draggedIndex = this.layerOrder.indexOf(draggedLayerId);
+        const targetIndex = this.layerOrder.indexOf(targetLayerId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // Remove dragged layer from current position
+        this.layerOrder.splice(draggedIndex, 1);
+        
+        // Insert at new position
+        const newTargetIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+        this.layerOrder.splice(newTargetIndex, 0, draggedLayerId);
+        
+        // Update z-indices
+        this.updateAllZIndices();
+        
+        // Update canvas object order
+        this.updateCanvasObjectOrder();
+        
+        console.log('✅ Layer order updated:', this.layerOrder);
     }
     
-    isLayerLocked(layerId) {
-        return this.layers[layerId]?.locked ?? false;
+    /**
+     * Update canvas object order based on layer order
+     */
+    updateCanvasObjectOrder() {
+        if (!this.floorplanEditor?.canvas) return;
+        
+        const canvas = this.floorplanEditor.canvas;
+        const objects = canvas.getObjects();
+        
+        // Group objects by layer
+        const objectsByLayer = {};
+        objects.forEach(obj => {
+            const layerId = obj.customLayer || this.getObjectLayer(obj);
+            if (!objectsByLayer[layerId]) {
+                objectsByLayer[layerId] = [];
+            }
+            objectsByLayer[layerId].push(obj);
+        });
+        
+        // Clear and rebuild canvas objects in correct order
+        canvas._objects = [];
+        
+        // Add objects in reverse layer order (bottom to top)
+        [...this.layerOrder].reverse().forEach(layerId => {
+            if (objectsByLayer[layerId]) {
+                objectsByLayer[layerId].forEach(obj => {
+                    canvas._objects.push(obj);
+                });
+            }
+        });
+        
+        // Add any orphaned objects at the bottom
+        objects.forEach(obj => {
+            if (!obj.customLayer && !canvas._objects.includes(obj)) {
+                canvas._objects.unshift(obj);
+            }
+        });
+        
+        canvas.renderAll();
     }
     
-    setLayerVisibility(layerId, visible) {
-        if (this.layers[layerId]) {
-            this.layers[layerId].visible = visible;
-            this.applyLayerVisibility(layerId, visible);
-            this.updateLayerToggleUI(layerId, 'visibility', visible);
+    /**
+     * Get the layer ID for an object
+     * @param {fabric.Object} obj - The fabric object
+     * @returns {string|null} The layer ID or null
+     */
+    getObjectLayer(obj) {
+        return obj.customLayer || null;
+    }
+    
+    /**
+     * Light-specific layer controls
+     */
+    toggleLightCircle(layerId) {
+        const layer = this.layers[layerId];
+        if (!layer || layer.objectType !== 'light') return;
+        
+        layer.circleVisible = !layer.circleVisible;
+        
+        // Find and update the light object
+        const lightObject = this.floorplanEditor.canvas.getObjects().find(obj => 
+            obj.customLayer === layerId && obj.lightObject
+        );
+        
+        if (lightObject) {
+            lightObject.visible = layer.circleVisible;
+            this.floorplanEditor.canvas.renderAll();
         }
     }
     
-    setLayerLock(layerId, locked) {
-        if (this.layers[layerId]) {
-            this.layers[layerId].locked = locked;
-            this.applyLayerLock(layerId, locked);
-            this.updateLayerToggleUI(layerId, 'lock', !locked);
+    toggleLightBrightness(layerId) {
+        const layer = this.layers[layerId];
+        if (!layer || layer.objectType !== 'light') return;
+        
+        layer.brightnessVisible = !layer.brightnessVisible;
+        
+        // Find brightness effects
+        const brightnessEffects = this.floorplanEditor.canvas.getObjects().filter(obj => 
+            obj.glowCircle && obj.parentLightId === layer.objectId
+        );
+        
+        brightnessEffects.forEach(effect => {
+            effect.visible = layer.brightnessVisible;
+        });
+        
+        this.floorplanEditor.canvas.renderAll();
+    }
+    
+    toggleLightLabel(layerId) {
+        const layer = this.layers[layerId];
+        if (!layer || layer.objectType !== 'light') return;
+        
+        layer.labelVisible = !layer.labelVisible;
+        
+        // Find label
+        const label = this.floorplanEditor.canvas.getObjects().find(obj => 
+            obj.labelObject && obj.lightRef?.customLayer === layerId
+        );
+        
+        if (label) {
+            label.visible = layer.labelVisible;
+            this.floorplanEditor.canvas.renderAll();
         }
     }
 }
@@ -4395,9 +4457,86 @@ class FloorplanEditor {
         this.layerManager = new LayerManager(this);
         window.layerManager = this.layerManager; // Make globally accessible
         
+        // Connect LayersPanel to LayerManager
+        setTimeout(() => {
+            const layersPanel = window.panelManager?.getPanel('layers');
+            if (layersPanel) {
+                layersPanel.setLayerManager(this.layerManager);
+                console.log('✅ LayersPanel connected to LayerManager');
+            }
+        }, 500); // Small delay to ensure panels are initialized
+        
+        // Setup canvas event handlers for layer management
+        this.setupLayerEventHandlers();
+        
         // ✅ SET DEFAULT TOOL TO SELECT MODE
         console.log('🎯 Setting default tool to SELECT');
         this.setTool('select');
+    }
+    
+    setupLayerEventHandlers() {
+        // Auto-create layers for new objects
+        this.canvas.on('object:added', (e) => {
+            const obj = e.target;
+            
+            // Skip temporary objects and objects that already have layers
+            if (obj.customLayer || obj.isTemporary || obj.gridLine || obj.snapGuide || obj.selectionRing) {
+                return;
+            }
+            
+            // Create layer for content objects
+            if (obj.lightObject || obj.roomObject || obj.textObject || obj.labelObject) {
+                this.layerManager.createLayerForObject(obj);
+                
+                // Notify LayersPanel to refresh
+                const layersPanel = window.panelManager?.getPanel('layers');
+                if (layersPanel) {
+                    layersPanel.refresh();
+                }
+                
+                // Broadcast to other panels
+                window.panelManager?.broadcast('onObjectAdded', { object: obj });
+            }
+        });
+        
+        // Remove layers when objects are removed
+        this.canvas.on('object:removed', (e) => {
+            const obj = e.target;
+            
+            if (obj.customLayer) {
+                this.layerManager.removeLayer(obj.customLayer);
+                
+                // Notify LayersPanel to refresh
+                const layersPanel = window.panelManager?.getPanel('layers');
+                if (layersPanel) {
+                    layersPanel.refresh();
+                }
+                
+                // Broadcast to other panels
+                window.panelManager?.broadcast('onObjectRemoved', { object: obj });
+            }
+        });
+        
+        // Handle selection changes
+        this.canvas.on('selection:created', (e) => {
+            const obj = e.selected[0];
+            if (obj?.customLayer) {
+                window.panelManager?.broadcast('onObjectSelected', { object: obj });
+            }
+        });
+        
+        this.canvas.on('selection:updated', (e) => {
+            const obj = e.selected[0];
+            if (obj?.customLayer) {
+                window.panelManager?.broadcast('onObjectSelected', { object: obj });
+            }
+        });
+        
+        this.canvas.on('selection:cleared', () => {
+            window.panelManager?.broadcast('onObjectDeselected', {});
+        });
+        
+        console.log('✅ Layer event handlers setup complete');
         
         console.log('✅ FloorplanEditor initialization complete');
     }

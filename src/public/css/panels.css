@@ -8,6 +8,160 @@
     overflow: hidden;
 }
 
+/* Layers Panel Specific Styles */
+.layers-container {
+    padding: 8px;
+    overflow-y: auto;
+    max-height: calc(100vh - 200px);
+    background: var(--cad-bg-secondary, #2d2d2d);
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 2px 0;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.layer-item:hover {
+    background: var(--cad-hover, #3a3a3a);
+    border-color: var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-item.selected-layer {
+    background: var(--cad-blue-primary, #4a9eff);
+    color: white;
+    border-color: var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    z-index: 1000;
+}
+
+.layer-item.drag-over {
+    border-top: 2px solid var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-drag-handle {
+    width: 16px;
+    color: var(--cad-text-secondary, #b0b0b0);
+    cursor: grab;
+    margin-right: 4px;
+}
+
+.layer-drag-handle:hover {
+    color: var(--cad-text-primary, #e0e0e0);
+}
+
+.layer-visibility,
+.layer-lock {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--cad-text-secondary, #b0b0b0);
+    border-radius: 3px;
+    margin-right: 4px;
+}
+
+.layer-visibility:hover,
+.layer-lock:hover {
+    background: var(--cad-hover, #3a3a3a);
+    color: var(--cad-text-primary, #e0e0e0);
+}
+
+.layer-visibility.active,
+.layer-lock.active {
+    color: var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--cad-text-primary, #e0e0e0);
+    margin-left: 4px;
+    margin-right: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-name[contenteditable="true"] {
+    cursor: text;
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+.layer-name[contenteditable="true"]:focus {
+    background: var(--cad-bg-primary, #262626);
+    outline: 1px solid var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-zindex {
+    font-size: 10px;
+    color: var(--cad-text-secondary, #b0b0b0);
+    background: var(--cad-bg-primary, #262626);
+    padding: 2px 4px;
+    border-radius: 2px;
+    margin-right: 4px;
+    font-family: monospace;
+}
+
+.layer-light-controls {
+    display: flex;
+    gap: 2px;
+    margin: 0 4px;
+}
+
+.layer-circle-toggle,
+.layer-brightness-toggle,
+.layer-label-toggle {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    background: var(--cad-bg-primary, #262626);
+    color: var(--cad-text-secondary, #b0b0b0);
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.layer-circle-toggle:hover,
+.layer-brightness-toggle:hover,
+.layer-label-toggle:hover {
+    background: var(--cad-hover, #3a3a3a);
+    border-color: var(--cad-blue-primary, #4a9eff);
+}
+
+.layer-circle-toggle.active,
+.layer-brightness-toggle.active,
+.layer-label-toggle.active {
+    background: var(--cad-blue-primary, #4a9eff);
+    border-color: var(--cad-blue-primary, #4a9eff);
+    color: white;
+}
+
+.layers-container.drag-active {
+    outline: 2px dashed var(--cad-blue-primary, #4a9eff);
+    outline-offset: -2px;
+}
+
 /* Panel Headers */
 .panel-header {
     padding: 15px;

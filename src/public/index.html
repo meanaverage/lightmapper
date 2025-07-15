@@ -763,6 +763,7 @@
         import { EntitiesPanel } from './js/panels/EntitiesPanel.js';
         import { PropertiesPanel } from './js/panels/PropertiesPanel.js';
         import { SceneEditorPanel } from './js/panels/SceneEditorPanel.js';
+        import { LayersPanel } from './js/panels/LayersPanel.js';
         
         // Initialize panel system after app.js loads
         window.addEventListener('load', () => {
@@ -777,6 +778,7 @@
             window.panelManager.register(new EntitiesPanel());
             window.panelManager.register(new PropertiesPanel());
             window.panelManager.register(new SceneEditorPanel());
+            window.panelManager.register(new LayersPanel());
             
             // Initialize panels
             window.panelManager.init();
