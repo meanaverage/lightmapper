@@ -16,9 +16,21 @@ class WebSocketClient {
     }
     
     connect() {
+        const basePath = window.API_BASE || '';
+        
+        // Check if we're in ingress mode
+        if (basePath.includes('hassio_ingress')) {
+            console.log('🔌 Ingress mode detected - WebSocket connections not supported');
+            console.log('🔄 Falling back to polling for real-time updates');
+            
+            // In ingress mode, WebSocket connections through the proxy are unreliable
+            // Instead, we'll use server-sent events or polling
+            this.setupPollingFallback();
+            return;
+        }
+        
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        const basePath = window.API_BASE || '';
         const wsUrl = `${protocol}//${host}${basePath}/ws`;
         
         console.log('🔌 Connecting to LightMapper WebSocket:', wsUrl);
@@ -171,11 +183,64 @@ class WebSocketClient {
     }
     
     /**
+     * Setup polling fallback for ingress mode
+     */
+    setupPollingFallback() {
+        console.log('🔄 Setting up polling fallback');
+        
+        // Mark as connected (polling mode)
+        this.connected = true;
+        this.emit('connected');
+        
+        // Set up periodic polling for state changes
+        this.pollingInterval = setInterval(() => {
+            this.pollForStateChanges();
+        }, 5000); // Poll every 5 seconds
+    }
+    
+    /**
+     * Poll for state changes (fallback for ingress mode)
+     */
+    async pollForStateChanges() {
+        try {
+            const response = await fetch(`${window.API_BASE}/api/lights`);
+            const lights = await response.json();
+            
+            // Check if we have previous state to compare
+            if (this.lastLightStates) {
+                // Compare with previous state and emit changes
+                lights.forEach(light => {
+                    const previousState = this.lastLightStates[light.entity_id];
+                    if (previousState && JSON.stringify(previousState) !== JSON.stringify(light)) {
+                        // State changed, emit event
+                        this.emit('light_state_changed', {
+                            entityId: light.entity_id,
+                            state: light
+                        });
+                    }
+                });
+            }
+            
+            // Store current state for next comparison
+            this.lastLightStates = {};
+            lights.forEach(light => {
+                this.lastLightStates[light.entity_id] = light;
+            });
+            
+        } catch (error) {
+            console.error('❌ Error polling for state changes:', error);
+        }
+    }
+    
+    /**
      * Close connection
      */
     close() {
         if (this.ws) {
             this.ws.close();
+        }
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
         }
     }
 }
