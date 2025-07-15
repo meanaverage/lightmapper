@@ -74,6 +74,10 @@ export class EntitiesPanel extends BasePanel {
                 };
             }
             
+            // Update assignment status
+            const assignedEntityIds = this.getAssignedEntityIds();
+            this.entities[entityIndex].isAssigned = assignedEntityIds.has(entityId);
+            
             // Re-apply filters to update the display
             this.applyFilters();
             this.updateStats();
@@ -421,10 +425,15 @@ export class EntitiesPanel extends BasePanel {
         
         // Use canvas API to assign entity
         if (canvasPanel.assignEntityToLight(selectedLight, entityId)) {
-            // Refresh displays
-            this.loadEntities();
-            window.panelManager?.refreshPanel('lights');
+            // Update the entity's assignment status immediately
+            const entity = this.entities.find(e => e.entity_id === entityId);
+            if (entity) {
+                entity.isAssigned = true;
+                this.applyFilters();
+                this.updateStats();
+            }
             
+            window.panelManager?.refreshPanel('lights');
             window.sceneManager?.showStatus(`Assigned ${entityId} to light`, 'success');
         }
     }
@@ -705,11 +714,52 @@ export class EntitiesPanel extends BasePanel {
             // Refresh the lights panel
             window.panelManager?.refreshPanel('lights');
             
-            // Refresh our entity list to update assignment status
-            this.loadEntities();
+            // Update the entity's assignment status immediately
+            const entity = this.entities.find(e => e.entity_id === entityId);
+            if (entity) {
+                entity.isAssigned = true;
+                this.applyFilters();
+                this.updateStats();
+            }
         } else {
             console.error('❌ Failed to create light');
             window.panelManager?.getPanel('debug')?.log('Failed to create light', 'error');
+        }
+    }
+    
+    // Panel event handlers for entity assignment changes
+    onLightEntityAssigned(data) {
+        if (data?.entityId) {
+            const entity = this.entities.find(e => e.entity_id === data.entityId);
+            if (entity && !entity.isAssigned) {
+                entity.isAssigned = true;
+                this.applyFilters();
+                this.updateStats();
+            }
+        }
+    }
+    
+    onLightEntityUnassigned(data) {
+        if (data?.entityId) {
+            const entity = this.entities.find(e => e.entity_id === data.entityId);
+            if (entity && entity.isAssigned) {
+                entity.isAssigned = false;
+                this.applyFilters();
+                this.updateStats();
+            }
+        }
+    }
+    
+    // Handle when a light object is removed from the canvas
+    onObjectRemoved(data) {
+        if (data?.object && data.object.lightObject && data.object.entityId) {
+            // A light with an assigned entity was removed
+            const entity = this.entities.find(e => e.entity_id === data.object.entityId);
+            if (entity && entity.isAssigned) {
+                entity.isAssigned = false;
+                this.applyFilters();
+                this.updateStats();
+            }
         }
     }
 }
