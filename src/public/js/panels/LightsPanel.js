@@ -161,23 +161,10 @@ export class LightsPanel extends BasePanel {
 
     // Helper methods
     getAssignedFloorplanEntities() {
-        if (!window.floorplanEditor?.canvas) return [];
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return [];
         
-        const assignedEntities = [];
-        const seenEntityIds = new Set();
-        
-        window.floorplanEditor.canvas.getObjects().forEach(obj => {
-            if (obj.lightObject && obj.entityId && !seenEntityIds.has(obj.entityId)) {
-                seenEntityIds.add(obj.entityId);
-                
-                const entityData = window.lightEntities?.[obj.entityId];
-                if (entityData) {
-                    assignedEntities.push(entityData);
-                }
-            }
-        });
-        
-        return assignedEntities;
+        return canvasPanel.getAssignedEntities();
     }
 
     getDisplayName(entity) {

@@ -171,19 +171,10 @@ export class LiveStatePanel extends BasePanel {
     }
 
     getAssignedFloorplanEntities() {
-        if (!window.floorplanEditor?.canvas) return [];
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return [];
         
-        const assignedEntities = [];
-        const seenEntityIds = new Set();
-        
-        window.floorplanEditor.canvas.getObjects().forEach(obj => {
-            if (obj.lightObject && obj.entityId && !seenEntityIds.has(obj.entityId)) {
-                seenEntityIds.add(obj.entityId);
-                assignedEntities.push({ entity_id: obj.entityId });
-            }
-        });
-        
-        return assignedEntities;
+        return canvasPanel.getAssignedEntities();
     }
 
     updateLastRefreshTime() {

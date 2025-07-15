@@ -101,12 +101,12 @@ export class EntitiesPanel extends BasePanel {
 
     getAssignedEntityIds() {
         const assignedIds = new Set();
+        const canvasPanel = window.panelManager?.getPanel('canvas');
         
-        if (window.floorplanEditor?.canvas) {
-            window.floorplanEditor.canvas.getObjects().forEach(obj => {
-                if (obj.lightObject && obj.entityId) {
-                    assignedIds.add(obj.entityId);
-                }
+        if (canvasPanel) {
+            const entities = canvasPanel.getAssignedEntities();
+            entities.forEach(entity => {
+                assignedIds.add(entity.entity_id);
             });
         }
         
@@ -282,53 +282,36 @@ export class EntitiesPanel extends BasePanel {
     }
 
     assignToSelected(entityId) {
-        // Find the currently selected light in the floorplan
-        const selectedLight = window.floorplanEditor?.selectedLight;
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        const selectedLight = canvasPanel?.getEditor()?.selectedLight;
         
         if (!selectedLight) {
             window.sceneManager?.showStatus('Please select a light in the floorplan first', 'warning');
             return;
         }
         
-        // Assign the entity to the selected light
-        selectedLight.entityId = entityId;
-        
-        // Update the light's appearance
-        window.floorplanEditor?.updateLightFromEntity(selectedLight, entityId);
-        
-        // Refresh displays
-        this.loadEntities();
-        window.panelManager?.refreshPanel('lights');
-        
-        window.sceneManager?.showStatus(`Assigned ${entityId} to light`, 'success');
+        // Use canvas API to assign entity
+        if (canvasPanel.assignEntityToLight(selectedLight, entityId)) {
+            // Refresh displays
+            this.loadEntities();
+            window.panelManager?.refreshPanel('lights');
+            
+            window.sceneManager?.showStatus(`Assigned ${entityId} to light`, 'success');
+        }
     }
 
     findInFloorplan(entityId) {
-        if (!window.floorplanEditor?.canvas) return;
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return;
         
-        // Find the light object with this entity
-        let found = false;
-        window.floorplanEditor.canvas.getObjects().forEach(obj => {
-            if (obj.lightObject && obj.entityId === entityId) {
-                // Select the object
-                window.floorplanEditor.canvas.setActiveObject(obj);
-                window.floorplanEditor.canvas.renderAll();
-                
-                // Center the view on the object
-                const zoom = window.floorplanEditor.canvas.getZoom();
-                const center = obj.getCenterPoint();
-                window.floorplanEditor.canvas.setViewportTransform([
-                    zoom, 0, 0, zoom,
-                    -center.x * zoom + window.floorplanEditor.canvas.getWidth() / 2,
-                    -center.y * zoom + window.floorplanEditor.canvas.getHeight() / 2
-                ]);
-                
-                found = true;
-                window.sceneManager?.showStatus(`Found ${entityId} in floorplan`, 'success');
-            }
-        });
+        // Use canvas API to find and select the light
+        const light = canvasPanel.findLightByEntityId(entityId);
         
-        if (!found) {
+        if (light) {
+            canvasPanel.selectObject(light);
+            canvasPanel.centerOnObject(light);
+            window.sceneManager?.showStatus(`Found ${entityId} in floorplan`, 'success');
+        } else {
             window.sceneManager?.showStatus(`Entity ${entityId} not found in floorplan`, 'warning');
         }
     }
