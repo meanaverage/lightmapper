@@ -1072,8 +1072,8 @@ class LightMapperController {
             // Initialize CAD interface first
             window.cadInterface = new CADInterfaceManager();
             
-            // Initialize entity panel
-            this.initializeEntityPanel();
+            // Don't initialize old entity panel - we use the new panel system
+            // this.initializeEntityPanel();
             
             await this.loadConfig();
             await this.loadInitialData();
@@ -4378,14 +4378,14 @@ class LightMapperController {
                 toggleBtn.title = 'Expand Entities Panel';
                 // Expand drawing area when panel is collapsed
                 if (drawingArea) {
-                    drawingArea.style.marginBottom = '0';
+                    drawingArea.style.paddingBottom = '0';
                 }
             } else {
                 toggleBtn.innerHTML = '&raquo;';
                 toggleBtn.title = 'Collapse Entity Panel';
-                // Restore drawing area margin
+                // Restore drawing area padding
                 if (drawingArea) {
-                    drawingArea.style.marginBottom = '250px';
+                    drawingArea.style.paddingBottom = '350px';
                 }
             }
             
@@ -4439,7 +4439,7 @@ class LightMapperController {
             const newHeight = Math.max(150, Math.min(600, startHeight + deltaY));
             
             entityPanel.style.height = newHeight + 'px';
-            drawingArea.style.marginBottom = newHeight + 'px';
+            drawingArea.style.paddingBottom = newHeight + 'px';
             
             // Update canvas size
             if (window.floorplanEditor) {

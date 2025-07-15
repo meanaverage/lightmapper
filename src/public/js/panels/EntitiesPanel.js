@@ -11,30 +11,32 @@ export class EntitiesPanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-                <button id="refreshEntities" class="btn btn-icon-only" title="Refresh Entities">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </div>
-            <div class="entities-controls">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="entitySearch" placeholder="Search entities..." class="entity-search">
+            <div class="entities-panel-wrapper">
+                <div class="panel-header">
+                    <h3>${this.title}</h3>
+                    <button id="refreshEntities" class="btn btn-icon-only" title="Refresh Entities">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
-                <div class="entity-filters">
-                    <label>
-                        <input type="checkbox" id="showLightsOnly" checked>
-                        <span>Lights Only</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" id="showAssignedOnly">
-                        <span>Assigned Only</span>
-                    </label>
+                <div class="entities-controls">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="entitySearch" placeholder="Search entities..." class="entity-search">
+                    </div>
+                    <div class="entity-filters">
+                        <label>
+                            <input type="checkbox" id="showLightsOnly" checked>
+                            <span>Lights Only</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showAssignedOnly">
+                            <span>Assigned Only</span>
+                        </label>
+                    </div>
                 </div>
+                <div id="entityStats" class="entity-stats"></div>
+                <div id="entitiesList" class="entities-list"></div>
             </div>
-            <div id="entityStats" class="entity-stats"></div>
-            <div id="entitiesList" class="entities-list"></div>
         `;
         
         this.bindEvents();

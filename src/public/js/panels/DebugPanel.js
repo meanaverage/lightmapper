@@ -82,7 +82,7 @@ export class DebugPanel extends BasePanel {
             'Panel Manager': window.panelManager ? 'Initialized' : 'Not initialized',
             'Scene Manager': window.sceneManager ? 'Initialized' : 'Not initialized',
             'CAD Interface': window.cadInterface ? 'Initialized' : 'Not initialized',
-            'Entity Panel Manager': window.entityPanelManager ? 'Initialized' : 'Not initialized'
+            'Entities Panel': window.panelManager?.getPanel('entities') ? 'Initialized' : 'Not initialized'
         };
 
         container.innerHTML = Object.entries(info).map(([key, value]) => 

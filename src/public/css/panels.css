@@ -308,6 +308,12 @@
 }
 
 /* Entities Panel */
+.entities-panel-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 .entities-controls {
     padding: 10px 15px;
     background: var(--cad-bg-secondary, #2d2d2d);
@@ -378,7 +384,8 @@
 .entities-list {
     padding: 10px;
     overflow-y: auto;
-    height: calc(100% - 150px);
+    flex: 1;
+    min-height: 0;
     background: var(--cad-bg-secondary, #2d2d2d);
 }
 
