@@ -4,13 +4,12 @@ A powerful Home Assistant add-on for managing complex lighting scenes with grid-
 
 ## Features
 
-🏠 **Grid-Based Light Selection** - Visual 8-position grid for easy light selection  
+🏠 **Canvas for Planning Scenes and Automations** - Custom fabricJS canvas for visual representation, but developmentally ognistic through a custom 'panels' API
 💡 **Individual Light Control** - Precise control over each light's brightness, color temperature, hue, and saturation  
-🎨 **Color Visualization** - Real-time RGB/hex color previews  
-📱 **Responsive Design** - Beautiful dark theme optimized for mobile and desktop  
+🎨 **Color Visualization** - Real-time RGB/hex color previews
 💾 **SQLite Database** - Reliable scene storage with full CRUD operations  
 🔄 **Real-time Updates** - Live light status and state capture  
-⚙️ **Light Mapping** - Map grid positions to your Home Assistant light entities  
+⚙️ **Light Mapping** - Map entities to their locations in your home focused on areas support
 🚀 **Modern Web Interface** - Fast, intuitive, and feature-rich
 
 ## Screenshots
