@@ -37,10 +37,10 @@ console.log('🔧 Ingress detection result:', isIngress);
 // Try to read options.json for user-provided token
 let userOptions = {};
 try {
-  const optionsPath = path.join(__dirname, 'data', 'options.json');
+  const optionsPath = isIngress ? '/data/options.json' : path.join(__dirname, 'data', 'options.json');
   if (fs.existsSync(optionsPath)) {
     userOptions = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
-    console.log('📋 User options loaded from data/options.json');
+    console.log('📋 User options loaded from', isIngress ? '/data/options.json' : 'data/options.json');
   }
 } catch (error) {
   console.log('⚠️ Could not read user options:', error.message);
@@ -91,7 +91,7 @@ console.log('  Using base URL source:',
 console.log('  Final base URL:', config.ha.baseUrl);
 
 // Database setup
-const dbPath = path.join(__dirname, 'data', 'scenes.db');
+const dbPath = isIngress ? '/data/scenes.db' : path.join(__dirname, 'data', 'scenes.db');
 let db;
 
 // Initialize database
