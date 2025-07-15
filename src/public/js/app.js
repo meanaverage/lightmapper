@@ -633,34 +633,72 @@ class CADInterfaceManager {
     }
     
     setupAccordionPanels() {
+        console.log('🔧 Setting up accordion panels...');
+        
+        // Remove any existing accordion event listeners to prevent duplicates
+        const existingHeaders = document.querySelectorAll('.panel-accordion-header');
+        existingHeaders.forEach(header => {
+            const newHeader = header.cloneNode(true);
+            header.parentNode.replaceChild(newHeader, header);
+        });
+        
         // Setup left panel accordion
         const leftHeaders = document.querySelectorAll('.left-panel .panel-accordion-header');
+        console.log(`📋 Found ${leftHeaders.length} left panel headers`);
         leftHeaders.forEach(header => {
             header.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const panelName = e.target.closest('.panel-accordion-header').dataset.panel;
+                console.log(`🖱️ Left panel header clicked: ${panelName}`);
                 this.toggleAccordionPanel(panelName, 'left');
             });
         });
         
         // Setup right panel accordion
         const rightHeaders = document.querySelectorAll('.right-panel .panel-accordion-header');
+        console.log(`📋 Found ${rightHeaders.length} right panel headers`);
         rightHeaders.forEach(header => {
             header.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const panelName = e.target.closest('.panel-accordion-header').dataset.panel;
+                console.log(`🖱️ Right panel header clicked: ${panelName}`);
                 this.toggleAccordionPanel(panelName, 'right');
             });
         });
+        
+        console.log('✅ Accordion panels setup complete');
     }
     
     toggleAccordionPanel(panelName, side) {
+        console.log(`🔄 toggleAccordionPanel called: ${panelName} (${side})`);
+        
+        // Prevent rapid toggling
+        const throttleKey = `${panelName}_${side}`;
+        if (this._accordionThrottle && this._accordionThrottle[throttleKey]) {
+            console.log(`⏱️ Throttling accordion toggle for ${panelName}`);
+            return;
+        }
+        
+        if (!this._accordionThrottle) this._accordionThrottle = {};
+        this._accordionThrottle[throttleKey] = true;
+        setTimeout(() => {
+            delete this._accordionThrottle[throttleKey];
+        }, 350); // Slightly longer than CSS transition
+        
         const selector = side === 'left' ? '.left-panel' : '.right-panel';
         const header = document.querySelector(`${selector} [data-panel="${panelName}"].panel-accordion-header`);
         const content = document.querySelector(`${selector} [data-panel="${panelName}"] .panel-accordion-content`);
         const chevron = header.querySelector('.accordion-chevron');
         
-        if (!header || !content || !chevron) return;
+        if (!header || !content || !chevron) {
+            console.warn(`⚠️ Missing accordion elements for ${panelName}`);
+            return;
+        }
         
         const isExpanded = content.classList.contains('expanded');
+        console.log(`📋 Panel ${panelName} is currently ${isExpanded ? 'expanded' : 'collapsed'}`);
         
         if (isExpanded) {
             // Collapse

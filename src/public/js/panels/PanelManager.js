@@ -77,14 +77,11 @@ export class PanelManager {
             }
         });
         
-        // Setup tab switching
+        // Setup tab switching - updated for accordion panels
         this.setupTabSwitching();
         
         // Setup drag and drop for panels
         this.setupPanelDragAndDrop();
-        
-        // Show the first panel by default (lights/scenes)
-        this.showPanel('lights');
     }
     
     /**
@@ -118,28 +115,13 @@ export class PanelManager {
     }
 
     /**
-     * Set up click handlers for panel tab switching
+     * Set up click handlers for panel tab switching - updated for accordion panels
      * @private
      */
     setupTabSwitching() {
-        // Setup all panel tab buttons (both sidebar and regular tabs)
-        const tabButtons = document.querySelectorAll('.panel-tab');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const panelId = button.dataset.panel;
-                if (panelId) {
-                    console.log(`🔄 Switching to panel: ${panelId}`);
-                    this.showPanel(panelId);
-                    
-                    // Update active tab styling for the clicked button's group
-                    const tabGroup = button.closest('.panel-tabs');
-                    if (tabGroup) {
-                        tabGroup.querySelectorAll('.panel-tab').forEach(btn => btn.classList.remove('active'));
-                        button.classList.add('active');
-                    }
-                }
-            });
-        });
+        // For accordion panels, we don't need to set up tab switching
+        // The accordion functionality is handled by FloorplanEditor.setupAccordionPanels()
+        console.log('📋 Tab switching setup skipped for accordion panels');
     }
 
     /**
