@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .pending { background: #fff3cd; color: #856404; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .info { color: #007bff; }
+        .warning { color: #ffc107; }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        button:hover { opacity: 0.9; }
+        .config-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .config-info code {
+            background: #fff;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Home Assistant WebSocket Connection Test</h1>
+        
+        <div id="status" class="status pending">Status: Initializing...</div>
+        
+        <div class="config-info">
+            <h3>Configuration</h3>
+            <div id="config">Loading configuration...</div>
+        </div>
+        
+        <div>
+            <button class="btn-primary" onclick="testConnection()">Test Connection</button>
+            <button class="btn-success" onclick="subscribeToEvents()">Subscribe to Events</button>
+            <button class="btn-danger" onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <h3>Connection Log</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageId = 1;
+        let authenticated = false;
+        let config = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(status, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = `Status: ${status}`;
+            statusDiv.className = `status ${className}`;
+        }
+
+        async function loadConfig() {
+            try {
+                log('Fetching configuration...');
+                const response = await fetch('/api/internal/config');
+                config = await response.json();
+                
+                const configDiv = document.getElementById('config');
+                configDiv.innerHTML = `
+                    <p><strong>Ingress Mode:</strong> ${config.ingress ? 'Yes' : 'No'}</p>
+                    <p><strong>HA Base URL:</strong> <code>${config.ha?.baseUrl || 'Not configured'}</code></p>
+                    <p><strong>Token Available:</strong> ${config.ha?.token ? 'Yes' : 'No'}</p>
+                    <p><strong>Current Location:</strong> <code>${window.location.href}</code></p>
+                `;
+                
+                log('Configuration loaded successfully', 'success');
+                return config;
+            } catch (error) {
+                log(`Failed to load configuration: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function getWebSocketUrl() {
+            const isIngress = window.location.href.includes('hassio_ingress');
+            
+            if (isIngress) {
+                // Try to extract ingress path
+                const pathMatch = window.location.pathname.match(/\/api\/hassio_ingress\/([^\/]+)/);
+                if (pathMatch) {
+                    const ingressPath = pathMatch[0];
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${wsProtocol}//${window.location.host}${ingressPath}/websocket`;
+                    log(`Using ingress WebSocket URL: ${wsUrl}`);
+                    return wsUrl;
+                }
+                
+                // Fallback to supervisor proxy
+                log('Using supervisor proxy URL: ws://supervisor/core/websocket', 'warning');
+                return 'ws://supervisor/core/websocket';
+            } else {
+                // Direct connection
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.hostname;
+                const port = window.location.port || (protocol === 'wss:' ? '443' : '80');
+                
+                if (config?.ha?.baseUrl) {
+                    const haUrl = new URL(config.ha.baseUrl);
+                    const wsProtocol = haUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${wsProtocol}//${haUrl.host}/api/websocket`;
+                    log(`Using configured HA WebSocket URL: ${wsUrl}`);
+                    return wsUrl;
+                }
+                
+                const wsUrl = `${protocol}//${host}:${port}/api/websocket`;
+                log(`Using default WebSocket URL: ${wsUrl}`);
+                return wsUrl;
+            }
+        }
+
+        async function testConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('WebSocket already connected', 'warning');
+                return;
+            }
+
+            if (!config) {
+                config = await loadConfig();
+                if (!config) {
+                    log('Cannot test connection without configuration', 'error');
+                    return;
+                }
+            }
+
+            try {
+                const wsUrl = await getWebSocketUrl();
+                log(`Connecting to WebSocket: ${wsUrl}`);
+                updateStatus('Connecting...', 'pending');
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    log('WebSocket connection opened', 'success');
+                    updateStatus('Connected (not authenticated)', 'pending');
+                };
+                
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(message)}`);
+                    handleMessage(message);
+                };
+                
+                ws.onclose = () => {
+                    log('WebSocket connection closed', 'warning');
+                    updateStatus('Disconnected', 'disconnected');
+                    authenticated = false;
+                };
+                
+                ws.onerror = (error) => {
+                    log(`WebSocket error: ${error}`, 'error');
+                    updateStatus('Connection Error', 'disconnected');
+                };
+                
+            } catch (error) {
+                log(`Failed to connect: ${error.message}`, 'error');
+                updateStatus('Failed to Connect', 'disconnected');
+            }
+        }
+
+        function handleMessage(message) {
+            switch (message.type) {
+                case 'auth_required':
+                    log('Authentication required', 'info');
+                    authenticate();
+                    break;
+                    
+                case 'auth_ok':
+                    log('Authentication successful!', 'success');
+                    authenticated = true;
+                    updateStatus('Connected & Authenticated', 'connected');
+                    break;
+                    
+                case 'auth_invalid':
+                    log('Authentication failed!', 'error');
+                    updateStatus('Authentication Failed', 'disconnected');
+                    break;
+                    
+                case 'result':
+                    if (message.success) {
+                        log(`Command successful: ${JSON.stringify(message.result)}`, 'success');
+                    } else {
+                        log(`Command failed: ${message.error.message}`, 'error');
+                    }
+                    break;
+                    
+                case 'event':
+                    if (message.event.event_type === 'state_changed') {
+                        const entity = message.event.data.entity_id;
+                        const newState = message.event.data.new_state.state;
+                        log(`State change: ${entity} → ${newState}`, 'info');
+                    }
+                    break;
+                    
+                case 'pong':
+                    log('Pong received', 'info');
+                    break;
+                    
+                default:
+                    log(`Unknown message type: ${message.type}`, 'warning');
+            }
+        }
+
+        function authenticate() {
+            if (!config?.ha?.token) {
+                log('No authentication token available', 'error');
+                ws.close();
+                return;
+            }
+            
+            log('Sending authentication...', 'info');
+            ws.send(JSON.stringify({
+                type: 'auth',
+                access_token: config.ha.token
+            }));
+        }
+
+        function subscribeToEvents() {
+            if (!authenticated) {
+                log('Not authenticated, cannot subscribe to events', 'error');
+                return;
+            }
+            
+            const id = messageId++;
+            log(`Subscribing to state_changed events (ID: ${id})...`, 'info');
+            
+            ws.send(JSON.stringify({
+                id: id,
+                type: 'subscribe_events',
+                event_type: 'state_changed'
+            }));
+        }
+
+        function disconnect() {
+            if (ws) {
+                log('Closing WebSocket connection...', 'info');
+                ws.close();
+                ws = null;
+            } else {
+                log('No active connection', 'warning');
+            }
+        }
+
+        // Load configuration on page load
+        loadConfig();
+    </script>
+</body>
+</html>
