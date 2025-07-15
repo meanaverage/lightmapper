@@ -10437,17 +10437,4 @@ class FloorplanEditor {
     }
 }
 
-// ========================================
-// Application Initialization
-// ========================================
-
-// Initialize the application when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM loaded, starting LightMapper CAD...');
-    new LightMapperController();
-});
-
-// ========================================
-// CAD Interface Integration Complete
-// ========================================
 console.log('✅ LightMapper CAD Interface modules loaded successfully'); 
