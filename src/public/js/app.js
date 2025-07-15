@@ -10437,4 +10437,33 @@ class FloorplanEditor {
     }
 }
 
+// Setup tertiary panel collapse functionality
+function setupTertiaryPanelCollapse() {
+    const tertiaryDock = document.getElementById('dockTertiary');
+    const collapseToggle = document.getElementById('tertiaryCollapseToggle');
+    
+    if (!tertiaryDock || !collapseToggle) return;
+    
+    collapseToggle.addEventListener('click', () => {
+        tertiaryDock.classList.toggle('collapsed');
+        
+        // Store collapse state in localStorage
+        const isCollapsed = tertiaryDock.classList.contains('collapsed');
+        localStorage.setItem('tertiaryPanelCollapsed', isCollapsed);
+    });
+    
+    // Restore collapse state from localStorage
+    const wasCollapsed = localStorage.getItem('tertiaryPanelCollapsed') === 'true';
+    if (wasCollapsed) {
+        tertiaryDock.classList.add('collapsed');
+    }
+}
+
+// Initialize tertiary panel on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupTertiaryPanelCollapse);
+} else {
+    setupTertiaryPanelCollapse();
+}
+
 console.log('✅ LightMapper CAD Interface modules loaded successfully'); 

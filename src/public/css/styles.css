@@ -395,10 +395,72 @@ body {
   order: 2;
 }
 
-.dock-right {
+.dock-tertiary {
   width: var(--cad-panel-width);
   flex-shrink: 0;
   order: 3;
+  position: relative;
+  transition: width 0.3s ease;
+}
+
+.dock-tertiary.collapsed {
+  width: 40px;
+}
+
+.dock-right {
+  width: var(--cad-panel-width);
+  flex-shrink: 0;
+  order: 4;
+}
+
+/* Tertiary Panel Collapse Toggle */
+.tertiary-collapse-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  background: var(--cad-bg-tertiary);
+  border: 1px solid var(--cad-border-primary);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.tertiary-collapse-toggle:hover {
+  background: var(--cad-hover);
+  border-color: var(--cad-blue-primary);
+}
+
+.tertiary-collapse-toggle i {
+  font-size: 12px;
+  color: var(--cad-text-secondary);
+  transition: transform 0.3s ease;
+}
+
+.dock-tertiary.collapsed .tertiary-collapse-toggle i {
+  transform: rotate(180deg);
+}
+
+/* Tertiary Panel Content */
+.tertiary-panel {
+  width: 100%;
+  height: 100%;
+  background: var(--cad-bg-primary);
+  border-left: 1px solid var(--cad-border-primary);
+  overflow: hidden;
+  transition: opacity 0.3s ease;
+}
+
+.dock-tertiary.collapsed .tertiary-panel {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Removed dock-bottom - using only left and right docks */
@@ -1647,8 +1709,15 @@ body {
    ======================================== */
 @media (max-width: 1200px) {
   .left-panel,
-  .right-panel {
+  .right-panel,
+  .tertiary-panel {
     width: 240px;
+  }
+  
+  .dock-left,
+  .dock-right,
+  .dock-tertiary {
+    --cad-panel-width: 240px;
   }
   
   .ribbon-group {

@@ -583,6 +583,34 @@
 
             </div>
 
+            <!-- Draggable divider for tertiary panel resize -->
+            <div class="vertical-divider" id="tertiaryDivider"></div>
+
+            <!-- Dock Tertiary Container -->
+            <div class="dock-tertiary" id="dockTertiary">
+                <!-- Collapse Toggle -->
+                <div class="tertiary-collapse-toggle" id="tertiaryCollapseToggle" title="Collapse/Expand Panel">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                
+                <!-- Tertiary Panel -->
+                <div class="tertiary-panel" id="tertiaryPanel">
+                    <div class="panel-accordion">
+                        <!-- Entities Panel -->
+                        <div class="panel-accordion-item" data-panel="entities">
+                            <div class="panel-accordion-header active" data-panel="entities">
+                                <i class="fas fa-lightbulb"></i>
+                                <span>Entities</span>
+                                <i class="fas fa-chevron-up accordion-chevron"></i>
+                            </div>
+                            <div class="panel-accordion-content expanded" id="entitiesPanel">
+                                <!-- Content will be rendered by EntitiesPanel -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Draggable divider for right panel resize -->
             <div class="vertical-divider" id="rightDivider"></div>
 
@@ -627,17 +655,6 @@
                             </div>
                         </div>
                         
-                        <!-- Entities Panel -->
-                        <div class="panel-accordion-item" data-panel="entities">
-                            <div class="panel-accordion-header" data-panel="entities">
-                                <i class="fas fa-lightbulb"></i>
-                                <span>Entities</span>
-                                <i class="fas fa-chevron-down accordion-chevron"></i>
-                            </div>
-                            <div class="panel-accordion-content" id="entitiesPanel">
-                                <!-- Content will be rendered by EntitiesPanel -->
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
