@@ -60,17 +60,17 @@ class HAWebSocketClient {
         const isIngress = window.location.href.includes('hassio_ingress');
         
         if (isIngress) {
-            // In ingress mode, we need to use the full ingress WebSocket URL
-            // Extract the ingress path from current URL
-            const pathMatch = window.location.pathname.match(/\/api\/hassio_ingress\/([^\/]+)/);
-            if (pathMatch) {
-                const ingressPath = pathMatch[0];
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                return `${wsProtocol}//${window.location.host}${ingressPath}/websocket`;
-            }
-            // Fallback to supervisor proxy (may not work in all environments)
-            console.warn('Could not extract ingress path, trying supervisor proxy');
-            return 'ws://supervisor/core/websocket';
+            // In ingress mode, we need to connect to the Home Assistant WebSocket API
+            // NOT through the ingress path, but directly to HA
+            // The supervisor token will handle authentication
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname;
+            const port = window.location.port || (wsProtocol === 'wss:' ? '443' : '80');
+            
+            // Connect directly to Home Assistant's WebSocket API
+            const wsUrl = `${wsProtocol}//${host}:${port}/api/websocket`;
+            console.log('🏠 Ingress mode: connecting to HA WebSocket API:', wsUrl);
+            return wsUrl;
         } else {
             // Otherwise, try to construct from current location
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -97,7 +97,10 @@ class HAWebSocketClient {
     }
     
     handleMessage(message) {
-        console.log('📨 HA WebSocket message:', message);
+        // Only log non-event messages to reduce console noise
+        if (message.type !== 'event') {
+            console.log('📨 HA WebSocket message:', message);
+        }
         
         switch (message.type) {
             case 'auth_required':

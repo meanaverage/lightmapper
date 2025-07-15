@@ -1162,6 +1162,55 @@ class LightMapperController {
         }
     }
     
+    setupWebSocketEventListeners() {
+        // Wait for WebSocket client to be available
+        const checkForWebSocket = () => {
+            if (window.haWsClient) {
+                console.log('📡 Setting up central WebSocket event listeners');
+                
+                // Listen for light state changes and update everything
+                window.haWsClient.on('light_state_changed', (data) => {
+                    console.log('💡 Central handler: Light state changed:', data.entityId);
+                    
+                    // Update the global light entities cache
+                    if (window.lightEntities && data.state) {
+                        window.lightEntities[data.entityId] = data.state;
+                    }
+                    
+                    // Update the canvas if the light is on the floorplan
+                    if (window.floorplanEditor) {
+                        const canvasLights = window.floorplanEditor.canvas.getObjects().filter(obj => 
+                            obj.lightObject && obj.entityId === data.entityId
+                        );
+                        
+                        canvasLights.forEach(light => {
+                            console.log('🎨 Updating canvas light:', light.entityId);
+                            window.floorplanEditor.updateLightVisualState(light, data.state);
+                        });
+                    }
+                    
+                    // The LiveStatePanel will update itself through its own listener
+                });
+                
+                window.haWsClient.on('connected', () => {
+                    console.log('✅ WebSocket connected to Home Assistant');
+                    this.showStatus('Connected to Home Assistant', 'success');
+                });
+                
+                window.haWsClient.on('disconnected', () => {
+                    console.log('❌ WebSocket disconnected from Home Assistant');
+                    this.showStatus('Disconnected from Home Assistant', 'warning');
+                });
+                
+            } else {
+                // WebSocket client not ready yet, check again in 100ms
+                setTimeout(checkForWebSocket, 100);
+            }
+        };
+        
+        checkForWebSocket();
+    }
+    
     initializeDefaults() {
         // Set default values from config (only if elements exist)
         const globalBrightness = document.getElementById('globalBrightness');
@@ -1261,6 +1310,9 @@ class LightMapperController {
     setupEventListeners() {
         // Always initialize floorplan editor
         this.initializeFloorplanEditor();
+        
+        // Set up WebSocket listeners for real-time updates
+        this.setupWebSocketEventListeners();
 
         // Header buttons
         const refreshBtn = document.getElementById('refreshBtn');

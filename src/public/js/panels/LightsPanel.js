@@ -63,14 +63,15 @@ export class LightsPanel extends BasePanel {
         // Check if we're in current state mode
         const isCurrentStateMode = window.floorplanEditor?.showCurrentState || false;
         
-        // Sort entities alphabetically by friendly name
-        assignedEntities.sort((a, b) => {
+        // Filter out any invalid entities and sort alphabetically by friendly name
+        const validEntities = assignedEntities.filter(entity => entity && entity.entity_id);
+        validEntities.sort((a, b) => {
             const nameA = this.getDisplayName(a).toLowerCase();
             const nameB = this.getDisplayName(b).toLowerCase();
             return nameA.localeCompare(nameB);
         });
         
-        assignedEntities.forEach(entity => {
+        validEntities.forEach(entity => {
             const lightCard = this.createLightCard(entity, isCurrentStateMode);
             container.appendChild(lightCard);
         });
@@ -185,6 +186,9 @@ export class LightsPanel extends BasePanel {
     }
 
     getDisplayName(entity) {
+        if (!entity || !entity.entity_id) {
+            return 'Unknown Light';
+        }
         return entity.friendly_name && entity.friendly_name !== entity.entity_id 
             ? entity.friendly_name 
             : entity.entity_id.replace(/^light\./, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
