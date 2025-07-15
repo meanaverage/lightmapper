@@ -544,9 +544,16 @@ class LayerManager {
         
         layer.brightnessVisible = !layer.brightnessVisible;
         
-        // Find brightness effects
+        // Find the light object
+        const lightObject = this.floorplanEditor.canvas.getObjects().find(obj => 
+            obj.customLayer === layerId && obj.lightObject
+        );
+        
+        if (!lightObject) return;
+        
+        // Find brightness effects matching the light's entityId or id
         const brightnessEffects = this.floorplanEditor.canvas.getObjects().filter(obj => 
-            obj.glowCircle && obj.parentLightId === layer.objectId
+            obj.glowCircle && (obj.parentLightId === lightObject.entityId || obj.parentLightId === lightObject.id)
         );
         
         brightnessEffects.forEach(effect => {
@@ -2850,7 +2857,11 @@ class LightMapperController {
                          opacity: glowOpacity,
                          selectable: false,
                          evented: false,
-                         excludeFromExport: true
+                         excludeFromExport: true,
+                         glowCircle: true,
+                         brightnessEffect: true,
+                         parentLightId: light.entityId || light.id || `light_${Date.now()}`,
+                         name: `Glow Effect - ${light.entityId || 'Light'}`
                      });
                      
                      // Add glow circle behind the main light
@@ -2949,7 +2960,11 @@ class LightMapperController {
                          opacity: glowOpacity,
                          selectable: false,
                          evented: false,
-                         excludeFromExport: true
+                         excludeFromExport: true,
+                         glowCircle: true,
+                         brightnessEffect: true,
+                         parentLightId: light.entityId || light.id || `light_${Date.now()}`,
+                         name: `Glow Effect - ${light.entityId || 'Light'}`
                      });
                      
                      // Add glow circle behind the main light
@@ -4621,8 +4636,8 @@ class FloorplanEditor {
                 return;
             }
             
-            // Create layer for content objects
-            if (obj.lightObject || obj.roomObject || obj.textObject || obj.labelObject) {
+            // Create layer for content objects (but not labels - they're part of lights)
+            if (obj.lightObject || obj.roomObject || obj.textObject || (obj.labelObject && !obj.lightRef)) {
                 this.layerManager.createLayerForObject(obj);
                 
                 // Notify LayersPanel to refresh
@@ -6952,7 +6967,8 @@ class FloorplanEditor {
             selectable: false,
             evented: false,
             labelObject: true,
-            lightRef: light // Reference to the associated light
+            lightRef: light, // Reference to the associated light
+            excludeFromLayerSystem: true // Don't create a separate layer for this
         });
         
         // Center the label text
@@ -9955,7 +9971,11 @@ class FloorplanEditor {
                     opacity: glowOpacity,
                     selectable: false,
                     evented: false,
-                    excludeFromExport: true
+                    excludeFromExport: true,
+                    glowCircle: true,
+                    brightnessEffect: true,
+                    parentLightId: light.entityId || light.id || `light_${Date.now()}`,
+                    name: `Glow Effect - ${light.entityId || 'Light'}`
                 });
                 
                 // Add glow circle behind the main light
