@@ -5158,7 +5158,30 @@ class FloorplanEditor {
         if (light) {
             // Assign the entity to the newly created light
             light.entityId = entityId;
-            this.updateLightFromEntity(light, entityId);
+            
+            // Update the light's visual state if we have entity data
+            if (window.lightEntities && window.lightEntities[entityId]) {
+                this.updateLightVisualState(light, window.lightEntities[entityId]);
+            }
+            
+            // Create label if labels are enabled
+            if (this.showLabels) {
+                const label = this.createLabelForLight(light);
+                if (label) {
+                    this.canvas.add(label);
+                    if (!this.labels) {
+                        this.labels = [];
+                    }
+                    this.labels.push(label);
+                    
+                    // Store the label reference on the light for easy updates
+                    light.labelObject = label;
+                    label.lightRef = light;
+                    
+                    // Ensure label is rendered
+                    this.canvas.renderAll();
+                }
+            }
             
             // Show success message
             window.sceneManager?.showStatus(`Light created and assigned to ${entityId}`, 'success');
