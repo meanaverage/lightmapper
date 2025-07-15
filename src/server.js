@@ -306,8 +306,8 @@ class HomeAssistantAPI {
     console.log('  Token length:', token ? token.length : 'N/A');
     console.log('  Token preview:', token ? token.substring(0, 10) + '...' : 'N/A');
     
-    // Initialize WebSocket connection for real-time updates
-    this.initWebSocket();
+    // Don't initialize WebSocket - client handles real-time updates through proxy
+    // this.initWebSocket();
   }
   
   initWebSocket() {
@@ -337,7 +337,8 @@ class HomeAssistantAPI {
       this.ws.onclose = () => {
         console.log('🔌 WebSocket disconnected');
         this.wsConnected = false;
-        this.scheduleReconnect();
+        // Don't automatically reconnect - client handles WebSocket connections
+        // this.scheduleReconnect();
       };
       
       this.ws.onerror = (error) => {
@@ -369,7 +370,8 @@ class HomeAssistantAPI {
         
       case 'auth_ok':
         console.log('✅ WebSocket authenticated successfully');
-        this.subscribeToStateChanges();
+        // Don't subscribe to state changes - the client handles this through the proxy
+        // this.subscribeToStateChanges();
         break;
         
       case 'auth_invalid':
