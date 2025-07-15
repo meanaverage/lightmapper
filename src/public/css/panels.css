@@ -180,7 +180,11 @@
     color: var(--cad-text-primary, #e0e0e0);
 }
 
-.panel-header-actions {
+.panel-header-actions,
+.scene-editor-header-actions,
+.live-state-header-actions,
+.debug-header-actions,
+.entities-header-actions {
     display: flex;
     gap: 8px;
     align-items: center;
@@ -315,10 +319,29 @@
     height: 100%;
 }
 
+.entities-header-fixed {
+    flex-shrink: 0;
+    background: var(--cad-bg-secondary, #2d2d2d);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+}
+
+.entities-header-actions {
+    padding: 8px 12px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+}
+
+.entities-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
 .entities-controls {
     padding: 8px 12px;
     background: var(--cad-bg-secondary, #2d2d2d);
-    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
     flex-shrink: 0;
 }
 
@@ -386,9 +409,6 @@
 
 .entities-list {
     padding: 10px;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
     background: var(--cad-bg-secondary, #2d2d2d);
 }
 

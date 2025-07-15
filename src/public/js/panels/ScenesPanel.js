@@ -9,9 +9,6 @@ export class ScenesPanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-            </div>
             <div class="scene-controls">
                 <div class="scene-actions">
                     <input type="text" id="newSceneName" placeholder="Scene name..." class="scene-name-input">

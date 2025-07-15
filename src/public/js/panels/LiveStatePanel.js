@@ -9,17 +9,14 @@ export class LiveStatePanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-                <div class="panel-header-actions">
-                    <button id="liveStateRefresh" class="btn btn-icon-only" title="Refresh Now">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <label class="auto-refresh-toggle">
-                        <input type="checkbox" id="autoRefreshToggle">
-                        <span>Auto Refresh</span>
-                    </label>
-                </div>
+            <div class="live-state-header-actions">
+                <button id="liveStateRefresh" class="btn btn-icon-only" title="Refresh Now">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <label class="auto-refresh-toggle">
+                    <input type="checkbox" id="autoRefreshToggle">
+                    <span>Auto Refresh</span>
+                </label>
             </div>
             <div class="live-state-controls">
                 <label class="refresh-rate-control">

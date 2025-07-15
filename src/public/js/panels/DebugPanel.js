@@ -21,19 +21,16 @@ export class DebugPanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-                <div class="panel-header-actions">
-                    <button class="btn btn-icon-only" title="Clear Logs" onclick="window.panelManager.getPanel('debug').clearLogs()">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="btn btn-icon-only ${this.autoRefresh ? 'active' : ''}" title="Auto Refresh" onclick="window.panelManager.getPanel('debug').toggleAutoRefresh()">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Refresh Now" onclick="window.panelManager.getPanel('debug').refresh()">
-                        <i class="fas fa-redo"></i>
-                    </button>
-                </div>
+            <div class="debug-header-actions">
+                <button class="btn btn-icon-only" title="Clear Logs" onclick="window.panelManager.getPanel('debug').clearLogs()">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="btn btn-icon-only ${this.autoRefresh ? 'active' : ''}" title="Auto Refresh" onclick="window.panelManager.getPanel('debug').toggleAutoRefresh()">
+                    <i class="fas fa-sync"></i>
+                </button>
+                <button class="btn btn-icon-only" title="Refresh Now" onclick="window.panelManager.getPanel('debug').refresh()">
+                    <i class="fas fa-redo"></i>
+                </button>
             </div>
             <div class="debug-content">
                 <div class="debug-section">

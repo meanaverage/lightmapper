@@ -10,13 +10,10 @@ export class SceneEditorPanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-                <div class="panel-header-actions">
-                    <button id="newSceneBtn" class="btn btn-icon-only" title="New Scene">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
+            <div class="scene-editor-header-actions">
+                <button id="newSceneBtn" class="btn btn-icon-only" title="New Scene">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
             <div id="sceneEditorContent" class="scene-editor-content">
                 ${this.currentScene ? this.renderSceneEditor() : this.renderEmptyState()}

@@ -9,9 +9,6 @@ export class PropertiesPanel extends BasePanel {
 
     render() {
         this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-            </div>
             <div id="propertiesContent" class="properties-content">
                 <div class="properties-empty">
                     <i class="fas fa-mouse-pointer"></i>
