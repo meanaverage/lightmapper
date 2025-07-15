@@ -115,12 +115,17 @@ class HAWebSocketClient {
                 break;
                 
             case 'auth_invalid':
-                console.error('❌ Authentication failed:', message.message);
-                // In proxy mode, this might be a false negative
-                // The proxy might still forward events
-                console.log('🔄 Continuing despite auth error (proxy mode)');
-                this.connected = true; // Mark as connected anyway
-                this.emit('connected');
+                // Check if we're in ingress mode where proxy handles auth
+                const isIngress = window.location.href.includes('hassio_ingress');
+                if (isIngress) {
+                    console.log('🔄 Proxy mode: Authentication handled by server');
+                    this.connected = true; // Mark as connected anyway
+                    this.emit('connected');
+                } else {
+                    console.error('❌ Authentication failed:', message.message);
+                    // In direct mode, this is a real error
+                    this.emit('error', new Error('Authentication failed'));
+                }
                 break;
                 
             case 'result':
@@ -225,6 +230,8 @@ class HAWebSocketClient {
     async subscribeToStateChanges() {
         console.log('📡 Subscribing to state changes...');
         
+        const isIngress = window.location.href.includes('hassio_ingress');
+        
         try {
             const result = await this.sendMessagePromise({
                 type: 'subscribe_events',
@@ -235,12 +242,19 @@ class HAWebSocketClient {
             if (result && result.id) {
                 this.eventSubscriptions.set('state_changed', result.id);
             } else {
-                console.warn('⚠️ Subscribe result missing ID, but may still receive events');
+                if (isIngress) {
+                    console.log('🔄 Proxy mode: Subscription handled by server');
+                } else {
+                    console.warn('⚠️ Subscribe result missing ID, but may still receive events');
+                }
             }
         } catch (error) {
-            console.error('❌ Failed to subscribe to state changes:', error);
-            // In proxy mode, we might still receive events even if subscribe fails
-            console.log('🔄 Will continue without explicit subscription');
+            if (isIngress) {
+                console.log('🔄 Proxy mode: Events will be forwarded by server');
+            } else {
+                console.error('❌ Failed to subscribe to state changes:', error);
+                console.log('🔄 Will continue without explicit subscription');
+            }
         }
     }
     
