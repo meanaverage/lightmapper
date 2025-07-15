@@ -1,10 +1,18 @@
 /* Panel System Styles */
 
+/* Panel Container - Fixed Width */
+.panel-section {
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+    overflow: hidden;
+}
+
 /* Panel Headers */
 .panel-header {
     padding: 15px;
-    background: var(--header-bg, #f8f9fa);
-    border-bottom: 1px solid var(--border-light, #e9ecef);
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -14,7 +22,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: var(--text-color, #333);
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .panel-header-actions {
@@ -26,8 +34,8 @@
 /* Live State Panel */
 .live-state-controls {
     padding: 10px 15px;
-    background: var(--bg-secondary, #f5f5f5);
-    border-bottom: 1px solid var(--border-light, #e9ecef);
+    background: var(--cad-bg-secondary, #2d2d2d);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
 }
 
 .refresh-rate-control {
@@ -52,9 +60,9 @@
 }
 
 .live-state-card {
-    background: white;
-    border: 1px solid var(--border-light, #e9ecef);
-    border-radius: 6px;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
     transition: border-color 0.2s;
@@ -90,11 +98,12 @@
 .live-state-name {
     font-weight: 600;
     font-size: 14px;
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .live-state-entity {
     font-size: 12px;
-    color: var(--text-muted, #6c757d);
+    color: var(--cad-text-secondary, #b0b0b0);
 }
 
 .state-badge {
@@ -127,7 +136,7 @@
     gap: 5px;
     font-size: 12px;
     padding: 4px 8px;
-    background: var(--bg-secondary, #f5f5f5);
+    background: var(--cad-bg-secondary, #2d2d2d);
     border-radius: 4px;
 }
 
@@ -147,8 +156,8 @@
 /* Entities Panel */
 .entities-controls {
     padding: 10px 15px;
-    background: var(--bg-secondary, #f5f5f5);
-    border-bottom: 1px solid var(--border-light, #e9ecef);
+    background: var(--cad-bg-secondary, #2d2d2d);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
 }
 
 .search-box {
@@ -167,9 +176,11 @@
 .entity-search {
     width: 100%;
     padding: 8px 8px 8px 35px;
-    border: 1px solid var(--border-light, #e9ecef);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
     border-radius: 4px;
     font-size: 14px;
+    background: var(--cad-bg-primary, #262626);
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .entity-filters {
@@ -183,13 +194,14 @@
     gap: 5px;
     font-size: 14px;
     cursor: pointer;
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .entity-stats {
     display: flex;
     gap: 20px;
     padding: 10px 15px;
-    background: var(--info, #17a2b8);
+    background: var(--cad-blue-primary, #4a9eff);
     color: white;
 }
 
@@ -213,12 +225,13 @@
     padding: 10px;
     overflow-y: auto;
     max-height: calc(100vh - 350px);
+    background: var(--cad-bg-secondary, #2d2d2d);
 }
 
 .entity-card {
-    background: white;
-    border: 1px solid var(--border-light, #e9ecef);
-    border-radius: 6px;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
     cursor: pointer;
@@ -226,13 +239,13 @@
 }
 
 .entity-card:hover {
-    border-color: var(--primary, #007bff);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-color: var(--cad-blue-primary, #4a9eff);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .entity-card.selected {
-    border-color: var(--primary, #007bff);
-    background: var(--primary-light, #e7f3ff);
+    border-color: var(--cad-blue-primary, #4a9eff);
+    background: var(--cad-bg-primary, #262626);
 }
 
 .entity-card.assigned {
@@ -257,11 +270,12 @@
 .entity-name {
     font-weight: 600;
     font-size: 14px;
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .entity-id {
     font-size: 12px;
-    color: var(--text-muted, #6c757d);
+    color: var(--cad-text-secondary, #b0b0b0);
 }
 
 .entity-state {
@@ -297,13 +311,15 @@
     align-items: center;
     gap: 3px;
     padding: 2px 6px;
-    background: var(--bg-secondary, #f5f5f5);
+    background: var(--cad-bg-primary, #262626);
     border-radius: 3px;
     font-size: 11px;
+    color: var(--cad-text-secondary, #b0b0b0);
 }
 
 .attr-chip.features {
-    background: var(--info-light, #d1ecf1);
+    background: var(--cad-blue-dark, #1e3a5f);
+    color: var(--cad-blue-light, #7db8ff);
 }
 
 .entity-actions {
@@ -315,6 +331,7 @@
     padding: 10px;
     overflow-y: auto;
     max-height: calc(100vh - 200px);
+    background: var(--cad-bg-secondary, #2d2d2d);
 }
 
 .properties-empty {
@@ -330,22 +347,23 @@
 }
 
 .property-group {
-    background: white;
-    border: 1px solid var(--border-light, #e9ecef);
-    border-radius: 6px;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
     margin-bottom: 10px;
     overflow: hidden;
 }
 
 .property-group-header {
     padding: 10px 15px;
-    background: var(--bg-secondary, #f5f5f5);
-    border-bottom: 1px solid var(--border-light, #e9ecef);
+    background: var(--cad-bg-primary, #262626);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
     display: flex;
     align-items: center;
     gap: 8px;
     font-weight: 600;
     font-size: 14px;
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .property-group-content {
@@ -366,7 +384,7 @@
 .property-item label {
     flex: 0 0 120px;
     font-size: 13px;
-    color: var(--text-secondary, #666);
+    color: var(--cad-text-secondary, #b0b0b0);
 }
 
 .property-control {
@@ -378,9 +396,11 @@
 .property-control select {
     width: 100%;
     padding: 6px 10px;
-    border: 1px solid var(--border-light, #e9ecef);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
     border-radius: 4px;
     font-size: 13px;
+    background: var(--cad-bg-primary, #262626);
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .number-input {
@@ -546,9 +566,9 @@
 }
 
 .scene-light-card {
-    background: white;
-    border: 1px solid var(--border-light, #e9ecef);
-    border-radius: 6px;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
     padding: 12px;
 }
 
@@ -632,16 +652,17 @@
 /* Button Styles */
 .btn-icon-only {
     padding: 6px 10px;
-    background: none;
-    border: 1px solid var(--border-light, #e9ecef);
+    background: var(--cad-bg-primary, #262626);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    color: var(--cad-text-primary, #e0e0e0);
 }
 
 .btn-icon-only:hover {
-    background: var(--bg-secondary, #f5f5f5);
-    border-color: var(--border-color, #667eea);
+    background: var(--cad-hover, #3a3a3a);
+    border-color: var(--cad-blue-primary, #4a9eff);
 }
 
 .btn-small {
