@@ -247,6 +247,12 @@ class HomeAssistantAPI {
   constructor(baseUrl, token) {
     this.baseUrl = baseUrl;
     this.token = token;
+    this.ws = null;
+    this.wsConnected = false;
+    this.wsReconnectAttempts = 0;
+    this.wsMaxReconnectAttempts = 5;
+    this.wsSubscriptions = new Set();
+    
     this.axios = axios.create({
       baseURL: baseUrl,
       headers: {
@@ -261,6 +267,148 @@ class HomeAssistantAPI {
     console.log('  Token available:', !!token);
     console.log('  Token length:', token ? token.length : 'N/A');
     console.log('  Token preview:', token ? token.substring(0, 10) + '...' : 'N/A');
+    
+    // Initialize WebSocket connection for real-time updates
+    this.initWebSocket();
+  }
+  
+  initWebSocket() {
+    if (!this.token) {
+      console.warn('⚠️ No token available, skipping WebSocket connection');
+      return;
+    }
+    
+    try {
+      // Convert HTTP(S) URL to WebSocket URL
+      const wsUrl = this.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://') + '/api/websocket';
+      console.log('🔌 Connecting to Home Assistant WebSocket:', wsUrl);
+      
+      this.ws = new WebSocket(wsUrl);
+      
+      this.ws.onopen = () => {
+        console.log('✅ WebSocket connected to Home Assistant');
+        this.wsConnected = true;
+        this.wsReconnectAttempts = 0;
+        this.authenticateWebSocket();
+      };
+      
+      this.ws.onmessage = (event) => {
+        this.handleWebSocketMessage(JSON.parse(event.data));
+      };
+      
+      this.ws.onclose = () => {
+        console.log('🔌 WebSocket disconnected');
+        this.wsConnected = false;
+        this.scheduleReconnect();
+      };
+      
+      this.ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        this.wsConnected = false;
+      };
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket:', error);
+    }
+  }
+  
+  authenticateWebSocket() {
+    if (!this.ws || !this.wsConnected) return;
+    
+    // Send authentication message
+    this.ws.send(JSON.stringify({
+      type: 'auth',
+      access_token: this.token
+    }));
+  }
+  
+  handleWebSocketMessage(message) {
+    switch (message.type) {
+      case 'auth_required':
+        console.log('🔐 WebSocket authentication required');
+        this.authenticateWebSocket();
+        break;
+        
+      case 'auth_ok':
+        console.log('✅ WebSocket authenticated successfully');
+        this.subscribeToStateChanges();
+        break;
+        
+      case 'auth_invalid':
+        console.error('❌ WebSocket authentication failed');
+        break;
+        
+      case 'event':
+        if (message.event && message.event.event_type === 'state_changed') {
+          this.handleStateChange(message.event);
+        }
+        break;
+        
+      case 'result':
+        console.log('📊 WebSocket command result:', message);
+        break;
+        
+      default:
+        console.log('📨 WebSocket message:', message);
+    }
+  }
+  
+  subscribeToStateChanges() {
+    if (!this.ws || !this.wsConnected) return;
+    
+    // Subscribe to state changes for light entities
+    this.ws.send(JSON.stringify({
+      id: 1,
+      type: 'subscribe_events',
+      event_type: 'state_changed'
+    }));
+    
+    console.log('📡 Subscribed to Home Assistant state changes');
+  }
+  
+  handleStateChange(event) {
+    const { entity_id, new_state, old_state } = event.data;
+    
+    // Only handle light entities
+    if (entity_id && entity_id.startsWith('light.')) {
+      console.log(`💡 Light state changed: ${entity_id}`, {
+        old: old_state?.state,
+        new: new_state?.state
+      });
+      
+      // Broadcast to all connected clients
+      this.broadcastStateChange(entity_id, new_state);
+    }
+  }
+  
+  broadcastStateChange(entityId, newState) {
+    // Broadcast to all WebSocket clients
+    if (global.wsClients) {
+      const message = JSON.stringify({
+        type: 'state_change',
+        entity_id: entityId,
+        state: newState
+      });
+      
+      global.wsClients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          client.send(message);
+        }
+      });
+    }
+  }
+  
+  scheduleReconnect() {
+    if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
+      console.error('❌ Max WebSocket reconnect attempts reached');
+      return;
+    }
+    
+    const delay = Math.min(1000 * Math.pow(2, this.wsReconnectAttempts), 30000);
+    this.wsReconnectAttempts++;
+    
+    console.log(`🔄 Scheduling WebSocket reconnect in ${delay}ms (attempt ${this.wsReconnectAttempts})`);
+    setTimeout(() => this.initWebSocket(), delay);
   }
   
   async getLights() {
@@ -1031,6 +1179,33 @@ async function startServer() {
       console.log(`🔗 Web interface: http://localhost:${PORT}`);
       console.log('🏠 Ready to manage your lighting scenes!');
     });
+    
+    console.log('📋 Step 3: Initialize WebSocket server');
+    const wss = new WebSocket.Server({ server });
+    global.wsClients = new Set();
+    
+    wss.on('connection', (ws) => {
+      console.log('🔌 Client connected to WebSocket');
+      global.wsClients.add(ws);
+      
+      ws.on('close', () => {
+        console.log('🔌 Client disconnected from WebSocket');
+        global.wsClients.delete(ws);
+      });
+      
+      ws.on('error', (error) => {
+        console.error('❌ WebSocket client error:', error);
+        global.wsClients.delete(ws);
+      });
+      
+      // Send initial connection success message
+      ws.send(JSON.stringify({
+        type: 'connection',
+        message: 'Connected to LightMapper WebSocket'
+      }));
+    });
+    
+    console.log('✅ WebSocket server initialized');
     
     // Add error handling for the server
     server.on('error', (error) => {

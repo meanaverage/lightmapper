@@ -38,8 +38,11 @@ export class LiveStatePanel extends BasePanel {
         `;
         
         this.bindEvents();
-        // Load initial data once, but don't start auto-refresh by default
+        // Load initial data once
         this.refreshStates();
+        
+        // Set up WebSocket listeners for real-time updates
+        this.setupWebSocketListeners();
     }
 
     bindEvents() {
@@ -74,6 +77,112 @@ export class LiveStatePanel extends BasePanel {
                 }
             });
         }
+    }
+    
+    setupWebSocketListeners() {
+        // Wait for WebSocket client to be available
+        if (!window.wsClient) {
+            setTimeout(() => this.setupWebSocketListeners(), 100);
+            return;
+        }
+        
+        // Listen for real-time light state changes
+        window.wsClient.on('light_state_changed', (data) => {
+            this.updateLightState(data.entityId, data.state);
+        });
+        
+        // Listen for connection status
+        window.wsClient.on('connected', () => {
+            console.log('🔌 LiveStatePanel: WebSocket connected');
+            this.updateConnectionStatus(true);
+        });
+        
+        window.wsClient.on('disconnected', () => {
+            console.log('🔌 LiveStatePanel: WebSocket disconnected');
+            this.updateConnectionStatus(false);
+        });
+        
+        console.log('✅ LiveStatePanel: WebSocket listeners set up');
+    }
+    
+    updateLightState(entityId, newState) {
+        console.log(`💡 LiveStatePanel: Updating ${entityId} state`, newState);
+        
+        // Find the light item in the DOM and update it
+        const lightItem = document.querySelector(`[data-entity-id="${entityId}"]`);
+        if (lightItem) {
+            // Update the visual state
+            const stateIndicator = lightItem.querySelector('.state-indicator');
+            const stateBadge = lightItem.querySelector('.state-badge');
+            
+            if (stateIndicator) {
+                stateIndicator.className = `state-indicator ${newState.state}`;
+            }
+            
+            if (stateBadge) {
+                stateBadge.textContent = newState.state.toUpperCase();
+                stateBadge.className = `state-badge ${newState.state}`;
+            }
+            
+            // Update attributes if available
+            if (newState.attributes) {
+                this.updateLightAttributes(lightItem, newState.attributes);
+            }
+        }
+        
+        // Update last refresh time
+        this.updateLastRefreshTime();
+    }
+    
+    updateLightAttributes(lightItem, attributes) {
+        // Update brightness
+        const brightnessSpan = lightItem.querySelector('.brightness');
+        if (brightnessSpan && attributes.brightness !== undefined) {
+            const brightness = Math.round((attributes.brightness / 255) * 100);
+            brightnessSpan.textContent = `${brightness}%`;
+        }
+        
+        // Update color temperature
+        const colorTempSpan = lightItem.querySelector('.color-temp');
+        if (colorTempSpan && attributes.color_temp_kelvin) {
+            colorTempSpan.textContent = `${attributes.color_temp_kelvin}K`;
+        }
+        
+        // Update color
+        const colorSpan = lightItem.querySelector('.color');
+        if (colorSpan && attributes.hs_color) {
+            const [h, s] = attributes.hs_color;
+            colorSpan.textContent = `H:${Math.round(h)}° S:${Math.round(s)}%`;
+        }
+    }
+    
+    updateConnectionStatus(connected) {
+        const header = this.container.querySelector('.panel-header');
+        if (!header) return;
+        
+        // Remove existing status indicator
+        const existingIndicator = header.querySelector('.connection-status');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
+        
+        // Add new status indicator
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+        statusIndicator.innerHTML = `
+            <i class="fas ${connected ? 'fa-circle' : 'fa-circle'}"></i>
+            <span>${connected ? 'Live' : 'Offline'}</span>
+        `;
+        statusIndicator.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: ${connected ? '#4CAF50' : '#f44336'};
+            margin-left: 8px;
+        `;
+        
+        header.appendChild(statusIndicator);
     }
 
     async refreshStates() {
