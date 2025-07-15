@@ -77,6 +77,11 @@ export class LightsPanel extends BasePanel {
     }
 
     createLightCard(entity, isCurrentStateMode) {
+        if (!entity || !entity.entity_id) {
+            console.warn('⚠️ Invalid entity passed to createLightCard:', entity);
+            return document.createElement('div'); // Return empty div
+        }
+        
         const lightCard = document.createElement('div');
         lightCard.className = 'light-card';
         lightCard.dataset.entityId = entity.entity_id;

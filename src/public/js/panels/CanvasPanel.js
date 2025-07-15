@@ -211,7 +211,11 @@ export class CanvasPanel extends BasePanel {
         if (!light || !light.lightObject) return false;
         
         light.entityId = entityId;
-        this.floorplanEditor?.updateLightFromEntity(light, entityId);
+        // Find the entity and update the light
+        const entity = window.lightEntities?.[entityId];
+        if (entity) {
+            this.floorplanEditor?.updateLightVisualState(light, entity);
+        }
         
         // Broadcast the change
         window.panelManager?.broadcast('onLightEntityAssigned', { light, entityId });

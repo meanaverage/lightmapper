@@ -543,7 +543,10 @@ export class PropertiesPanel extends BasePanel {
         
         // Special handling for entity assignment
         if (key === 'entityId' && this.selectedObject.lightObject) {
-            window.floorplanEditor?.updateLightFromEntity(this.selectedObject, value);
+            const entity = window.lightEntities?.[value];
+            if (entity) {
+                window.floorplanEditor?.updateLightVisualState(this.selectedObject, entity);
+            }
             window.panelManager?.refreshPanel('lights');
         }
     }

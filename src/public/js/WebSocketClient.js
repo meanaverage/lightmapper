@@ -17,9 +17,11 @@ class WebSocketClient {
     
     connect() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}${window.API_BASE || ''}`;
+        const host = window.location.host;
+        const basePath = window.API_BASE || '';
+        const wsUrl = `${protocol}//${host}${basePath}/ws`;
         
-        console.log('🔌 Connecting to WebSocket:', wsUrl);
+        console.log('🔌 Connecting to LightMapper WebSocket:', wsUrl);
         
         try {
             this.ws = new WebSocket(wsUrl);
