@@ -1361,6 +1361,18 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+// Serve OpenAPI specification
+app.get('/openapi.yaml', (req, res) => {
+  console.log('📄 OpenAPI spec requested');
+  res.sendFile(path.join(__dirname, '..', 'openapi.yaml'));
+});
+
+// Serve API documentation
+app.get('/docs/api-docs.html', (req, res) => {
+  console.log('📚 API docs requested');
+  res.sendFile(path.join(__dirname, '..', 'docs', 'api-docs.html'));
+});
+
 // Serve main page for root
 app.get('/', (req, res) => {
   console.log('🏠 Main page requested');
