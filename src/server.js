@@ -8,63 +8,44 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 
+// Load new settings system
+const settings = require('./settings');
+const HomeAssistantRegistry = require('./lib/HomeAssistantRegistry');
+
 console.log('🚀 Starting LightMapper...');
 console.log('📁 Current working directory:', process.cwd());
 console.log('📁 __dirname:', __dirname);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = settings.server.port;
 
-// Enhanced ingress detection - check multiple environment variables
-const INGRESS_ENTRY = process.env.INGRESS_ENTRY;
-const INGRESS_URL = process.env.INGRESS_URL;
-const HASSIO_TOKEN = process.env.HASSIO_TOKEN;
-const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
+// Initialize Home Assistant Registry
+const haRegistry = new HomeAssistantRegistry(settings.homeAssistant.configPath);
 
-console.log('🔍 Environment variable check:');
-console.log('  INGRESS_ENTRY:', INGRESS_ENTRY || 'NOT SET');
-console.log('  INGRESS_URL:', INGRESS_URL || 'NOT SET');
-console.log('  HASSIO_TOKEN:', HASSIO_TOKEN ? 'SET (hidden)' : 'NOT SET');
-console.log('  SUPERVISOR_TOKEN:', SUPERVISOR_TOKEN ? 'SET (hidden)' : 'NOT SET');
-console.log('  NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
-console.log('  PORT:', process.env.PORT || 'NOT SET (using default 3000)');
+console.log('🔍 Settings Configuration:');
+console.log('  Server port:', settings.server.port);
+console.log('  Ingress mode:', settings.server.ingress);
+console.log('  Supervised mode:', settings.server.supervised);
+console.log('  HA Base URL:', settings.homeAssistant.baseUrl);
+console.log('  HA Token available:', !!settings.homeAssistant.token);
+console.log('  HA Config path:', settings.homeAssistant.configPath);
+console.log('  Database path:', settings.database.path);
+console.log('  Config accessible:', haRegistry.isConfigAccessible());
 
-// Multiple ways to detect ingress
-const isIngress = !!(INGRESS_ENTRY || INGRESS_URL || HASSIO_TOKEN);
+// Legacy support - keep for backward compatibility
+const isIngress = settings.server.ingress;
 
-console.log('🔧 Ingress detection result:', isIngress);
-
-// Try to read options.json for user-provided token
-let userOptions = {};
-try {
-  const optionsPath = isIngress ? '/data/options.json' : path.join(__dirname, 'data', 'options.json');
-  if (fs.existsSync(optionsPath)) {
-    userOptions = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
-    console.log('📋 User options loaded from', isIngress ? '/data/options.json' : 'data/options.json');
-  }
-} catch (error) {
-  console.log('⚠️ Could not read user options:', error.message);
-}
-
-// Configuration from environment variables
+// Configuration from settings (legacy support)
 const config = {
-  logLevel: process.env.LOG_LEVEL || 'info',
-  gridSize: parseInt(process.env.GRID_SIZE) || 8,
-  defaults: {
-    brightness: parseInt(process.env.DEFAULT_BRIGHTNESS) || 100,
-    colorTemp: parseInt(process.env.DEFAULT_COLOR_TEMP) || 3000,
-    hue: parseInt(process.env.DEFAULT_HUE) || 60,
-    saturation: parseInt(process.env.DEFAULT_SATURATION) || 100
-  },
+  logLevel: settings.logging.level,
+  gridSize: settings.ui.gridSize,
+  defaults: settings.lightDefaults,
   ha: {
-    // Priority order: user config, startup script detection, supervisor proxy, fallback
-    baseUrl: userOptions.ha_base_url || 
-             process.env.HA_BASE_URL || 
-             'http://supervisor/core',
-    token: process.env.HASSIO_TOKEN || process.env.SUPERVISOR_TOKEN || userOptions.ha_token
+    baseUrl: settings.homeAssistant.baseUrl,
+    token: settings.homeAssistant.token
   },
-  ingress: isIngress,
-  ingressPath: INGRESS_ENTRY || INGRESS_URL || ''
+  ingress: settings.server.ingress,
+  ingressPath: process.env.INGRESS_ENTRY || process.env.INGRESS_URL || ''
 };
 
 console.log('⚙️ Configuration loaded:');
@@ -94,7 +75,7 @@ console.log('  Using base URL source:',
 console.log('  Final base URL:', config.ha.baseUrl);
 
 // Database setup
-const dbPath = isIngress ? '/data/scenes.db' : path.join(__dirname, 'data', 'scenes.db');
+const dbPath = settings.database.path;
 let db;
 
 // Initialize database
@@ -168,9 +149,9 @@ function initDatabase() {
 // Middleware
 console.log('🛡️ Setting up middleware...');
 app.use(helmet({
-  contentSecurityPolicy: isIngress ? false : undefined
+  contentSecurityPolicy: settings.security.enableHelmet ? undefined : false
 }));
-console.log('  ✅ Helmet configured (CSP:', isIngress ? 'disabled for ingress' : 'enabled', ')');
+console.log('  ✅ Helmet configured (CSP:', settings.security.enableHelmet ? 'enabled' : 'disabled for ingress', ')');
 
 app.use(cors());
 console.log('  ✅ CORS enabled');
@@ -924,6 +905,51 @@ app.post('/api/internal/scenes/:id/apply', async (req, res) => {
   }
 });
 
+// Get enhanced lights from registry with full metadata
+app.get('/api/lights/enhanced', async (req, res) => {
+  try {
+    console.log('📋 Processing enhanced /api/lights request...');
+    
+    if (!haRegistry.isConfigAccessible()) {
+      console.log('⚠️ HA config not accessible, falling back to standard API');
+      return res.redirect('/api/lights');
+    }
+    
+    // Get enhanced light entities with metadata
+    const enhancedLights = await haRegistry.getLightEntitiesWithMetadata();
+    
+    // Get current states from HA API
+    const currentStates = await haAPI.getLights();
+    const stateMap = new Map(currentStates.map(light => [light.entity_id, light]));
+    
+    // Combine registry data with current states
+    const lightsWithStates = enhancedLights.map(light => {
+      const currentState = stateMap.get(light.entity_id);
+      return {
+        entityId: light.entity_id,
+        friendlyName: light.name || light.original_name || light.entity_id.replace('light.', '').replace(/_/g, ' '),
+        state: currentState ? currentState.state : 'unavailable',
+        brightness: currentState ? currentState.attributes.brightness : null,
+        colorTemp: currentState ? currentState.attributes.color_temp_kelvin : null,
+        hsColor: currentState ? currentState.attributes.hs_color : null,
+        disabled: light.disabled,
+        hidden: light.hidden,
+        platform: light.platform,
+        device: light.device,
+        area: light.area,
+        attributes: currentState ? currentState.attributes : {}
+      };
+    });
+    
+    console.log('📋 Returning', lightsWithStates.length, 'enhanced lights to client');
+    res.json(lightsWithStates);
+  } catch (error) {
+    console.error('❌ Error getting enhanced lights:', error);
+    console.log('🔄 Falling back to standard API');
+    res.redirect('/api/lights');
+  }
+});
+
 // Get available lights from Home Assistant with area information
 app.get('/api/lights', async (req, res) => {
   try {
@@ -1010,6 +1036,92 @@ app.get('/api/lights', async (req, res) => {
       console.error('❌ Response data:', error.response.data);
     }
     res.status(500).json({ error: 'Failed to get lights from Home Assistant' });
+  }
+});
+
+// Get registry statistics
+app.get('/api/internal/registry/stats', async (req, res) => {
+  try {
+    if (!haRegistry.isConfigAccessible()) {
+      return res.status(503).json({ error: 'Home Assistant config not accessible' });
+    }
+    
+    const stats = await haRegistry.getRegistryStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting registry stats:', error);
+    res.status(500).json({ error: 'Failed to get registry statistics' });
+  }
+});
+
+// Search entities
+app.get('/api/internal/registry/search', async (req, res) => {
+  try {
+    const { q: query } = req.query;
+    if (!query) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+    
+    if (!haRegistry.isConfigAccessible()) {
+      return res.status(503).json({ error: 'Home Assistant config not accessible' });
+    }
+    
+    const results = await haRegistry.searchEntities(query);
+    res.json(results);
+  } catch (error) {
+    console.error('Error searching entities:', error);
+    res.status(500).json({ error: 'Failed to search entities' });
+  }
+});
+
+// Get entities by area
+app.get('/api/internal/registry/areas/:areaId/entities', async (req, res) => {
+  try {
+    const { areaId } = req.params;
+    
+    if (!haRegistry.isConfigAccessible()) {
+      return res.status(503).json({ error: 'Home Assistant config not accessible' });
+    }
+    
+    const entities = await haRegistry.getEntitiesByArea(areaId);
+    res.json(entities);
+  } catch (error) {
+    console.error('Error getting entities by area:', error);
+    res.status(500).json({ error: 'Failed to get entities by area' });
+  }
+});
+
+// Clear registry cache
+app.post('/api/internal/registry/cache/clear', (req, res) => {
+  try {
+    haRegistry.clearCache();
+    res.json({ message: 'Registry cache cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing registry cache:', error);
+    res.status(500).json({ error: 'Failed to clear registry cache' });
+  }
+});
+
+// Get areas for filtering (enhanced version)
+app.get('/api/areas/enhanced', async (req, res) => {
+  try {
+    if (!haRegistry.isConfigAccessible()) {
+      console.log('⚠️ HA config not accessible, falling back to standard API');
+      return res.redirect('/api/areas');
+    }
+    
+    const areas = await haRegistry.getAreaRegistry();
+    const areaData = areas.map(area => ({
+      id: area.id,
+      name: area.name,
+      normalized_name: area.normalized_name
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log('🏠 Returning', areaData.length, 'enhanced areas to client');
+    res.json(areaData);
+  } catch (error) {
+    console.error('Error getting enhanced areas:', error);
+    res.redirect('/api/areas');
   }
 });
 
