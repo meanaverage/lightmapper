@@ -1,6 +1,6 @@
 name: "LightMapper"
 description: "Advanced Home Assistant lighting controller with interactive floorplan editor"
-version: "3.0.70"
+version: "3.0.71"
 slug: lightmapper
 startup: application
 boot: auto
@@ -36,6 +36,8 @@ options:
   measurement_display: true
   ha_token: ""
   ha_base_url: ""
+  api_key: ""
+  enable_external_api: false
 schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)?
   grid_size: int(4,12)?
@@ -49,6 +51,8 @@ schema:
   measurement_display: bool?
   ha_token: str?
   ha_base_url: str?
+  api_key: str?
+  enable_external_api: bool?
 map:
   - config
   - ssl 

@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: DebugPanel.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: DebugPanel.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { BasePanel } from './BasePanel.js';
+
+/**
+ * Debug Panel - Development and troubleshooting tools
+ * @class DebugPanel
+ * @extends BasePanel
+ * @description Provides debugging information about panels, layers, canvas objects,
+ * and system state for troubleshooting issues.
+ */
+export class DebugPanel extends BasePanel {
+    constructor() {
+        super('debug', 'Debug Tools', 'fa-bug');
+        this.logBuffer = [];
+        this.maxLogs = 100;
+        this.autoRefresh = false;
+        this.refreshInterval = null;
+        this.apiCalls = [];
+        this.maxApiCalls = 10;
+        this.setupApiInterceptor();
+    }
+
+    render() {
+        this.container.innerHTML = `
+            &lt;div class="panel-header">
+                &lt;h3>${this.title}&lt;/h3>
+                &lt;div class="panel-header-actions">
+                    &lt;button class="btn btn-icon-only" title="Clear Logs" onclick="window.panelManager.getPanel('debug').clearLogs()">
+                        &lt;i class="fas fa-trash">&lt;/i>
+                    &lt;/button>
+                    &lt;button class="btn btn-icon-only ${this.autoRefresh ? 'active' : ''}" title="Auto Refresh" onclick="window.panelManager.getPanel('debug').toggleAutoRefresh()">
+                        &lt;i class="fas fa-sync">&lt;/i>
+                    &lt;/button>
+                    &lt;button class="btn btn-icon-only" title="Refresh Now" onclick="window.panelManager.getPanel('debug').refresh()">
+                        &lt;i class="fas fa-redo">&lt;/i>
+                    &lt;/button>
+                &lt;/div>
+            &lt;/div>
+            &lt;div class="debug-content">
+                &lt;div class="debug-section">
+                    &lt;h4>System State&lt;/h4>
+                    &lt;div id="systemState" class="debug-info">&lt;/div>
+                &lt;/div>
+                
+                &lt;div class="debug-section">
+                    &lt;h4>Panel States&lt;/h4>
+                    &lt;div id="panelStates" class="debug-info">&lt;/div>
+                &lt;/div>
+                
+                &lt;div class="debug-section">
+                    &lt;h4>Layer System&lt;/h4>
+                    &lt;div id="layerInfo" class="debug-info">&lt;/div>
+                &lt;/div>
+                
+                &lt;div class="debug-section">
+                    &lt;h4>Canvas Objects&lt;/h4>
+                    &lt;div id="canvasInfo" class="debug-info">&lt;/div>
+                &lt;/div>
+                
+                &lt;div class="debug-section">
+                    &lt;h4>Recent API Calls&lt;/h4>
+                    &lt;div id="apiCalls" class="debug-info">&lt;/div>
+                &lt;/div>
+                
+                &lt;div class="debug-section">
+                    &lt;h4>Event Log&lt;/h4>
+                    &lt;div id="eventLog" class="debug-log">&lt;/div>
+                &lt;/div>
+            &lt;/div>
+        `;
+        
+        this.refresh();
+    }
+
+    refresh() {
+        this.updateSystemState();
+        this.updatePanelStates();
+        this.updateLayerInfo();
+        this.updateCanvasInfo();
+        this.updateApiCalls();
+        this.updateEventLog();
+    }
+
+    updateSystemState() {
+        const container = document.getElementById('systemState');
+        if (!container) return;
+
+        const info = {
+            'API Base': window.API_BASE || 'Not set',
+            'Floorplan Editor': window.floorplanEditor ? 'Initialized' : 'Not initialized',
+            'Layer Manager': window.layerManager ? 'Initialized' : 'Not initialized',
+            'Panel Manager': window.panelManager ? 'Initialized' : 'Not initialized',
+            'Scene Manager': window.sceneManager ? 'Initialized' : 'Not initialized',
+            'CAD Interface': window.cadInterface ? 'Initialized' : 'Not initialized',
+            'Entities Panel': window.panelManager?.getPanel('entities') ? 'Initialized' : 'Not initialized'
+        };
+
+        container.innerHTML = Object.entries(info).map(([key, value]) => 
+            `&lt;div class="debug-item">
+                &lt;span class="debug-key">${key}:&lt;/span>
+                &lt;span class="debug-value ${value.includes('Not') ? 'error' : 'success'}">${value}&lt;/span>
+            &lt;/div>`
+        ).join('');
+    }
+
+    updatePanelStates() {
+        const container = document.getElementById('panelStates');
+        if (!container || !window.panelManager) return;
+
+        const panels = [];
+        window.panelManager.panels.forEach((panel, id) => {
+            panels.push({
+                id: id,
+                title: panel.title,
+                container: panel.container ? 'Yes' : 'No',
+                visible: panel.container?.style.display !== 'none' ? 'Yes' : 'No'
+            });
+        });
+
+        container.innerHTML = `
+            &lt;table class="debug-table">
+                &lt;thead>
+                    &lt;tr>
+                        &lt;th>Panel ID&lt;/th>
+                        &lt;th>Title&lt;/th>
+                        &lt;th>Container&lt;/th>
+                        &lt;th>Visible&lt;/th>
+                    &lt;/tr>
+                &lt;/thead>
+                &lt;tbody>
+                    ${panels.map(p => `
+                        &lt;tr>
+                            &lt;td>${p.id}&lt;/td>
+                            &lt;td>${p.title}&lt;/td>
+                            &lt;td class="${p.container === 'Yes' ? 'success' : 'error'}">${p.container}&lt;/td>
+                            &lt;td class="${p.visible === 'Yes' ? 'success' : 'warning'}">${p.visible}&lt;/td>
+                        &lt;/tr>
+                    `).join('')}
+                &lt;/tbody>
+            &lt;/table>
+        `;
+    }
+
+    updateLayerInfo() {
+        const container = document.getElementById('layerInfo');
+        if (!container) return;
+
+        if (!window.layerManager) {
+            container.innerHTML = '&lt;div class="debug-warning">Layer Manager not initialized&lt;/div>';
+            return;
+        }
+
+        const layerCount = Object.keys(window.layerManager.layers).length;
+        const layerOrder = window.layerManager.layerOrder;
+
+        container.innerHTML = `
+            &lt;div class="debug-item">
+                &lt;span class="debug-key">Total Layers:&lt;/span>
+                &lt;span class="debug-value">${layerCount}&lt;/span>
+            &lt;/div>
+            &lt;div class="debug-item">
+                &lt;span class="debug-key">Layer Order:&lt;/span>
+                &lt;span class="debug-value">${layerOrder.length} items&lt;/span>
+            &lt;/div>
+            &lt;div class="debug-subtitle">Layers (top to bottom):&lt;/div>
+            &lt;div class="debug-layer-list">
+                ${layerOrder.map((layerId, index) => {
+                    const layer = window.layerManager.layers[layerId];
+                    if (!layer) return '';
+                    return `
+                        &lt;div class="debug-layer-item">
+                            &lt;span class="layer-index">${index}.&lt;/span>
+                            &lt;span class="layer-name">${layer.name}&lt;/span>
+                            &lt;span class="layer-type">[${layer.objectType}]&lt;/span>
+                            &lt;span class="layer-z">z:${layer.zIndex}&lt;/span>
+                            &lt;span class="layer-state">
+                                ${layer.visible ? '👁️' : '🚫'}
+                                ${layer.locked ? '🔒' : '🔓'}
+                            &lt;/span>
+                        &lt;/div>
+                    `;
+                }).join('')}
+            &lt;/div>
+        `;
+    }
+
+    updateCanvasInfo() {
+        const container = document.getElementById('canvasInfo');
+        if (!container) return;
+
+        if (!window.floorplanEditor?.canvas) {
+            container.innerHTML = '&lt;div class="debug-warning">Canvas not initialized&lt;/div>';
+            return;
+        }
+
+        const canvas = window.floorplanEditor.canvas;
+        const objects = canvas.getObjects();
+        const objectTypes = {};
+        let orphanedCount = 0;
+
+        objects.forEach(obj => {
+            const type = this.getObjectTypeForDebug(obj);
+            objectTypes[type] = (objectTypes[type] || 0) + 1;
+            
+            if (!obj.customLayer &amp;&amp; !obj.gridLine &amp;&amp; !obj.snapGuide) {
+                orphanedCount++;
+            }
+        });
+
+        const activeObject = canvas.getActiveObject();
+
+        container.innerHTML = `
+            &lt;div class="debug-item">
+                &lt;span class="debug-key">Total Objects:&lt;/span>
+                &lt;span class="debug-value">${objects.length}&lt;/span>
+            &lt;/div>
+            &lt;div class="debug-item">
+                &lt;span class="debug-key">Orphaned Objects:&lt;/span>
+                &lt;span class="debug-value ${orphanedCount > 0 ? 'warning' : 'success'}">${orphanedCount}&lt;/span>
+            &lt;/div>
+            &lt;div class="debug-item">
+                &lt;span class="debug-key">Active Selection:&lt;/span>
+                &lt;span class="debug-value">${activeObject ? this.getObjectTypeForDebug(activeObject) : 'None'}&lt;/span>
+            &lt;/div>
+            &lt;div class="debug-subtitle">Object Types:&lt;/div>
+            &lt;div class="debug-type-list">
+                ${Object.entries(objectTypes).map(([type, count]) => 
+                    `&lt;div class="debug-type-item">
+                        &lt;span class="type-name">${type}:&lt;/span>
+                        &lt;span class="type-count">${count}&lt;/span>
+                    &lt;/div>`
+                ).join('')}
+            &lt;/div>
+        `;
+    }
+
+    updateEventLog() {
+        const container = document.getElementById('eventLog');
+        if (!container) return;
+
+        if (this.logBuffer.length === 0) {
+            container.innerHTML = '&lt;div class="debug-info">No events logged yet&lt;/div>';
+            return;
+        }
+
+        container.innerHTML = this.logBuffer.map(log => 
+            `&lt;div class="log-entry ${log.type}">
+                &lt;span class="log-time">${log.time}&lt;/span>
+                &lt;span class="log-message">${log.message}&lt;/span>
+            &lt;/div>`
+        ).join('');
+
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    }
+
+    getObjectTypeForDebug(obj) {
+        if (obj.lightObject) return 'Light';
+        if (obj.roomObject) return 'Room';
+        if (obj.textObject) return 'Text';
+        if (obj.labelObject) return 'Label';
+        if (obj.backgroundImage) return 'Background';
+        if (obj.gridLine) return 'Grid Line';
+        if (obj.snapGuide) return 'Snap Guide';
+        if (obj.glowCircle) return 'Glow Effect';
+        if (obj.selectionRing) return 'Selection Ring';
+        return obj.type || 'Unknown';
+    }
+
+    log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        this.logBuffer.push({
+            time: timestamp,
+            message: message,
+            type: type
+        });
+
+        // Keep buffer size limited
+        if (this.logBuffer.length > this.maxLogs) {
+            this.logBuffer.shift();
+        }
+
+        // Update display if panel is visible
+        if (this.container &amp;&amp; this.container.style.display !== 'none') {
+            this.updateEventLog();
+        }
+    }
+
+    clearLogs() {
+        this.logBuffer = [];
+        this.updateEventLog();
+        this.log('Logs cleared', 'system');
+    }
+
+    toggleAutoRefresh() {
+        this.autoRefresh = !this.autoRefresh;
+        
+        if (this.autoRefresh) {
+            this.refreshInterval = setInterval(() => {
+                this.refresh();
+            }, 1000);
+            this.log('Auto-refresh enabled', 'system');
+        } else {
+            if (this.refreshInterval) {
+                clearInterval(this.refreshInterval);
+                this.refreshInterval = null;
+            }
+            this.log('Auto-refresh disabled', 'system');
+        }
+
+        // Update button state
+        const button = this.container.querySelector('[title="Auto Refresh"]');
+        if (button) {
+            button.classList.toggle('active', this.autoRefresh);
+        }
+    }
+
+    // Panel event handlers
+    onObjectSelected(data) {
+        if (data?.object) {
+            const type = this.getObjectTypeForDebug(data.object);
+            const layer = data.object.customLayer || 'No layer';
+            this.log(`Object selected: ${type} (Layer: ${layer})`, 'event');
+        }
+    }
+
+    onObjectAdded(data) {
+        if (data?.object) {
+            const type = this.getObjectTypeForDebug(data.object);
+            const layer = data.object.customLayer || 'No layer';
+            this.log(`Object added: ${type} (Layer: ${layer})`, 'event');
+        }
+    }
+
+    onObjectRemoved(data) {
+        if (data?.object) {
+            const type = this.getObjectTypeForDebug(data.object);
+            this.log(`Object removed: ${type}`, 'event');
+        }
+    }
+
+    onLayerVisibilityChanged(data) {
+        this.log(`Layer visibility changed: ${data.layerId} = ${data.visible}`, 'event');
+    }
+
+    onLayerLockChanged(data) {
+        this.log(`Layer lock changed: ${data.layerId} = ${data.locked}`, 'event');
+    }
+
+    onLayersReordered(data) {
+        this.log(`Layers reordered: ${data.draggedLayerId} → ${data.targetLayerId}`, 'event');
+    }
+
+    hide() {
+        super.hide();
+        // Stop auto-refresh when hidden
+        if (this.autoRefresh) {
+            this.toggleAutoRefresh();
+        }
+    }
+
+    setupApiInterceptor() {
+        // Store original fetch
+        const originalFetch = window.fetch;
+        const debugPanel = this;
+        
+        // Override fetch to log API calls
+        window.fetch = async function(...args) {
+            const [url, options = {}] = args;
+            const method = options.method || 'GET';
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Create API call record
+            const apiCall = {
+                id: Date.now(),
+                time: timestamp,
+                method: method,
+                url: url,
+                status: 'pending',
+                duration: null,
+                error: null
+            };
+            
+            debugPanel.apiCalls.unshift(apiCall);
+            if (debugPanel.apiCalls.length > debugPanel.maxApiCalls) {
+                debugPanel.apiCalls.pop();
+            }
+            
+            const startTime = performance.now();
+            
+            try {
+                const response = await originalFetch(...args);
+                const endTime = performance.now();
+                
+                // Update call record
+                apiCall.status = response.ok ? 'success' : 'error';
+                apiCall.statusCode = response.status;
+                apiCall.duration = Math.round(endTime - startTime);
+                
+                // Log to event log
+                debugPanel.log(`API ${method} ${url} - ${response.status} (${apiCall.duration}ms)`, 
+                    response.ok ? 'success' : 'error');
+                
+                // Update display if visible
+                if (debugPanel.container?.style.display !== 'none') {
+                    debugPanel.updateApiCalls();
+                }
+                
+                return response;
+            } catch (error) {
+                const endTime = performance.now();
+                
+                // Update call record
+                apiCall.status = 'error';
+                apiCall.duration = Math.round(endTime - startTime);
+                apiCall.error = error.message;
+                
+                // Log to event log
+                debugPanel.log(`API ${method} ${url} - Error: ${error.message}`, 'error');
+                
+                // Update display if visible
+                if (debugPanel.container?.style.display !== 'none') {
+                    debugPanel.updateApiCalls();
+                }
+                
+                throw error;
+            }
+        };
+    }
+
+    updateApiCalls() {
+        const container = document.getElementById('apiCalls');
+        if (!container) return;
+
+        if (this.apiCalls.length === 0) {
+            container.innerHTML = '&lt;div class="debug-info">No API calls yet&lt;/div>';
+            return;
+        }
+
+        container.innerHTML = `
+            &lt;table class="debug-table api-table">
+                &lt;thead>
+                    &lt;tr>
+                        &lt;th>Time&lt;/th>
+                        &lt;th>Method&lt;/th>
+                        &lt;th>URL&lt;/th>
+                        &lt;th>Status&lt;/th>
+                        &lt;th>Duration&lt;/th>
+                    &lt;/tr>
+                &lt;/thead>
+                &lt;tbody>
+                    ${this.apiCalls.map(call => {
+                        const urlPath = call.url.replace(window.API_BASE, '').replace(/^https?:\/\/[^\/]+/, '');
+                        const statusClass = call.status === 'success' ? 'success' : 
+                                          call.status === 'error' ? 'error' : 'warning';
+                        return `
+                            &lt;tr>
+                                &lt;td>${call.time}&lt;/td>
+                                &lt;td>&lt;span class="method-${call.method.toLowerCase()}">${call.method}&lt;/span>&lt;/td>
+                                &lt;td title="${call.url}">${urlPath}&lt;/td>
+                                &lt;td class="${statusClass}">
+                                    ${call.statusCode || call.status}
+                                    ${call.error ? `&lt;br>&lt;small>${call.error}&lt;/small>` : ''}
+                                &lt;/td>
+                                &lt;td>${call.duration !== null ? call.duration + 'ms' : '-'}&lt;/td>
+                            &lt;/tr>
+                        `;
+                    }).join('')}
+                &lt;/tbody>
+            &lt;/table>
+        `;
+    }
+}
+
+// Add CSS for debug panel
+const style = document.createElement('style');
+style.textContent = `
+.debug-content {
+    padding: 10px;
+    overflow-y: auto;
+    height: calc(100% - 60px);
+    background: var(--cad-bg-secondary, #2d2d2d);
+}
+
+.debug-section {
+    margin-bottom: 20px;
+    background: var(--cad-bg-tertiary, #1e1e1e);
+    border: 1px solid var(--cad-border-primary, #3a3a3a);
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.debug-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: var(--cad-text-primary, #e0e0e0);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+    padding-bottom: 5px;
+}
+
+.debug-info {
+    font-size: 12px;
+    color: var(--cad-text-secondary, #b0b0b0);
+}
+
+.debug-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+
+.debug-key {
+    font-weight: 500;
+}
+
+.debug-value {
+    font-family: monospace;
+}
+
+.debug-value.success { color: #4caf50; }
+.debug-value.warning { color: #ff9800; }
+.debug-value.error { color: #f44336; }
+
+.debug-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+}
+
+.debug-table th {
+    background: var(--cad-bg-primary, #262626);
+    color: var(--cad-text-primary, #e0e0e0);
+    padding: 4px 8px;
+    text-align: left;
+    font-weight: 500;
+}
+
+.debug-table td {
+    padding: 4px 8px;
+    border-top: 1px solid var(--cad-border-primary, #3a3a3a);
+}
+
+.debug-table .success { color: #4caf50; }
+.debug-table .warning { color: #ff9800; }
+.debug-table .error { color: #f44336; }
+
+.debug-warning {
+    color: #ff9800;
+    text-align: center;
+    padding: 10px;
+}
+
+.debug-subtitle {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--cad-text-primary, #e0e0e0);
+}
+
+.debug-layer-list,
+.debug-type-list {
+    font-family: monospace;
+    font-size: 11px;
+}
+
+.debug-layer-item {
+    padding: 2px 0;
+    display: flex;
+    gap: 8px;
+}
+
+.layer-index { color: #666; }
+.layer-name { color: var(--cad-text-primary, #e0e0e0); }
+.layer-type { color: #4a9eff; }
+.layer-z { color: #ff9800; }
+.layer-state { }
+
+.debug-type-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+
+.debug-log {
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 11px;
+    background: var(--cad-bg-primary, #262626);
+    padding: 5px;
+    border-radius: 3px;
+}
+
+.log-entry {
+    padding: 2px 0;
+    display: flex;
+    gap: 8px;
+}
+
+.log-entry.event { color: #4a9eff; }
+.log-entry.error { color: #f44336; }
+.log-entry.warning { color: #ff9800; }
+.log-entry.success { color: #4caf50; }
+.log-entry.system { color: #9c27b0; }
+
+.log-time {
+    color: #666;
+    flex-shrink: 0;
+}
+
+.log-message {
+    word-break: break-word;
+}
+
+.api-table {
+    font-size: 11px;
+}
+
+.api-table td {
+    padding: 2px 6px;
+    font-family: monospace;
+}
+
+.method-get { color: #4caf50; }
+.method-post { color: #2196f3; }
+.method-put { color: #ff9800; }
+.method-delete { color: #f44336; }
+.method-patch { color: #9c27b0; }
+`;
+document.head.appendChild(style);</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BasePanel.html">BasePanel</a></li><li><a href="BasePanel_BasePanel.html">BasePanel</a></li><li><a href="CanvasPanel.html">CanvasPanel</a></li><li><a href="CanvasPanel_BasePanel.html">BasePanel</a></li><li><a href="CanvasPanel_CanvasPanel.html">CanvasPanel</a></li><li><a href="DebugPanel.html">DebugPanel</a></li><li><a href="DebugPanel_BasePanel.html">BasePanel</a></li><li><a href="LayersPanel.html">LayersPanel</a></li><li><a href="LayersPanel_BasePanel.html">BasePanel</a></li><li><a href="LightsPanel.html">LightsPanel</a></li><li><a href="LightsPanel_BasePanel.html">BasePanel</a></li><li><a href="LightsPanel_LightsPanel.html">LightsPanel</a></li><li><a href="PanelManager.html">PanelManager</a></li><li><a href="PanelManager_PanelManager.html">PanelManager</a></li></ul><h3>Events</h3><ul><li><a href="CanvasPanel.html#event:onLightEntityAssigned">onLightEntityAssigned</a></li><li><a href="CanvasPanel.html#event:onLightModified">onLightModified</a></li><li><a href="CanvasPanel.html#event:onObjectDeselected">onObjectDeselected</a></li><li><a href="CanvasPanel.html#event:onObjectSelected">onObjectSelected</a></li></ul><h3>Global</h3><ul><li><a href="global.html#assignEntityToLight">assignEntityToLight</a></li><li><a href="global.html#centerOnObject">centerOnObject</a></li><li><a href="global.html#findLightByEntityId">findLightByEntityId</a></li><li><a href="global.html#getAssignedEntities">getAssignedEntities</a></li><li><a href="global.html#getCanvasState">getCanvasState</a></li><li><a href="global.html#getLights">getLights</a></li><li><a href="global.html#loadLayout">loadLayout</a></li><li><a href="global.html#selectObject">selectObject</a></li><li><a href="global.html#setTool">setTool</a></li><li><a href="global.html#updateLightFromSceneSettings">updateLightFromSceneSettings</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Jul 15 2025 09:50:55 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

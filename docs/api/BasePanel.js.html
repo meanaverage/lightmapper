@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: BasePanel.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: BasePanel.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Base Panel Class - Abstract base class for all panels in the system
+ * @class BasePanel
+ * @abstract
+ * @description Provides common functionality for all panels including lifecycle methods,
+ * event handling, and utility functions. All panels should extend this class.
+ */
+export class BasePanel {
+    /**
+     * Creates a new BasePanel instance
+     * @constructor
+     * @param {string} id - Unique identifier for the panel
+     * @param {string} title - Display title for the panel
+     * @param {string} icon - Font Awesome icon class (e.g., 'fa-lightbulb')
+     */
+    constructor(id, title, icon) {
+        /** @type {string} Unique panel identifier */
+        this.id = id;
+        /** @type {string} Panel display title */
+        this.title = title;
+        /** @type {string} Font Awesome icon class */
+        this.icon = icon;
+        /** @type {HTMLElement|null} DOM container element */
+        this.container = null;
+        /** @type {boolean} Initialization status */
+        this.isInitialized = false;
+    }
+
+    /**
+     * Initialize the panel with its container element
+     * @param {HTMLElement} container - The DOM element to render the panel into
+     */
+    init(container) {
+        this.container = container;
+        this.render();
+        this.bindEvents();
+        this.isInitialized = true;
+    }
+
+    /**
+     * Render the panel content - must be implemented by subclasses
+     * @abstract
+     * @throws {Error} If not implemented by subclass
+     */
+    render() {
+        throw new Error('render() must be implemented by subclass');
+    }
+
+    /**
+     * Render content for accordion-style panels (without redundant headers)
+     * @param {string} contentHtml - The main content HTML
+     * @param {string} actionsHtml - Optional action buttons HTML
+     * @returns {string} The rendered HTML content
+     */
+    renderAccordionContent(contentHtml, actionsHtml = '') {
+        return `
+            &lt;div class="panel-accordion-wrapper">
+                ${actionsHtml ? `&lt;div class="panel-actions">${actionsHtml}&lt;/div>` : ''}
+                &lt;div class="panel-body">
+                    ${contentHtml}
+                &lt;/div>
+            &lt;/div>
+        `;
+    }
+
+    /**
+     * Bind event listeners - override in subclass if needed
+     * @virtual
+     */
+    bindEvents() {
+        // Override in subclass if needed
+    }
+
+    /**
+     * Show the panel
+     * @fires onShow
+     */
+    show() {
+        if (this.container) {
+            this.container.style.display = 'block';
+            this.onShow();
+        }
+    }
+
+    /**
+     * Hide the panel
+     * @fires onHide
+     */
+    hide() {
+        if (this.container) {
+            this.container.style.display = 'none';
+            this.onHide();
+        }
+    }
+
+    /**
+     * Called when panel is shown - override for custom behavior
+     * @virtual
+     */
+    onShow() {
+        // Override in subclass if needed
+    }
+
+    /**
+     * Called when panel is hidden - override for custom behavior
+     * @virtual
+     */
+    onHide() {
+        // Override in subclass if needed
+    }
+
+    /**
+     * Refresh panel content - override for custom refresh logic
+     * @virtual
+     */
+    refresh() {
+        // Override in subclass if needed
+    }
+
+    /**
+     * Destroy the panel and clean up resources
+     */
+    destroy() {
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+        this.isInitialized = false;
+    }
+
+    /**
+     * Utility method to create DOM elements
+     * @param {string} tag - HTML tag name
+     * @param {string} [className] - CSS class name(s)
+     * @param {string} [innerHTML=''] - HTML content
+     * @returns {HTMLElement} The created element
+     */
+    createElement(tag, className, innerHTML = '') {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        if (innerHTML) element.innerHTML = innerHTML;
+        return element;
+    }
+
+    /**
+     * Utility method to fetch data from API
+     * @param {string} url - The URL to fetch from
+     * @param {Object} [options={}] - Fetch options
+     * @returns {Promise&lt;any>} The parsed JSON response
+     * @throws {Error} If the request fails
+     */
+    async fetchData(url, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        };
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    }
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BasePanel.html">BasePanel</a></li><li><a href="BasePanel_BasePanel.html">BasePanel</a></li><li><a href="CanvasPanel.html">CanvasPanel</a></li><li><a href="CanvasPanel_BasePanel.html">BasePanel</a></li><li><a href="CanvasPanel_CanvasPanel.html">CanvasPanel</a></li><li><a href="DebugPanel.html">DebugPanel</a></li><li><a href="DebugPanel_BasePanel.html">BasePanel</a></li><li><a href="LayersPanel.html">LayersPanel</a></li><li><a href="LayersPanel_BasePanel.html">BasePanel</a></li><li><a href="LightsPanel.html">LightsPanel</a></li><li><a href="LightsPanel_BasePanel.html">BasePanel</a></li><li><a href="LightsPanel_LightsPanel.html">LightsPanel</a></li><li><a href="PanelManager.html">PanelManager</a></li><li><a href="PanelManager_PanelManager.html">PanelManager</a></li></ul><h3>Events</h3><ul><li><a href="CanvasPanel.html#event:onLightEntityAssigned">onLightEntityAssigned</a></li><li><a href="CanvasPanel.html#event:onLightModified">onLightModified</a></li><li><a href="CanvasPanel.html#event:onObjectDeselected">onObjectDeselected</a></li><li><a href="CanvasPanel.html#event:onObjectSelected">onObjectSelected</a></li></ul><h3>Global</h3><ul><li><a href="global.html#assignEntityToLight">assignEntityToLight</a></li><li><a href="global.html#centerOnObject">centerOnObject</a></li><li><a href="global.html#findLightByEntityId">findLightByEntityId</a></li><li><a href="global.html#getAssignedEntities">getAssignedEntities</a></li><li><a href="global.html#getCanvasState">getCanvasState</a></li><li><a href="global.html#getLights">getLights</a></li><li><a href="global.html#loadLayout">loadLayout</a></li><li><a href="global.html#selectObject">selectObject</a></li><li><a href="global.html#setTool">setTool</a></li><li><a href="global.html#updateLightFromSceneSettings">updateLightFromSceneSettings</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Jul 15 2025 09:50:55 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

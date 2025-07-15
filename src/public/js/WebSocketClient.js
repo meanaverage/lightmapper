@@ -104,8 +104,73 @@ class WebSocketClient {
                 this.handleStateChange(message);
                 break;
                 
+            case 'highlight_light':
+                this.handleHighlightLight(message);
+                break;
+                
             default:
                 console.log('📨 Unknown message type:', message.type);
+        }
+    }
+    
+    handleHighlightLight(message) {
+        const { entity_id, duration, color } = message;
+        console.log(`✨ Highlight light request: ${entity_id} for ${duration}ms in ${color}`);
+        
+        // Find the light on the canvas
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return;
+        
+        const lights = canvasPanel.getLights();
+        const light = lights.find(l => l.entityId === entity_id);
+        
+        if (light) {
+            const canvas = canvasPanel.getCanvas();
+            if (!canvas) return;
+            
+            // Store original values
+            const originalStroke = light.stroke;
+            const originalStrokeWidth = light.strokeWidth;
+            const originalShadow = light.shadow ? light.shadow.color : null;
+            
+            // Apply highlight effect
+            light.set({
+                stroke: color,
+                strokeWidth: 5,
+                shadow: new fabric.Shadow({
+                    color: color,
+                    blur: 20,
+                    offsetX: 0,
+                    offsetY: 0
+                })
+            });
+            
+            // Animate the highlight
+            let pulseDirection = 1;
+            const pulseInterval = setInterval(() => {
+                const currentBlur = light.shadow.blur;
+                const newBlur = currentBlur + (pulseDirection * 5);
+                
+                if (newBlur >= 30 || newBlur <= 10) {
+                    pulseDirection *= -1;
+                }
+                
+                light.shadow.blur = newBlur;
+                canvas.renderAll();
+            }, 100);
+            
+            canvas.renderAll();
+            
+            // Remove highlight after duration
+            setTimeout(() => {
+                clearInterval(pulseInterval);
+                light.set({
+                    stroke: originalStroke,
+                    strokeWidth: originalStrokeWidth,
+                    shadow: originalShadow ? new fabric.Shadow({ color: originalShadow }) : null
+                });
+                canvas.renderAll();
+            }, duration);
         }
     }
     

@@ -242,6 +242,41 @@ if (isIngress) {
   console.log('  Ingress entry path:', INGRESS_ENTRY || INGRESS_URL);
 }
 
+// API Key Authentication Middleware for external API access
+const authenticateApiKey = (req, res, next) => {
+  // Skip auth for internal requests and if external API is not enabled
+  if (!userOptions.enable_external_api) {
+    return next();
+  }
+  
+  // Skip auth for non-API endpoints
+  if (!req.path.startsWith('/api/')) {
+    return next();
+  }
+  
+  // Allow internal access without API key (from the web UI)
+  const referer = req.get('referer');
+  if (referer && (referer.includes(req.get('host')) || referer.includes('hassio_ingress'))) {
+    return next();
+  }
+  
+  // Check for API key in header or query parameter
+  const apiKey = req.get('X-API-Key') || req.query.api_key;
+  
+  if (!apiKey) {
+    return res.status(401).json({ error: 'API key required' });
+  }
+  
+  if (apiKey !== userOptions.api_key) {
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
+  
+  next();
+};
+
+// Apply API key middleware to all /api routes
+app.use('/api/*', authenticateApiKey);
+
 // Home Assistant API helper
 class HomeAssistantAPI {
   constructor(baseUrl, token) {
@@ -1133,6 +1168,185 @@ app.post('/api/internal/layers/:layerId/bring-forward', (req, res) => {
 app.post('/api/internal/layers/:layerId/send-backward', (req, res) => {
   console.log('⬇️ Send backward requested for layer:', req.params.layerId);
   res.json({ success: true, message: 'Layer sent backward' });
+});
+
+// ==========================================
+// External API Endpoints for Integration
+// ==========================================
+
+// Get all lights with their positions on the floorplan
+app.get('/api/internal/floorplan/lights', async (req, res) => {
+  console.log('🗺️ Get all lights with positions requested');
+  try {
+    // Get current floorplan
+    db.get('SELECT * FROM floorplan ORDER BY updated_at DESC LIMIT 1', async (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to fetch floorplan' });
+      }
+      
+      if (!row || !row.lights_data) {
+        return res.json({ lights: [] });
+      }
+      
+      // Parse the floorplan data
+      const floorplanData = JSON.parse(row.lights_data);
+      
+      // Get current light states from Home Assistant
+      try {
+        const haLights = await haApi.getLights();
+        const lightMap = {};
+        haLights.forEach(light => {
+          lightMap[light.entity_id] = light;
+        });
+        
+        // Combine position data with current states
+        const lightsWithPositions = [];
+        if (floorplanData.objects) {
+          floorplanData.objects.forEach(obj => {
+            if (obj.lightObject && obj.entityId) {
+              const haLight = lightMap[obj.entityId];
+              lightsWithPositions.push({
+                entity_id: obj.entityId,
+                position: {
+                  x: obj.left,
+                  y: obj.top
+                },
+                icon_style: obj.iconStyle || 'default',
+                state: haLight ? haLight.state : 'unavailable',
+                attributes: haLight ? haLight.attributes : {}
+              });
+            }
+          });
+        }
+        
+        res.json({ lights: lightsWithPositions });
+      } catch (haError) {
+        console.error('Error fetching HA lights:', haError);
+        res.status(500).json({ error: 'Failed to fetch light states' });
+      }
+    });
+  } catch (error) {
+    console.error('Error in /api/internal/floorplan/lights:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add a new light to the floorplan
+app.post('/api/internal/floorplan/lights', (req, res) => {
+  console.log('➕ Add light to floorplan requested');
+  const { entity_id, position, icon_style } = req.body;
+  
+  if (!entity_id || !position || !position.x || !position.y) {
+    return res.status(400).json({ error: 'entity_id and position (x, y) are required' });
+  }
+  
+  // This would need to be implemented to modify the floorplan data
+  // For now, return a success response indicating what would happen
+  res.json({
+    message: 'Light would be added to floorplan',
+    entity_id,
+    position,
+    icon_style: icon_style || 'default'
+  });
+});
+
+// Update a light's position on the floorplan
+app.put('/api/internal/floorplan/lights/:entityId', (req, res) => {
+  console.log('📍 Update light position requested for:', req.params.entityId);
+  const { position } = req.body;
+  
+  if (!position || !position.x || !position.y) {
+    return res.status(400).json({ error: 'position (x, y) is required' });
+  }
+  
+  // This would need to be implemented to modify the floorplan data
+  res.json({
+    message: 'Light position would be updated',
+    entity_id: req.params.entityId,
+    position
+  });
+});
+
+// Delete a light from the floorplan
+app.delete('/api/internal/floorplan/lights/:entityId', (req, res) => {
+  console.log('🗑️ Delete light from floorplan requested for:', req.params.entityId);
+  
+  // This would need to be implemented to modify the floorplan data
+  res.json({
+    message: 'Light would be removed from floorplan',
+    entity_id: req.params.entityId
+  });
+});
+
+// Highlight/flash a light on the map
+app.post('/api/internal/floorplan/lights/:entityId/highlight', (req, res) => {
+  console.log('✨ Highlight light requested for:', req.params.entityId);
+  const { duration = 3000, color = '#ffff00' } = req.body;
+  
+  // Emit WebSocket event to connected clients
+  if (global.wsClients && global.wsClients.size > 0) {
+    const message = JSON.stringify({
+      type: 'highlight_light',
+      entity_id: req.params.entityId,
+      duration,
+      color
+    });
+    
+    global.wsClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+    
+    res.json({
+      message: 'Highlight command sent',
+      entity_id: req.params.entityId,
+      duration,
+      color
+    });
+  } else {
+    res.status(503).json({ error: 'No connected clients to receive highlight command' });
+  }
+});
+
+// Get specific light with position
+app.get('/api/internal/floorplan/lights/:entityId', (req, res) => {
+  console.log('🔍 Get specific light position requested for:', req.params.entityId);
+  
+  db.get('SELECT * FROM floorplan ORDER BY updated_at DESC LIMIT 1', async (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to fetch floorplan' });
+    }
+    
+    if (!row || !row.lights_data) {
+      return res.status(404).json({ error: 'Light not found on floorplan' });
+    }
+    
+    const floorplanData = JSON.parse(row.lights_data);
+    
+    // Find the specific light
+    let foundLight = null;
+    if (floorplanData.objects) {
+      floorplanData.objects.forEach(obj => {
+        if (obj.lightObject && obj.entityId === req.params.entityId) {
+          foundLight = {
+            entity_id: obj.entityId,
+            position: {
+              x: obj.left,
+              y: obj.top
+            },
+            icon_style: obj.iconStyle || 'default'
+          };
+        }
+      });
+    }
+    
+    if (foundLight) {
+      res.json(foundLight);
+    } else {
+      res.status(404).json({ error: 'Light not found on floorplan' });
+    }
+  });
 });
 
 // Health check endpoint
