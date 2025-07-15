@@ -56,22 +56,11 @@ console.log('  Ingress mode:', config.ingress);
 console.log('  HA Base URL:', config.ha.baseUrl);
 console.log('  HA Token available:', !!config.ha.token);
 console.log('  HA Token length:', config.ha.token ? config.ha.token.length : 'N/A');
-console.log('🔍 Home Assistant URL resolution:');
-console.log('  userOptions.ha_base_url:', userOptions.ha_base_url || 'NOT SET');
-console.log('  process.env.HA_BASE_URL:', process.env.HA_BASE_URL || 'NOT SET');
-console.log('  supervisor fallback: http://supervisor/core');
-console.log('🔍 User options debug:');
-console.log('  userOptions.ha_token available:', !!userOptions.ha_token);
-console.log('  process.env.SUPERVISOR_TOKEN available:', !!process.env.SUPERVISOR_TOKEN);
 console.log('🔧 Final configuration choice:');
 console.log('  Using token type:', 
   config.ha.token === process.env.HASSIO_TOKEN ? 'HASSIO_TOKEN' :
   config.ha.token === process.env.SUPERVISOR_TOKEN ? 'SUPERVISOR_TOKEN' : 
   'USER_TOKEN');
-console.log('  Using base URL source:', 
-  userOptions.ha_base_url ? 'USER_CONFIG' : 
-  process.env.HA_BASE_URL ? 'AUTO_DETECTED' : 
-  'SUPERVISOR_PROXY');
 console.log('  Final base URL:', config.ha.baseUrl);
 
 // Database setup
