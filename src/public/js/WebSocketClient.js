@@ -29,8 +29,13 @@ class WebSocketClient {
     connect() {
         const basePath = window.API_BASE || '';
         
-        // Check if we're in ingress mode
-        if (basePath.includes('hassio_ingress')) {
+        console.log('🔌 WebSocket connect - API_BASE:', basePath);
+        console.log('🔌 Current location:', window.location.href);
+        
+        // Check if we're in ingress mode by looking at the URL
+        const isIngress = window.location.href.includes('hassio_ingress') || basePath.includes('hassio_ingress');
+        
+        if (isIngress) {
             console.log('🔌 Ingress mode detected - WebSocket connections not supported');
             console.log('🔄 Falling back to polling for real-time updates');
             

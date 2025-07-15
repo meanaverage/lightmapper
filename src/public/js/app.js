@@ -1496,7 +1496,7 @@ class LightMapperController {
                 area_id: this.selectedArea,
                 area_name: this.getAreaName(this.selectedArea),
                 layout: layoutData,
-                version: '3.0.67',
+                version: '3.0.68',
                 timestamp: new Date().toISOString(),
                 lights_count: this.getAssignedFloorplanEntities().length
             };
