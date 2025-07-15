@@ -5888,6 +5888,20 @@ class FloorplanEditor {
     }
     
     handleMouseMove(e) {
+        // Always update mouse coordinates in status bar
+        if (window.cadInterface && e.e) {
+            const rect = this.canvas.getElement().getBoundingClientRect();
+            const x = e.e.clientX - rect.left;
+            const y = e.e.clientY - rect.top;
+            
+            // Convert to canvas coordinates accounting for viewport transform
+            const vpt = this.canvas.viewportTransform;
+            const displayX = Math.round((x - vpt[4]) / vpt[0]);
+            const displayY = Math.round((y - vpt[5]) / vpt[3]);
+            
+            window.cadInterface.updateMouseCoordinates(displayX, displayY);
+        }
+        
         // Handle panning
         if (this.isPanning && this.panStart) {
             const deltaX = e.e.clientX - this.panStart.x;

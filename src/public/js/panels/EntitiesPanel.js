@@ -461,8 +461,10 @@ export class EntitiesPanel extends BasePanel {
         const canvasElement = canvas.getElement();
         const drawingArea = document.querySelector('.drawing-area');
         
-        // Use drawing area as the drop zone for better coverage
+        // Use drawing area as the primary drop zone, fallback to canvas element
         const dropZone = drawingArea || canvasElement;
+        
+        console.log('🎯 Using drop zone:', dropZone.className || 'canvas-element');
         
         // Remove any existing listeners
         if (this._dropHandlers) {
@@ -481,10 +483,23 @@ export class EntitiesPanel extends BasePanel {
             dropZone.classList.add('drag-over');
         };
         
+        // Drag enter handler for visual feedback
+        const handleDragEnter = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('drag-over');
+            console.log('🎯 Drag entered drop zone:', e.target.className || e.target.tagName);
+        };
+        
         // Drag leave handler
         const handleDragLeave = (e) => {
             e.preventDefault();
-            dropZone.classList.remove('drag-over');
+            e.stopPropagation();
+            // Only remove class if we're leaving the drop zone entirely
+            if (!dropZone.contains(e.relatedTarget)) {
+                dropZone.classList.remove('drag-over');
+                console.log('🎯 Drag left drop zone');
+            }
         };
         
         // Drop handler
@@ -541,19 +556,41 @@ export class EntitiesPanel extends BasePanel {
             }
         };
         
-        // Add event listeners
+        // Add event listeners to drop zone
         dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragenter', handleDragEnter);
         dropZone.addEventListener('dragleave', handleDragLeave);
         dropZone.addEventListener('drop', handleDrop);
+        
+        // Also attach drop handler to canvas element for redundancy if different from drop zone
+        if (dropZone !== canvasElement) {
+            canvasElement.addEventListener('dragover', handleDragOver);
+            canvasElement.addEventListener('dragenter', handleDragEnter);
+            canvasElement.addEventListener('drop', handleDrop);
+        }
+        
         document.addEventListener('dragend', handleDragEnd, { once: true });
         
         // Store for cleanup
         this._dropHandlers = [
             { element: dropZone, event: 'dragover', handler: handleDragOver },
+            { element: dropZone, event: 'dragenter', handler: handleDragEnter },
             { element: dropZone, event: 'dragleave', handler: handleDragLeave },
-            { element: dropZone, event: 'drop', handler: handleDrop },
-            { element: document, event: 'dragend', handler: handleDragEnd }
+            { element: dropZone, event: 'drop', handler: handleDrop }
         ];
+        
+        // Add canvas element handlers if different
+        if (dropZone !== canvasElement) {
+            this._dropHandlers.push(
+                { element: canvasElement, event: 'dragover', handler: handleDragOver },
+                { element: canvasElement, event: 'dragenter', handler: handleDragEnter },
+                { element: canvasElement, event: 'drop', handler: handleDrop }
+            );
+        }
+        
+        this._dropHandlers.push({ element: document, event: 'dragend', handler: handleDragEnd });
+        
+        console.log('✅ Drag and drop handlers setup complete on:', dropZone.className || 'canvas-element');
     }
     
     createLightAtPosition(entityId, x, y) {
