@@ -247,8 +247,8 @@ export class SceneEditorPanel extends BasePanel {
         
         try {
             const url = this.currentScene.id 
-                ? `${window.API_BASE}/api/scenes/${this.currentScene.id}`
-                : `${window.API_BASE}/api/scenes`;
+                ? `${window.API_BASE}/api/internal/scenes/${this.currentScene.id}`
+                : `${window.API_BASE}/api/internal/scenes`;
                 
             const method = this.currentScene.id ? 'PUT' : 'POST';
             
@@ -291,7 +291,7 @@ export class SceneEditorPanel extends BasePanel {
         }
         
         try {
-            const response = await fetch(`${window.API_BASE}/api/scenes/${this.currentScene.id}`, {
+            const response = await fetch(`${window.API_BASE}/api/internal/scenes/${this.currentScene.id}`, {
                 method: 'DELETE'
             });
             

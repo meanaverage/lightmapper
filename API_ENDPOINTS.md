@@ -1,3 +1,41 @@
+# LightMapper API Endpoints Reference
+
+## Internal API Endpoints (/api/internal/)
+
+### Scene Management
+- **GET** `/api/internal/scenes` - Get all scenes
+- **GET** `/api/internal/scenes/{id}` - Get specific scene
+- **POST** `/api/internal/scenes` - Create new scene
+- **PUT** `/api/internal/scenes/{id}` - Update scene
+- **DELETE** `/api/internal/scenes/{id}` - Delete scene
+- **POST** `/api/internal/scenes/{id}/apply` - Apply scene to Home Assistant
+
+### Floorplan Management
+- **GET** `/api/internal/floorplan` - Get current floorplan layout
+- **POST** `/api/internal/floorplan` - Save floorplan layout
+
+### Layer Operations
+- **POST** `/api/internal/layers/{layerId}/bring-to-front` - Move layer to front
+- **POST** `/api/internal/layers/{layerId}/send-to-back` - Move layer to back
+- **POST** `/api/internal/layers/{layerId}/bring-forward` - Move layer forward one step
+- **POST** `/api/internal/layers/{layerId}/send-backward` - Move layer backward one step
+
+### Configuration
+- **GET** `/api/internal/config` - Get LightMapper configuration
+- **GET** `/api/internal/mappings` - Get entity mappings
+- **POST** `/api/internal/mappings` - Update entity mappings
+
+## Home Assistant Proxy Endpoints (/api/)
+
+### Entity Data
+- **GET** `/api/lights` - Get all light entities from Home Assistant
+- **GET** `/api/areas` - Get all areas from Home Assistant
+
+## System Endpoints
+- **GET** `/health` - Health check endpoint
+
+---
+
 # Home Assistant API Endpoints Reference
 
 ## Authentication

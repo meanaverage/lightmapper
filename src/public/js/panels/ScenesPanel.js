@@ -71,7 +71,7 @@ export class ScenesPanel extends BasePanel {
 
     async loadScenes() {
         try {
-            const response = await this.fetchData(`${window.API_BASE}/api/scenes`);
+            const response = await this.fetchData(`${window.API_BASE}/api/internal/scenes`);
             this.scenes = response;
             this.renderScenes();
         } catch (error) {
@@ -140,7 +140,7 @@ export class ScenesPanel extends BasePanel {
 
     async loadScene(sceneId) {
         try {
-            const scene = await this.fetchData(`${window.API_BASE}/api/scenes/${sceneId}`);
+            const scene = await this.fetchData(`${window.API_BASE}/api/internal/scenes/${sceneId}`);
             
             // Clear current selection
             window.sceneManager?.clearSelection();
@@ -224,7 +224,7 @@ export class ScenesPanel extends BasePanel {
         });
         
         try {
-            const response = await fetch(`${window.API_BASE}/api/scenes`, {
+            const response = await fetch(`${window.API_BASE}/api/internal/scenes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -254,7 +254,7 @@ export class ScenesPanel extends BasePanel {
 
     async applySceneById(sceneId) {
         try {
-            const response = await fetch(`${window.API_BASE}/api/scenes/${sceneId}/apply`, {
+            const response = await fetch(`${window.API_BASE}/api/internal/scenes/${sceneId}/apply`, {
                 method: 'POST'
             });
             
@@ -284,7 +284,7 @@ export class ScenesPanel extends BasePanel {
         }
         
         try {
-            const response = await fetch(`${window.API_BASE}/api/scenes/${sceneId}`, {
+            const response = await fetch(`${window.API_BASE}/api/internal/scenes/${sceneId}`, {
                 method: 'DELETE'
             });
             

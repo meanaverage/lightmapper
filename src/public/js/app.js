@@ -1149,7 +1149,7 @@ class LightMapperController {
     async loadConfig() {
         try {
             console.log('🔧 Loading config from:', `${API_BASE}/api/config`);
-            const response = await fetch(`${API_BASE}/api/config`);
+            const response = await fetch(`${API_BASE}/api/internal/config`);
             if (!response.ok) {
                 throw new Error(`Config request failed: ${response.status} ${response.statusText}`);
             }
@@ -1195,7 +1195,7 @@ class LightMapperController {
     
     async loadScenes() {
         try {
-            const response = await fetch(`${API_BASE}/api/scenes`);
+            const response = await fetch(`${API_BASE}/api/internal/scenes`);
             if (!response.ok) {
                 throw new Error(`Scenes request failed: ${response.status} ${response.statusText}`);
             }
@@ -1231,7 +1231,7 @@ class LightMapperController {
     
     async loadMappings() {
         try {
-            const response = await fetch(`${API_BASE}/api/mappings`);
+            const response = await fetch(`${API_BASE}/api/internal/mappings`);
             if (!response.ok) {
                 throw new Error(`Mappings request failed: ${response.status} ${response.statusText}`);
             }
@@ -1496,7 +1496,7 @@ class LightMapperController {
                 area_id: this.selectedArea,
                 area_name: this.getAreaName(this.selectedArea),
                 layout: layoutData,
-                version: '3.0.69',
+                version: '3.0.70',
                 timestamp: new Date().toISOString(),
                 lights_count: this.getAssignedFloorplanEntities().length
             };
@@ -3370,7 +3370,7 @@ class LightMapperController {
     
     async loadScene(sceneId) {
         try {
-            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
+            const response = await fetch(`${API_BASE}/api/internal/scenes/${sceneId}`);
             if (!response.ok) {
                 throw new Error(`Scene request failed: ${response.status} ${response.statusText}`);
             }
@@ -3455,7 +3455,7 @@ class LightMapperController {
         console.log('🎬 Saving scene with lights:', lights);
         
         try {
-            const response = await fetch(`${API_BASE}/api/scenes`, {
+            const response = await fetch(`${API_BASE}/api/internal/scenes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -3494,7 +3494,7 @@ class LightMapperController {
     
     async applySceneById(sceneId) {
         try {
-            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}/apply`, {
+            const response = await fetch(`${API_BASE}/api/internal/scenes/${sceneId}/apply`, {
                 method: 'POST'
             });
             
@@ -3524,7 +3524,7 @@ class LightMapperController {
         }
         
         try {
-            const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+            const response = await fetch(`${API_BASE}/api/internal/scenes/${sceneId}`, {
                 method: 'DELETE'
             });
             

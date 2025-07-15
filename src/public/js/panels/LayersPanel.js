@@ -499,7 +499,7 @@ export class LayersPanel extends BasePanel {
         
         // Call API endpoint
         try {
-            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/bring-to-front`, {
+            await this.fetchData(`${window.API_BASE}/api/internal/layers/${this.selectedLayerId}/bring-to-front`, {
                 method: 'POST'
             });
         } catch (error) {
@@ -525,7 +525,7 @@ export class LayersPanel extends BasePanel {
         
         // Call API endpoint
         try {
-            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/send-to-back`, {
+            await this.fetchData(`${window.API_BASE}/api/internal/layers/${this.selectedLayerId}/send-to-back`, {
                 method: 'POST'
             });
         } catch (error) {
@@ -553,7 +553,7 @@ export class LayersPanel extends BasePanel {
         
         // Call API endpoint
         try {
-            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/bring-forward`, {
+            await this.fetchData(`${window.API_BASE}/api/internal/layers/${this.selectedLayerId}/bring-forward`, {
                 method: 'POST'
             });
         } catch (error) {
@@ -587,7 +587,7 @@ export class LayersPanel extends BasePanel {
         
         // Call API endpoint
         try {
-            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/send-backward`, {
+            await this.fetchData(`${window.API_BASE}/api/internal/layers/${this.selectedLayerId}/send-backward`, {
                 method: 'POST'
             });
         } catch (error) {

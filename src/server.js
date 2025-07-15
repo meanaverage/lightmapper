@@ -627,7 +627,7 @@ const haAPI = new HomeAssistantAPI(config.ha.baseUrl, config.ha.token);
 // API Routes
 
 // Get all scenes
-app.get('/api/scenes', async (req, res) => {
+app.get('/api/internal/scenes', async (req, res) => {
   try {
     db.all(`
       SELECT s.*, COUNT(sl.id) as light_count 
@@ -649,7 +649,7 @@ app.get('/api/scenes', async (req, res) => {
 });
 
 // Get scene by ID with lights
-app.get('/api/scenes/:id', async (req, res) => {
+app.get('/api/internal/scenes/:id', async (req, res) => {
   try {
     const sceneId = req.params.id;
     
@@ -680,7 +680,7 @@ app.get('/api/scenes/:id', async (req, res) => {
 });
 
 // Create new scene
-app.post('/api/scenes', async (req, res) => {
+app.post('/api/internal/scenes', async (req, res) => {
   try {
     const { name, lights } = req.body;
     
@@ -743,7 +743,7 @@ app.post('/api/scenes', async (req, res) => {
 });
 
 // Update scene
-app.put('/api/scenes/:id', async (req, res) => {
+app.put('/api/internal/scenes/:id', async (req, res) => {
   try {
     const sceneId = req.params.id;
     const { name, lights } = req.body;
@@ -810,7 +810,7 @@ app.put('/api/scenes/:id', async (req, res) => {
 });
 
 // Delete scene
-app.delete('/api/scenes/:id', async (req, res) => {
+app.delete('/api/internal/scenes/:id', async (req, res) => {
   try {
     const sceneId = req.params.id;
     
@@ -833,7 +833,7 @@ app.delete('/api/scenes/:id', async (req, res) => {
 });
 
 // Apply scene to lights
-app.post('/api/scenes/:id/apply', async (req, res) => {
+app.post('/api/internal/scenes/:id/apply', async (req, res) => {
   try {
     const sceneId = req.params.id;
     
@@ -992,7 +992,7 @@ app.get('/api/areas', async (req, res) => {
 });
 
 // Get light mappings
-app.get('/api/mappings', async (req, res) => {
+app.get('/api/internal/mappings', async (req, res) => {
   try {
     db.all('SELECT * FROM light_mappings ORDER BY position', (err, rows) => {
       if (err) {
@@ -1008,7 +1008,7 @@ app.get('/api/mappings', async (req, res) => {
 });
 
 // Update light mappings
-app.post('/api/mappings', async (req, res) => {
+app.post('/api/internal/mappings', async (req, res) => {
   try {
     const { mappings } = req.body;
     
@@ -1044,7 +1044,7 @@ app.post('/api/mappings', async (req, res) => {
 });
 
 // Get floorplan data
-app.get('/api/floorplan', (req, res) => {
+app.get('/api/internal/floorplan', (req, res) => {
   console.log('📋 Floorplan data requested');
   
   db.get('SELECT * FROM floorplan ORDER BY updated_at DESC LIMIT 1', (err, row) => {
@@ -1074,7 +1074,7 @@ app.get('/api/floorplan', (req, res) => {
 });
 
 // Save floorplan data
-app.post('/api/floorplan', (req, res) => {
+app.post('/api/internal/floorplan', (req, res) => {
   console.log('💾 Saving floorplan data');
   
   const { mode, roomOutline, lights } = req.body;
@@ -1109,28 +1109,28 @@ app.post('/api/floorplan', (req, res) => {
 });
 
 // Get configuration
-app.get('/api/config', (req, res) => {
+app.get('/api/internal/config', (req, res) => {
   console.log('📋 Config requested');
   res.json(config);
 });
 
 // Layer operations endpoints
-app.post('/api/layers/:layerId/bring-to-front', (req, res) => {
+app.post('/api/internal/layers/:layerId/bring-to-front', (req, res) => {
   console.log('🔝 Bring to front requested for layer:', req.params.layerId);
   res.json({ success: true, message: 'Layer brought to front' });
 });
 
-app.post('/api/layers/:layerId/send-to-back', (req, res) => {
+app.post('/api/internal/layers/:layerId/send-to-back', (req, res) => {
   console.log('🔻 Send to back requested for layer:', req.params.layerId);
   res.json({ success: true, message: 'Layer sent to back' });
 });
 
-app.post('/api/layers/:layerId/bring-forward', (req, res) => {
+app.post('/api/internal/layers/:layerId/bring-forward', (req, res) => {
   console.log('⬆️ Bring forward requested for layer:', req.params.layerId);
   res.json({ success: true, message: 'Layer brought forward' });
 });
 
-app.post('/api/layers/:layerId/send-backward', (req, res) => {
+app.post('/api/internal/layers/:layerId/send-backward', (req, res) => {
   console.log('⬇️ Send backward requested for layer:', req.params.layerId);
   res.json({ success: true, message: 'Layer sent backward' });
 });
