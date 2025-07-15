@@ -1440,7 +1440,7 @@ async function startServer() {
     // Original LightMapper WebSocket server for internal messages
     const wss = new WebSocket.Server({ 
         server,
-        path: '/ws'
+        noServer: true  // We'll handle the upgrade manually
     });
     global.wsClients = new Set();
     
@@ -1466,13 +1466,35 @@ async function startServer() {
     });
     
     // Home Assistant WebSocket proxy for ingress mode
+    // Handle both direct and ingress paths
     const haWss = new WebSocket.Server({ 
         server,
-        path: '/api/websocket'
+        noServer: true  // We'll handle the upgrade manually
+    });
+    
+    // Handle WebSocket upgrade requests
+    server.on('upgrade', (request, socket, head) => {
+      const pathname = request.url;
+      console.log('🔌 WebSocket upgrade request for:', pathname);
+      
+      // Check if this is a request for the HA WebSocket proxy
+      if (pathname === '/api/websocket' || pathname.includes('/api/websocket')) {
+        haWss.handleUpgrade(request, socket, head, (ws) => {
+          haWss.emit('connection', ws, request);
+        });
+      } else if (pathname === '/ws' || pathname.includes('/ws')) {
+        // Handle regular LightMapper WebSocket
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit('connection', ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
     });
     
     haWss.on('connection', (clientWs, request) => {
       console.log('🏠 Client connected to HA WebSocket proxy');
+      console.log('  Request URL:', request.url);
       
       // Create connection to Home Assistant
       const haWsUrl = 'ws://supervisor/core/websocket';
@@ -1543,7 +1565,9 @@ async function startServer() {
       clientWs.send(JSON.stringify({ type: 'auth_required' }));
     });
     
-    console.log('✅ WebSocket server initialized');
+    console.log('✅ WebSocket servers initialized');
+    console.log('  - LightMapper WebSocket at: /ws');
+    console.log('  - HA WebSocket proxy at: /api/websocket');
     
     // Add error handling for the server
     server.on('error', (error) => {
