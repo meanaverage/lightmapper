@@ -31,9 +31,7 @@ export class PanelManager {
             'properties': 'right',
             'scenes': 'right',
             'sceneEditor': 'right',
-            
-            // Bottom panels
-            'entities': 'bottom',
+            'entities': 'right',
             
             // Main area
             'canvas': 'main'
@@ -82,6 +80,9 @@ export class PanelManager {
         // Setup tab switching
         this.setupTabSwitching();
         
+        // Setup drag and drop for panels
+        this.setupPanelDragAndDrop();
+        
         // Show the first panel by default (lights/scenes)
         this.showPanel('lights');
     }
@@ -95,7 +96,6 @@ export class PanelManager {
             left: document.getElementById('dockLeft'),
             center: document.getElementById('dockCenter'),
             right: document.getElementById('dockRight'),
-            bottom: document.getElementById('dockBottom'),
             main: document.getElementById('canvas-container')
         };
     }
@@ -161,15 +161,13 @@ export class PanelManager {
             }
         });
         
-        // Hide panels in the same dock (except bottom panels which can stay visible)
-        if (dockPosition !== 'bottom') {
-            panelsInSameDock.forEach(id => {
-                const section = document.querySelector(`[data-section="${id}"]`);
-                if (section) section.classList.remove('active');
-                const panel = this.panels.get(id);
-                if (panel) panel.hide();
-            });
-        }
+        // Hide panels in the same dock
+        panelsInSameDock.forEach(id => {
+            const section = document.querySelector(`[data-section="${id}"]`);
+            if (section) section.classList.remove('active');
+            const panel = this.panels.get(id);
+            if (panel) panel.hide();
+        });
         
         // Show the selected panel
         const section = document.querySelector(`[data-section="${panelId}"]`);
@@ -231,5 +229,126 @@ export class PanelManager {
                 panel[eventName](data);
             }
         });
+    }
+    
+    /**
+     * Set up drag and drop functionality for panel tabs
+     * @private
+     */
+    setupPanelDragAndDrop() {
+        const allTabs = document.querySelectorAll('.panel-tab');
+        
+        allTabs.forEach(tab => {
+            // Make tabs draggable
+            tab.draggable = true;
+            
+            // Store panel ID on the tab element
+            const panelId = tab.dataset.panel;
+            if (!panelId) return;
+            
+            // Drag start
+            tab.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', panelId);
+                tab.classList.add('dragging');
+                
+                // Store the source dock
+                const tabGroup = tab.closest('.panel-tabs');
+                const dock = tabGroup?.closest('.dock-left, .dock-right');
+                const sourceDock = dock?.classList.contains('dock-left') ? 'left' : 'right';
+                e.dataTransfer.setData('source-dock', sourceDock);
+            });
+            
+            // Drag end
+            tab.addEventListener('dragend', () => {
+                tab.classList.remove('dragging');
+            });
+        });
+        
+        // Set up drop zones (panel tab containers)
+        const tabContainers = document.querySelectorAll('.panel-tabs');
+        
+        tabContainers.forEach(container => {
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                container.classList.add('drag-over');
+            });
+            
+            container.addEventListener('dragleave', () => {
+                container.classList.remove('drag-over');
+            });
+            
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                container.classList.remove('drag-over');
+                
+                const panelId = e.dataTransfer.getData('text/plain');
+                const sourceDock = e.dataTransfer.getData('source-dock');
+                
+                // Determine target dock
+                const targetDockEl = container.closest('.dock-left, .dock-right');
+                const targetDock = targetDockEl?.classList.contains('dock-left') ? 'left' : 'right';
+                
+                // Don't do anything if dropped on same dock
+                if (sourceDock === targetDock) return;
+                
+                // Move the panel to the new dock
+                this.movePanelToDock(panelId, targetDock);
+            });
+        });
+    }
+    
+    /**
+     * Move a panel to a different dock
+     * @param {string} panelId - The panel to move
+     * @param {string} targetDock - The target dock ('left' or 'right')
+     */
+    movePanelToDock(panelId, targetDock) {
+        // Update dock position
+        this.dockPositions.set(panelId, targetDock);
+        
+        // Find the tab and move it
+        const tab = document.querySelector(`[data-panel="${panelId}"]`);
+        if (!tab) return;
+        
+        // Find target container
+        const targetDockEl = document.querySelector(`.dock-${targetDock}`);
+        const targetTabs = targetDockEl?.querySelector('.panel-tabs');
+        if (!targetTabs) return;
+        
+        // Move the tab
+        const currentTabParent = tab.parentElement;
+        targetTabs.appendChild(tab);
+        
+        // Move the panel content
+        const panel = this.panels.get(panelId);
+        const panelSection = document.querySelector(`[data-section="${panelId}"]`);
+        if (panelSection && panel) {
+            const targetContent = targetDockEl.querySelector('.panel-content');
+            if (targetContent) {
+                targetContent.appendChild(panelSection);
+            }
+        }
+        
+        // If this panel was active in the old dock, activate a different panel there
+        if (tab.classList.contains('active')) {
+            tab.classList.remove('active');
+            panelSection?.classList.remove('active');
+            
+            // Activate first remaining tab in old dock
+            const remainingTab = currentTabParent.querySelector('.panel-tab');
+            if (remainingTab) {
+                const remainingPanelId = remainingTab.dataset.panel;
+                if (remainingPanelId) {
+                    this.showPanel(remainingPanelId);
+                }
+            }
+        }
+        
+        // Show the moved panel in its new dock
+        this.showPanel(panelId);
+        
+        console.log(`🔄 Moved panel ${panelId} to ${targetDock} dock`);
     }
 }

@@ -1275,9 +1275,7 @@ class LightMapperController {
         // Setup control sliders
         this.setupControlSliders();
         
-        // Setup entity panel functionality
-        this.setupEntityPanelToggle();
-        this.setupPanelResizing();
+        // Entity panel is now in the right sidebar - no special setup needed
     }
 
     initializeFloorplanEditor() {
@@ -4357,95 +4355,7 @@ class LightMapperController {
         this.canvas.renderAll();
     }
     
-    // Entity Panel Methods
-    setupEntityPanelToggle() {
-        const toggleBtn = document.getElementById('entityPanelToggle');
-        const panel = document.getElementById('entityPanel');
-        const dockBottom = document.getElementById('dockBottom');
-        
-        if (!toggleBtn || !panel || !dockBottom) {
-            console.warn('⚠️ Entity panel toggle elements not found');
-            return;
-        }
-        
-        toggleBtn.addEventListener('click', () => {
-            const isCollapsed = dockBottom.style.display === 'none';
-            
-            if (isCollapsed) {
-                // Show the dock
-                dockBottom.style.display = 'flex';
-                toggleBtn.innerHTML = '&raquo;';
-                toggleBtn.title = 'Collapse Entity Panel';
-            } else {
-                // Hide the dock
-                dockBottom.style.display = 'none';
-                toggleBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
-                toggleBtn.title = 'Expand Entities Panel';
-            }
-            
-            // Trigger canvas resize to adjust to new space
-            if (window.floorplanEditor) {
-                window.floorplanEditor.resizeCanvas();
-            }
-        });
-    }
-    
-    setupPanelResizing() {
-        const dockBottom = document.getElementById('dockBottom');
-        
-        if (!dockBottom) {
-            console.warn('⚠️ Dock bottom not found for resizing');
-            return;
-        }
-        
-        // Create resize handle at the top of dock bottom
-        const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'dock-resize-handle';
-        resizeHandle.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            cursor: ns-resize;
-            background: transparent;
-            z-index: 10;
-        `;
-        dockBottom.appendChild(resizeHandle);
-        
-        let isResizing = false;
-        let startY = 0;
-        let startHeight = 0;
-        
-        resizeHandle.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            startY = e.clientY;
-            startHeight = dockBottom.offsetHeight;
-            document.body.style.cursor = 'ns-resize';
-            e.preventDefault();
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            
-            const deltaY = startY - e.clientY;
-            const newHeight = Math.max(150, Math.min(600, startHeight + deltaY));
-            
-            dockBottom.style.height = newHeight + 'px';
-            
-            // Update canvas size
-            if (window.floorplanEditor) {
-                window.floorplanEditor.resizeCanvas();
-            }
-        });
-        
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                document.body.style.cursor = '';
-            }
-        });
-    }
+    // Entity Panel Methods - Removed since entity panel is now in right sidebar
 }
 
 // Initialize the application when DOM is ready

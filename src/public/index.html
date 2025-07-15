@@ -562,24 +562,6 @@
                     </div>
                 </div>
 
-                <!-- Dock Bottom Container -->
-                <div class="dock-bottom" id="dockBottom">
-                    <!-- Entity Panel (Photoshop-style) -->
-                    <div class="entity-panel" id="entityPanel">
-                        <div class="entity-panel-tabs">
-                            <button class="entity-tab sidebar-tab active" data-panel="entities">
-                                <i class="fas fa-lightbulb"></i>
-                                <span>Entities</span>
-                            </button>
-                            <!-- Future tabs can be added here -->
-                            <button class="entity-panel-toggle" id="entityPanelToggle" title="Collapse Entity Panel">&raquo;</button>
-                        </div>
-                        
-                        <div class="entity-panel-content" id="entitiesPanel">
-                            <!-- Content will be rendered by EntitiesPanel -->
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Draggable divider for right panel resize -->
@@ -602,6 +584,10 @@
                             <i class="fas fa-edit"></i>
                             <span>Editor</span>
                         </button>
+                        <button class="panel-tab sidebar-tab" data-panel="entities">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Entities</span>
+                        </button>
                     </div>
                     
                     <div class="panel-content">
@@ -618,6 +604,11 @@
                         <!-- Scene Editor Panel -->
                         <div class="panel-section" data-section="sceneEditor" id="sceneEditorPanel">
                             <!-- Content will be rendered by SceneEditorPanel -->
+                        </div>
+                        
+                        <!-- Entities Panel -->
+                        <div class="panel-section" data-section="entities" id="entitiesPanel">
+                            <!-- Content will be rendered by EntitiesPanel -->
                         </div>
                     </div>
                 </div>

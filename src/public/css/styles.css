@@ -401,15 +401,7 @@ body {
   order: 3;
 }
 
-.dock-bottom {
-  height: 250px;
-  flex-shrink: 0;
-  width: 100%;
-  order: 2;
-  display: flex;
-  position: relative;
-  border-top: 1px solid var(--cad-border-primary);
-}
+/* Removed dock-bottom - using only left and right docks */
 
 /* ========================================
    Left Panel
@@ -456,6 +448,28 @@ body {
   color: var(--cad-text-primary);
   border-bottom-color: var(--cad-blue-primary);
   font-weight: 600;
+}
+
+/* Panel Tab Drag & Drop Styles */
+.panel-tab[draggable="true"] {
+  cursor: grab;
+}
+
+.panel-tab[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.panel-tab.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: scale(0.95);
+  transition: opacity 0.2s;
+}
+
+.panel-tabs.drag-over {
+  background: var(--cad-hover);
+  box-shadow: inset 0 0 0 2px var(--cad-blue-primary);
+  transition: all 0.2s;
 }
 
 .panel-content {
@@ -1938,21 +1952,15 @@ body {
 /* ========================================
    Entity Panel - Photoshop Style
    ======================================== */
-.entity-panel {
-  background: var(--cad-bg-secondary);
-  border-top: 1px solid var(--cad-border-primary);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  transition: height 0.3s ease;
-}
+/* Entity panel is now part of the right sidebar panels */
 
+/* Removed - entity panel tabs no longer needed
 .entity-panel-tabs {
   display: flex;
   background: var(--cad-bg-primary);
   border-bottom: 1px solid var(--cad-border-primary);
   padding: 0 8px;
-}
+} */
 
 .entity-tab {
   padding: 6px 16px;
@@ -2343,7 +2351,7 @@ body {
 }
 
 /* Resizable Panels */
-.left-panel, .right-panel, .entity-panel {
+.left-panel, .right-panel {
   min-width: 120px;
   max-width: 600px;
   transition: width 0.2s;
