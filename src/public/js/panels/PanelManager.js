@@ -71,7 +71,8 @@ export class PanelManager {
         this.panelContainers.set('entities', document.getElementById('entitiesPanel'));
         this.panelContainers.set('properties', document.getElementById('propertiesPanel'));
         this.panelContainers.set('sceneEditor', document.getElementById('sceneEditorPanel'));
-        this.panelContainers.set('layers', document.querySelector('[data-section="layers"]'));
+        this.panelContainers.set('layers', document.getElementById('layersPanel'));
+        this.panelContainers.set('debug', document.getElementById('debugPanel'));
     }
 
     /**
@@ -79,17 +80,21 @@ export class PanelManager {
      * @private
      */
     setupTabSwitching() {
-        // Setup sidebar tab buttons
-        const tabButtons = document.querySelectorAll('.sidebar-tab');
+        // Setup all panel tab buttons (both sidebar and regular tabs)
+        const tabButtons = document.querySelectorAll('.panel-tab');
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const panelId = button.dataset.panel;
                 if (panelId) {
+                    console.log(`🔄 Switching to panel: ${panelId}`);
                     this.showPanel(panelId);
                     
-                    // Update active tab styling
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
+                    // Update active tab styling for the clicked button's group
+                    const tabGroup = button.closest('.panel-tabs');
+                    if (tabGroup) {
+                        tabGroup.querySelectorAll('.panel-tab').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                    }
                 }
             });
         });
@@ -103,7 +108,7 @@ export class PanelManager {
      */
     showPanel(panelId) {
         // Determine which group this panel belongs to
-        const leftPanels = ['lights', 'liveState', 'layers'];
+        const leftPanels = ['lights', 'liveState', 'layers', 'debug'];
         const rightPanels = ['properties', 'scenes', 'sceneEditor'];
         const entityPanels = ['entities'];
         

@@ -15,6 +15,10 @@ export class LayersPanel extends BasePanel {
     }
 
     render() {
+        console.log('🔧 LayersPanel.render() called');
+        if (!this.layerManager) {
+            console.warn('⚠️ LayersPanel rendering without LayerManager');
+        }
         this.container.innerHTML = `
             <div class="panel-header">
                 <h3>${this.title}</h3>
@@ -44,7 +48,12 @@ export class LayersPanel extends BasePanel {
      * @param {LayerManager} layerManager - The layer manager to use
      */
     setLayerManager(layerManager) {
+        console.log('📋 LayersPanel.setLayerManager() called');
         this.layerManager = layerManager;
+        // Re-render the panel to ensure container is set up
+        if (this.container) {
+            this.render();
+        }
         this.refresh();
     }
 
@@ -52,10 +61,17 @@ export class LayersPanel extends BasePanel {
      * Refresh the layers display
      */
     refresh() {
-        if (!this.layerManager) return;
+        console.log('🔄 LayersPanel.refresh() called');
+        if (!this.layerManager) {
+            console.warn('⚠️ Cannot refresh - no LayerManager');
+            return;
+        }
         
         const container = document.getElementById('layersContainer');
-        if (!container) return;
+        if (!container) {
+            console.warn('⚠️ Cannot refresh - layersContainer not found');
+            return;
+        }
 
         // Clear existing content
         container.innerHTML = '';
