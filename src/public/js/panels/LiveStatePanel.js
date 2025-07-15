@@ -154,11 +154,11 @@ export class LiveStatePanel extends BasePanel {
     }
     
     updateConnectionStatus(connected) {
-        const header = this.container.querySelector('.panel-header');
-        if (!header) return;
+        const headerActions = this.container.querySelector('.live-state-header-actions');
+        if (!headerActions) return;
         
         // Remove existing status indicator
-        const existingIndicator = header.querySelector('.connection-status');
+        const existingIndicator = this.container.querySelector('.connection-status');
         if (existingIndicator) {
             existingIndicator.remove();
         }
@@ -179,7 +179,7 @@ export class LiveStatePanel extends BasePanel {
             margin-left: 8px;
         `;
         
-        header.appendChild(statusIndicator);
+        headerActions.appendChild(statusIndicator);
     }
 
     async refreshStates() {
@@ -292,11 +292,18 @@ export class LiveStatePanel extends BasePanel {
         // Add or update last refresh indicator
         let refreshIndicator = document.getElementById('lastRefreshTime');
         if (!refreshIndicator) {
-            const header = this.container.querySelector('.panel-header');
+            const controls = this.container.querySelector('.live-state-controls');
+            if (!controls) return;
+            
             refreshIndicator = document.createElement('div');
             refreshIndicator.id = 'lastRefreshTime';
             refreshIndicator.className = 'last-refresh-time';
-            header.appendChild(refreshIndicator);
+            refreshIndicator.style.cssText = `
+                font-size: 11px;
+                color: var(--cad-text-secondary, #b0b0b0);
+                margin-top: 4px;
+            `;
+            controls.appendChild(refreshIndicator);
         }
         
         refreshIndicator.textContent = `Last updated: ${timeStr}`;

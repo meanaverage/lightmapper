@@ -197,6 +197,32 @@
     border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
 }
 
+.live-state-header-actions {
+    padding: 8px 12px;
+    background: var(--cad-bg-secondary, #2d2d2d);
+    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    margin-right: auto;
+}
+
+.connection-status.connected {
+    color: #4CAF50;
+}
+
+.connection-status.disconnected {
+    color: #f44336;
+}
+
+.connection-status i {
+    font-size: 8px;
+}
+
 .refresh-rate-control {
     display: flex;
     align-items: center;
