@@ -5736,143 +5736,71 @@ class FloorplanEditor {
             console.log('❌ Grid not visible or canvas not ready');
             return;
         }
-        
-        // Get canvas dimensions
-        const canvasWidth = this.canvas.width || 800;
-        const canvasHeight = this.canvas.height || 600;
-        
-        // Get current zoom and viewport transform
-        const zoom = this.canvas.getZoom() || 1.0;
-        const vpt = this.canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-        const panX = vpt[4] || 0;
-        const panY = vpt[5] || 0;
-        
-        console.log('🎯 GRID DEBUG INFO:');
-        console.log('  Canvas size:', { canvasWidth, canvasHeight });
-        console.log('  Zoom level:', zoom);
-        console.log('  Pan offset:', { panX, panY });
-        console.log('  Grid size:', this.gridSize, `(${this.feetPerGrid}' per square)`);
-        
-        // Remove existing grid lines
-        const objectsToRemove = [];
-        this.canvas.forEachObject(obj => {
-            if (obj.gridLine) {
-                objectsToRemove.push(obj);
+
+        // Create grid pattern using canvas background
+        this.createGridPattern();
+        return; // Skip the old line-based approach
+    }
+
+    createGridPattern() {
+        if (!this.canvas) {
+            console.log('❌ Cannot create grid pattern - canvas not ready');
+            return;
+        }
+
+        try {
+            // Create a small canvas for the grid pattern
+            const patternCanvas = document.createElement('canvas');
+            const patternCtx = patternCanvas.getContext('2d');
+            
+            // Set pattern size to grid size
+            const gridSize = this.gridSize || 20;
+            patternCanvas.width = gridSize;
+            patternCanvas.height = gridSize;
+            
+            // Get grid color
+            const gridColor = this.getGridColor();
+            
+            // Draw grid lines on pattern canvas
+            patternCtx.strokeStyle = gridColor;
+            patternCtx.lineWidth = 1;
+            patternCtx.beginPath();
+            
+            // Vertical line
+            patternCtx.moveTo(gridSize - 0.5, 0);
+            patternCtx.lineTo(gridSize - 0.5, gridSize);
+            
+            // Horizontal line
+            patternCtx.moveTo(0, gridSize - 0.5);
+            patternCtx.lineTo(gridSize, gridSize - 0.5);
+            
+            patternCtx.stroke();
+            
+            // Create pattern and apply to canvas
+            const pattern = this.canvas.contextContainer.createPattern(patternCanvas, 'repeat');
+            
+            // Apply pattern as canvas background
+            if (this.canvas) {
+                this.canvas.backgroundColor = pattern;
+                this.canvas.renderAll();
             }
-        });
-        objectsToRemove.forEach(obj => this.canvas.remove(obj));
-        
-        // Grid color for better visibility
-        const gridColor = this.isDarkTheme ? 'rgba(0, 255, 0, 0.5)' : 'rgba(0, 100, 0, 0.6)';
-        
-        // Calculate visible area in canvas coordinates
-        // When zoomed out, we need to extend the grid much further
-        const buffer = Math.max(canvasWidth, canvasHeight) / zoom; // Dynamic buffer based on zoom
-        const visibleLeft = -panX / zoom - buffer;
-        const visibleTop = -panY / zoom - buffer;
-        const visibleRight = (-panX + canvasWidth) / zoom + buffer;
-        const visibleBottom = (-panY + canvasHeight) / zoom + buffer;
-        
-        console.log('  Visible area with buffer:', { 
-            left: visibleLeft, 
-            top: visibleTop, 
-            right: visibleRight, 
-            bottom: visibleBottom,
-            buffer: buffer
-        });
-        
-        // Draw vertical lines
-        let verticalLines = 0;
-        const startX = Math.floor(visibleLeft / this.gridSize) * this.gridSize;
-        const endX = Math.ceil(visibleRight / this.gridSize) * this.gridSize;
-        for (let x = startX; x <= endX; x += this.gridSize) {
-            const line = new fabric.Line([x, visibleTop, x, visibleBottom], {
-                stroke: gridColor,
-                strokeWidth: 1 / zoom, // Scale stroke width with zoom
-                selectable: false,
-                evented: false,
-                gridLine: true
-            });
-            this.canvas.add(line);
-            this.canvas.sendObjectToBack(line);
-            verticalLines++;
+            
+            console.log('✅ Grid pattern applied as background');
+        } catch (error) {
+            console.error('❌ Error creating grid pattern:', error);
+            // Fallback to transparent background
+            if (this.canvas) {
+                this.canvas.backgroundColor = 'transparent';
+                if (this.canvas.renderAll) {
+                    this.canvas.renderAll();
+                }
+            }
         }
-        
-        // Draw horizontal lines
-        let horizontalLines = 0;
-        const startY = Math.floor(visibleTop / this.gridSize) * this.gridSize;
-        const endY = Math.ceil(visibleBottom / this.gridSize) * this.gridSize;
-        for (let y = startY; y <= endY; y += this.gridSize) {
-            const line = new fabric.Line([visibleLeft, y, visibleRight, y], {
-                stroke: gridColor,
-                strokeWidth: 1 / zoom, // Scale stroke width with zoom
-                selectable: false,
-                evented: false,
-                gridLine: true
-            });
-            this.canvas.add(line);
-            this.canvas.sendObjectToBack(line);
-            horizontalLines++;
-        }
-        
-        // Add grid scale labels (every 5th line for major markers)
-        const labelColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
-        const fontSize = Math.max(10, 12 / zoom);
-        const majorGridSpacing = this.gridSize * 4; // Major markers every 2 feet (4 * 0.5')
-        
-        // Add horizontal scale labels (bottom of view)
-        let labelCount = 0;
-        const maxLabels = 20; // Limit labels to prevent clutter
-        for (let x = startX; x <= endX && labelCount < maxLabels; x += majorGridSpacing) {
-            const distanceText = this.useMetric ? 
-                `${this.pixelsToMeters(x)}m` : 
-                `${this.pixelsToFeet(x)}'`;
-            const labelText = new fabric.Text(distanceText, {
-                left: x,
-                top: visibleBottom - 25 / zoom,
-                fontSize: fontSize,
-                fill: labelColor,
-                textAlign: 'center',
-                originX: 'center',
-                originY: 'center',
-                selectable: false,
-                evented: false,
-                gridLine: true
-            });
-            this.canvas.add(labelText);
-            this.canvas.sendObjectToBack(labelText);
-            labelCount++;
-        }
-        
-        // Add vertical scale labels (left side of view)
-        labelCount = 0;
-        for (let y = startY; y <= endY && labelCount < maxLabels; y += majorGridSpacing) {
-            const distanceText = this.useMetric ? 
-                `${this.pixelsToMeters(y)}m` : 
-                `${this.pixelsToFeet(y)}'`;
-            const labelText = new fabric.Text(distanceText, {
-                left: visibleLeft + 15 / zoom,
-                top: y,
-                fontSize: fontSize,
-                fill: labelColor,
-                textAlign: 'center',
-                originX: 'center',
-                originY: 'center',
-                selectable: false,
-                evented: false,
-                gridLine: true
-            });
-            this.canvas.add(labelText);
-            this.canvas.sendObjectToBack(labelText);
-            labelCount++;
-        }
-        
-        console.log('  Grid lines created:', { vertical: verticalLines, horizontal: horizontalLines, total: verticalLines + horizontalLines });
-        
-        // Force canvas to render
-        this.canvas.renderAll();
-        
-        console.log('✅ Grid drawn successfully with scale labels');
+    }
+
+    getGridColor() {
+        // Return appropriate grid color based on theme
+        return this.isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     }
     
     // Utility functions for measurement conversion
@@ -6862,8 +6790,10 @@ class FloorplanEditor {
             themeText.textContent = 'Dark';
         }
         
-        // Update grid colors
-        this.drawGrid();
+        // Update grid pattern with new theme colors
+        if (this.gridVisible) {
+            this.createGridPattern();
+        }
         
         // Update text colors
         this.canvas.forEachObject(obj => {
@@ -8140,14 +8070,23 @@ class FloorplanEditor {
                         fabricImg.center();
                         fabricImg.set({
                             opacity: 0.6,
-                            selectable: false,
-                            evented: false,
-                            backgroundImage: true
+                            selectable: true,
+                            evented: true,
+                            backgroundImage: true,
+                            layerType: 'background'
                         });
                         
                         this.backgroundImage = fabricImg;
                         this.canvas.add(fabricImg);
                         this.canvas.sendObjectToBack(fabricImg);
+                        
+                        // Ensure the background is on the correct layer
+                        if (this.layerManager) {
+                            this.layerManager.createLayerForObject(fabricImg);
+                        }
+                        
+                        // Broadcast the addition to panels
+                        window.panelManager?.broadcast('onObjectAdded', { object: fabricImg });
                         
                         // Make sure grid stays behind everything but above background
                         this.canvas.forEachObject(obj => {
@@ -8419,15 +8358,22 @@ class FloorplanEditor {
         
         if (this.gridVisible) {
             gridBtn.classList.add('active');
-            console.log('🎯 Attempting to draw grid...');
-            this.drawGrid();
+            console.log('🎯 Applying grid pattern...');
+            this.createGridPattern();
         } else {
             gridBtn.classList.remove('active');
-            console.log('🗑️ Removing grid lines...');
+            console.log('🗑️ Removing grid pattern...');
+            // Remove any remaining grid objects from old implementation
             const gridObjects = this.canvas.getObjects().filter(obj => obj.gridLine);
-            console.log('  Found', gridObjects.length, 'grid objects to remove');
+            console.log('  Found', gridObjects.length, 'legacy grid objects to remove');
             gridObjects.forEach(obj => this.canvas.remove(obj));
-            this.canvas.renderAll();
+            // Clear background pattern
+            if (this.canvas) {
+                this.canvas.backgroundColor = 'transparent';
+                if (this.canvas.renderAll) {
+                    this.canvas.renderAll();
+                }
+            }
         }
     }
     
@@ -10463,20 +10409,29 @@ class FloorplanEditor {
 function setupTertiaryPanelCollapse() {
     const tertiaryDock = document.getElementById('dockTertiary');
     const collapseToggle = document.getElementById('tertiaryCollapseToggle');
-    const expandToggle = document.getElementById('tertiaryExpandToggle');
     
-    if (!tertiaryDock || !collapseToggle || !expandToggle) return;
+    if (!tertiaryDock || !collapseToggle) return;
     
-    // Collapse button handler
+    // Toggle button handler - works for both collapse and expand
     collapseToggle.addEventListener('click', () => {
-        tertiaryDock.classList.add('collapsed');
-        localStorage.setItem('tertiaryPanelCollapsed', 'true');
-    });
-    
-    // Expand button handler
-    expandToggle.addEventListener('click', () => {
-        tertiaryDock.classList.remove('collapsed');
-        localStorage.setItem('tertiaryPanelCollapsed', 'false');
+        const isCollapsed = tertiaryDock.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+            // Expand
+            tertiaryDock.classList.remove('collapsed');
+            localStorage.setItem('tertiaryPanelCollapsed', 'false');
+        } else {
+            // Collapse
+            tertiaryDock.classList.add('collapsed');
+            localStorage.setItem('tertiaryPanelCollapsed', 'true');
+        }
+        
+        // Trigger canvas resize after layout change
+        setTimeout(() => {
+            if (window.floorplanEditor && window.floorplanEditor.resizeCanvas) {
+                window.floorplanEditor.resizeCanvas();
+            }
+        }, 300);
     });
     
     // Restore collapse state from localStorage
