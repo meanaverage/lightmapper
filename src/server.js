@@ -1146,7 +1146,30 @@ app.post('/api/internal/floorplan', (req, res) => {
 // Get configuration
 app.get('/api/internal/config', (req, res) => {
   console.log('📋 Config requested');
-  res.json(config);
+  
+  // Create a copy of config to modify
+  const responseConfig = { ...config };
+  
+  // Include HA configuration for internal use (WebSocket authentication)
+  // Only include token if request is from same origin (not external API)
+  const isInternalRequest = !req.get('X-API-Key') && !req.query.api_key;
+  
+  if (isInternalRequest) {
+    responseConfig.ha = {
+      baseUrl: config.ha.baseUrl,
+      token: config.ha.token, // Include token for WebSocket auth
+      ingress: config.ingress
+    };
+  } else {
+    // For external API requests, don't include sensitive data
+    responseConfig.ha = {
+      baseUrl: config.ha.baseUrl,
+      ingress: config.ingress
+      // No token
+    };
+  }
+  
+  res.json(responseConfig);
 });
 
 // Layer operations endpoints

@@ -81,23 +81,23 @@ export class LiveStatePanel extends BasePanel {
     
     setupWebSocketListeners() {
         // Wait for WebSocket client to be available
-        if (!window.wsClient) {
+        if (!window.haWsClient) {
             setTimeout(() => this.setupWebSocketListeners(), 100);
             return;
         }
         
         // Listen for real-time light state changes
-        window.wsClient.on('light_state_changed', (data) => {
+        window.haWsClient.on('light_state_changed', (data) => {
             this.updateLightState(data.entityId, data.state);
         });
         
         // Listen for connection status
-        window.wsClient.on('connected', () => {
+        window.haWsClient.on('connected', () => {
             console.log('🔌 LiveStatePanel: WebSocket connected');
             this.updateConnectionStatus(true);
         });
         
-        window.wsClient.on('disconnected', () => {
+        window.haWsClient.on('disconnected', () => {
             console.log('🔌 LiveStatePanel: WebSocket disconnected');
             this.updateConnectionStatus(false);
         });
