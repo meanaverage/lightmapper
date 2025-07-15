@@ -512,6 +512,10 @@
                         <i class="fas fa-layer-group"></i>
                         <span>Layers</span>
                     </button>
+                    <button class="panel-tab" data-panel="debug">
+                        <i class="fas fa-bug"></i>
+                        <span>Debug</span>
+                    </button>
                 </div>
                 
                 <div class="panel-content">
@@ -576,6 +580,11 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Debug Panel -->
+                    <div class="panel-section" data-section="debug" id="debugPanel">
+                        <!-- Content will be rendered by DebugPanel -->
                     </div>
                 </div>
             </div>
@@ -764,6 +773,7 @@
         import { PropertiesPanel } from './js/panels/PropertiesPanel.js';
         import { SceneEditorPanel } from './js/panels/SceneEditorPanel.js';
         import { LayersPanel } from './js/panels/LayersPanel.js';
+        import { DebugPanel } from './js/panels/DebugPanel.js';
         
         // Initialize panel system after app.js loads
         window.addEventListener('load', () => {
@@ -779,6 +789,7 @@
             window.panelManager.register(new PropertiesPanel());
             window.panelManager.register(new SceneEditorPanel());
             window.panelManager.register(new LayersPanel());
+            window.panelManager.register(new DebugPanel());
             
             // Initialize panels
             window.panelManager.init();
