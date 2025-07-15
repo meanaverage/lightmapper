@@ -4839,6 +4839,9 @@ class FloorplanEditor {
         
         // Long-hold functionality for light style selection
         this.setupLongHoldLightTool();
+        
+        // Set up drag and drop for entities
+        this.setupEntityDragAndDrop();
         this.setupLongHoldRoomTool();
         
         // Initialize room tool tooltip
@@ -5052,6 +5055,127 @@ class FloorplanEditor {
         
         // Hide the old light style button
         lightStyleBtn.style.display = 'none';
+    }
+    
+    setupEntityDragAndDrop() {
+        console.log('🎯 Setting up entity drag and drop on canvas...');
+        
+        if (!this.canvas) {
+            console.error('❌ Canvas not initialized for drag and drop setup');
+            return;
+        }
+        
+        const canvasElement = this.canvas.getElement();
+        const drawingArea = document.querySelector('.drawing-area');
+        
+        // Use drawing area as the primary drop zone, fallback to canvas element
+        const dropZone = drawingArea || canvasElement;
+        
+        console.log('🎯 Using drop zone:', dropZone.className || 'canvas-element');
+        
+        // Prevent default drag over to allow dropping
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('drag-over');
+        });
+        
+        // Handle drag enter for visual feedback
+        dropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('drag-over');
+        });
+        
+        // Handle drag leave
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Only remove class if we're leaving the drop zone entirely
+            if (!dropZone.contains(e.relatedTarget)) {
+                dropZone.classList.remove('drag-over');
+            }
+        });
+        
+        // Handle drop
+        const handleDrop = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+            
+            console.log('🎯 Drop event triggered on:', e.target.className || e.target.tagName);
+            
+            // Get entity ID
+            const entityId = e.dataTransfer.getData('application/x-home-assistant-entity') || 
+                            e.dataTransfer.getData('text/plain');
+            
+            if (!entityId) {
+                console.warn('⚠️ No entity ID in drop data');
+                return;
+            }
+            
+            console.log('✅ Dropped entity:', entityId);
+            window.panelManager?.getPanel('debug')?.log(`Dropped entity: ${entityId}`, 'event');
+            
+            // Calculate drop position on canvas
+            const rect = canvasElement.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Convert to canvas coordinates accounting for viewport transform
+            const vpt = this.canvas.viewportTransform;
+            const canvasX = (x - vpt[4]) / vpt[0];
+            const canvasY = (y - vpt[5]) / vpt[3];
+            
+            const pointer = { x: canvasX, y: canvasY };
+            
+            console.log('📍 Drop position:', pointer);
+            
+            // Create light at drop position
+            this.createLightFromEntityDrop(pointer, entityId);
+        };
+        
+        // Attach drop handler to both elements for maximum compatibility
+        dropZone.addEventListener('drop', handleDrop);
+        if (dropZone !== canvasElement) {
+            canvasElement.addEventListener('drop', handleDrop);
+        }
+        
+        console.log('✅ Entity drag and drop handlers setup complete');
+    }
+    
+    createLightFromEntityDrop(position, entityId) {
+        console.log('💡 Creating light from entity drop:', entityId, 'at position:', position);
+        
+        // Snap position to grid
+        const snappedPosition = this.snapToGrid(position);
+        console.log('💡 Snapped position:', snappedPosition);
+        
+        // Create the light using addLight
+        const light = this.addLight(snappedPosition);
+        
+        if (light) {
+            // Assign the entity to the newly created light
+            light.entityId = entityId;
+            this.updateLightFromEntity(light, entityId);
+            
+            // Show success message
+            window.sceneManager?.showStatus(`Light created and assigned to ${entityId}`, 'success');
+            
+            // Log to debug panel
+            window.panelManager?.getPanel('debug')?.log(`Light created and assigned: ${entityId}`, 'success');
+            
+            // Refresh panels
+            window.panelManager?.refreshPanel('lights');
+            window.panelManager?.refreshPanel('entities');
+            
+            // Trigger auto-save
+            this.triggerAutoSave();
+        } else {
+            console.error('❌ Failed to create light');
+            window.panelManager?.getPanel('debug')?.log('Failed to create light', 'error');
+        }
     }
     
     setupLongHoldRoomTool() {

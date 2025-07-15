@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 IMAGE_NAME="lightmapper"
-VERSION="3.0.25"
+VERSION="3.0.55"
 PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7"
 
 # Colors for output

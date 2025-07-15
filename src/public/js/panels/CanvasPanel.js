@@ -23,13 +23,28 @@ export class CanvasPanel extends BasePanel {
     init(container) {
         super.init(container);
         
-        // Initialize the FloorplanEditor when ready
-        if (window.FloorplanEditor) {
-            this.floorplanEditor = new window.FloorplanEditor();
+        // Use the global floorplanEditor instance if it exists
+        if (window.floorplanEditor) {
+            this.floorplanEditor = window.floorplanEditor;
             this.isInitialized = true;
             
             // Set up event listeners for canvas events
             this.setupCanvasEventBridge();
+            
+            console.log('✅ CanvasPanel using existing FloorplanEditor');
+        } else {
+            console.warn('⚠️ FloorplanEditor not found, waiting for initialization');
+            
+            // Wait for floorplanEditor to be created
+            const checkInterval = setInterval(() => {
+                if (window.floorplanEditor) {
+                    this.floorplanEditor = window.floorplanEditor;
+                    this.isInitialized = true;
+                    this.setupCanvasEventBridge();
+                    console.log('✅ CanvasPanel connected to FloorplanEditor');
+                    clearInterval(checkInterval);
+                }
+            }, 100);
         }
     }
 

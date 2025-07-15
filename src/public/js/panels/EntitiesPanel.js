@@ -442,8 +442,8 @@ export class EntitiesPanel extends BasePanel {
         // Log to debug panel
         window.panelManager?.getPanel('debug')?.log(`Drag started: ${entityId}`, 'event');
         
-        // Setup canvas drop zone
-        this.setupCanvasDropZone();
+        // Canvas drop zone is now set up in FloorplanEditor
+        // No need to set it up here anymore
     }
     
     setupCanvasDropZone() {
@@ -451,8 +451,20 @@ export class EntitiesPanel extends BasePanel {
         const canvas = canvasPanel?.getCanvas();
         
         if (!canvas) {
-            console.warn('⚠️ Canvas not found for drop zone setup');
-            window.panelManager?.getPanel('debug')?.log('Canvas not found for drop zone', 'error');
+            console.warn('⚠️ Canvas not found for drop zone setup, retrying...');
+            window.panelManager?.getPanel('debug')?.log('Canvas not found, retrying in 500ms', 'warning');
+            
+            // Retry after a delay to allow canvas to initialize
+            setTimeout(() => {
+                const retryCanvas = canvasPanel?.getCanvas();
+                if (retryCanvas) {
+                    console.log('✅ Canvas found on retry, setting up drop zone');
+                    this.setupCanvasDropZone();
+                } else {
+                    console.error('❌ Canvas still not available after retry');
+                    window.panelManager?.getPanel('debug')?.log('Canvas not available after retry', 'error');
+                }
+            }, 500);
             return;
         }
         
