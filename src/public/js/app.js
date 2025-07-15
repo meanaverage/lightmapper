@@ -8067,8 +8067,13 @@ class FloorplanEditor {
                         const scale = Math.min(scaleX, scaleY) * 0.8;
                         
                         fabricImg.scale(scale);
-                        fabricImg.center();
+                        
+                        // Center the image manually
                         fabricImg.set({
+                            left: this.canvas.width / 2,
+                            top: this.canvas.height / 2,
+                            originX: 'center',
+                            originY: 'center',
                             opacity: 0.6,
                             selectable: true,
                             evented: true,
