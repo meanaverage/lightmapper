@@ -47,6 +47,23 @@ export class BasePanel {
     }
 
     /**
+     * Render content for accordion-style panels (without redundant headers)
+     * @param {string} contentHtml - The main content HTML
+     * @param {string} actionsHtml - Optional action buttons HTML
+     * @returns {string} The rendered HTML content
+     */
+    renderAccordionContent(contentHtml, actionsHtml = '') {
+        return `
+            <div class="panel-accordion-wrapper">
+                ${actionsHtml ? `<div class="panel-actions">${actionsHtml}</div>` : ''}
+                <div class="panel-body">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
      * Bind event listeners - override in subclass if needed
      * @virtual
      */

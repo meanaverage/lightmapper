@@ -627,63 +627,86 @@ class CADInterfaceManager {
     }
     
     setupPanelSwitching() {
-        // Left panel switching
-        const leftPanelTabs = document.querySelectorAll('.left-panel .panel-tab');
-        const leftPanelSections = document.querySelectorAll('.left-panel .panel-section');
-        
-        leftPanelTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const targetPanel = e.target.closest('.panel-tab').dataset.panel;
-                this.switchLeftPanel(targetPanel);
-            });
-        });
-        
-        // Right panel switching
-        const rightPanelTabs = document.querySelectorAll('.right-panel .panel-tab');
-        const rightPanelSections = document.querySelectorAll('.right-panel .panel-section');
-        
-        rightPanelTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const targetPanel = e.target.closest('.panel-tab').dataset.panel;
-                this.switchRightPanel(targetPanel);
-            });
-        });
-        
-        console.log('📋 Panel switching setup complete');
+        // Setup accordion panels
+        this.setupAccordionPanels();
+        console.log('📋 Accordion panel setup complete');
     }
     
+    setupAccordionPanels() {
+        // Setup left panel accordion
+        const leftHeaders = document.querySelectorAll('.left-panel .panel-accordion-header');
+        leftHeaders.forEach(header => {
+            header.addEventListener('click', (e) => {
+                const panelName = e.target.closest('.panel-accordion-header').dataset.panel;
+                this.toggleAccordionPanel(panelName, 'left');
+            });
+        });
+        
+        // Setup right panel accordion
+        const rightHeaders = document.querySelectorAll('.right-panel .panel-accordion-header');
+        rightHeaders.forEach(header => {
+            header.addEventListener('click', (e) => {
+                const panelName = e.target.closest('.panel-accordion-header').dataset.panel;
+                this.toggleAccordionPanel(panelName, 'right');
+            });
+        });
+    }
+    
+    toggleAccordionPanel(panelName, side) {
+        const selector = side === 'left' ? '.left-panel' : '.right-panel';
+        const header = document.querySelector(`${selector} [data-panel="${panelName}"].panel-accordion-header`);
+        const content = document.querySelector(`${selector} [data-panel="${panelName}"] .panel-accordion-content`);
+        const chevron = header.querySelector('.accordion-chevron');
+        
+        if (!header || !content || !chevron) return;
+        
+        const isExpanded = content.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            content.classList.remove('expanded');
+            content.classList.add('collapsing');
+            header.classList.remove('active');
+            chevron.classList.remove('fa-chevron-up');
+            chevron.classList.add('fa-chevron-down');
+            
+            // Remove collapsing class after animation
+            setTimeout(() => {
+                content.classList.remove('collapsing');
+            }, 300);
+        } else {
+            // Expand
+            content.classList.add('expanding');
+            content.classList.add('expanded');
+            header.classList.add('active');
+            chevron.classList.remove('fa-chevron-down');
+            chevron.classList.add('fa-chevron-up');
+            
+            // Remove expanding class after animation
+            setTimeout(() => {
+                content.classList.remove('expanding');
+            }, 300);
+        }
+        
+        // Update current panel tracking
+        if (side === 'left') {
+            this.currentLeftPanel = isExpanded ? null : panelName;
+        } else {
+            this.currentRightPanel = isExpanded ? null : panelName;
+        }
+        
+        console.log(`📋 Toggled ${side} panel: ${panelName} (${isExpanded ? 'collapsed' : 'expanded'})`);
+    }
+    
+    // Legacy panel switching methods - keeping for compatibility
     switchLeftPanel(panelName) {
-        // Update active tab
-        document.querySelectorAll('.left-panel .panel-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelector(`.left-panel [data-panel="${panelName}"]`).classList.add('active');
-        
-        // Update active section
-        document.querySelectorAll('.left-panel .panel-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.querySelector(`.left-panel [data-section="${panelName}"]`).classList.add('active');
-        
-        this.currentLeftPanel = panelName;
-        console.log(`📋 Switched to left panel: ${panelName}`);
+        // Use accordion toggle instead
+        this.toggleAccordionPanel(panelName, 'left');
     }
     
     switchRightPanel(panelName) {
-        // Update active tab
-        document.querySelectorAll('.right-panel .panel-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelector(`.right-panel [data-panel="${panelName}"]`).classList.add('active');
-        
-        // Update active section
-        document.querySelectorAll('.right-panel .panel-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.querySelector(`.right-panel [data-section="${panelName}"]`).classList.add('active');
-        
-        this.currentRightPanel = panelName;
-        console.log(`📋 Switched to right panel: ${panelName}`);
+        // Use accordion toggle instead
+        this.toggleAccordionPanel(panelName, 'right');
     }
     
     setupCommandPalette() {

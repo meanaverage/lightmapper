@@ -19,34 +19,34 @@ export class LayersPanel extends BasePanel {
         if (!this.layerManager) {
             console.warn('⚠️ LayersPanel rendering without LayerManager');
         }
-        this.container.innerHTML = `
-            <div class="panel-header">
-                <h3>${this.title}</h3>
-                <div class="panel-header-actions">
-                    <button class="btn btn-icon-only" title="Add Layer" onclick="window.panelManager.getPanel('layers').addNewLayer()">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Delete Layer" onclick="window.panelManager.getPanel('layers').deleteSelectedLayer()">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Bring to Front" onclick="window.panelManager.getPanel('layers').bringToFront()">
-                        <i class="fas fa-angle-double-up"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Bring Forward" onclick="window.panelManager.getPanel('layers').bringForward()">
-                        <i class="fas fa-angle-up"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Send Backward" onclick="window.panelManager.getPanel('layers').sendBackward()">
-                        <i class="fas fa-angle-down"></i>
-                    </button>
-                    <button class="btn btn-icon-only" title="Send to Back" onclick="window.panelManager.getPanel('layers').sendToBack()">
-                        <i class="fas fa-angle-double-down"></i>
-                    </button>
-                </div>
-            </div>
+        const actionsHtml = `
+            <button class="btn btn-icon-only" title="Add Layer" onclick="window.panelManager.getPanel('layers').addNewLayer()">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="btn btn-icon-only" title="Delete Layer" onclick="window.panelManager.getPanel('layers').deleteSelectedLayer()">
+                <i class="fas fa-trash"></i>
+            </button>
+            <button class="btn btn-icon-only" title="Bring to Front" onclick="window.panelManager.getPanel('layers').bringToFront()">
+                <i class="fas fa-angle-double-up"></i>
+            </button>
+            <button class="btn btn-icon-only" title="Bring Forward" onclick="window.panelManager.getPanel('layers').bringForward()">
+                <i class="fas fa-angle-up"></i>
+            </button>
+            <button class="btn btn-icon-only" title="Send Backward" onclick="window.panelManager.getPanel('layers').sendBackward()">
+                <i class="fas fa-angle-down"></i>
+            </button>
+            <button class="btn btn-icon-only" title="Send to Back" onclick="window.panelManager.getPanel('layers').sendToBack()">
+                <i class="fas fa-angle-double-down"></i>
+            </button>
+        `;
+
+        const contentHtml = `
             <div class="layers-container" id="layersContainer">
                 <!-- Layer items will be rendered here -->
             </div>
         `;
+
+        this.container.innerHTML = this.renderAccordionContent(contentHtml, actionsHtml);
     }
 
     /**

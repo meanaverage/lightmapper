@@ -1,0 +1,224 @@
+/* Accordion Panel System - VS Code Style */
+
+/* Main accordion container */
+.panel-accordion {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Individual accordion items */
+.panel-accordion-item {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--cad-border-primary);
+}
+
+.panel-accordion-item:last-child {
+    border-bottom: none;
+}
+
+/* Accordion headers (clickable titles) */
+.panel-accordion-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--cad-bg-primary);
+    border: none;
+    color: var(--cad-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    gap: 8px;
+}
+
+.panel-accordion-header:hover {
+    background: var(--cad-hover);
+    color: var(--cad-text-primary);
+}
+
+.panel-accordion-header.active {
+    background: var(--cad-bg-secondary);
+    color: var(--cad-text-primary);
+    font-weight: 600;
+}
+
+/* Icons in headers */
+.panel-accordion-header i:first-child {
+    width: 16px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.panel-accordion-header span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Chevron icon */
+.accordion-chevron {
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    color: var(--cad-text-muted);
+}
+
+.panel-accordion-header.active .accordion-chevron {
+    transform: rotate(180deg);
+}
+
+/* Accordion content containers */
+.panel-accordion-content {
+    overflow: hidden;
+    transition: all 0.3s ease;
+    max-height: 0;
+    opacity: 0;
+    background: var(--cad-bg-secondary);
+}
+
+.panel-accordion-content.expanded {
+    max-height: 100vh;
+    opacity: 1;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Smooth animation for content */
+.panel-accordion-content.expanding {
+    max-height: 100vh;
+    opacity: 1;
+}
+
+.panel-accordion-content.collapsing {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* Panel content styling */
+.panel-accordion-content > * {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Accordion content wrapper */
+.panel-accordion-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 8px;
+}
+
+/* Panel actions (buttons) */
+.panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid var(--cad-border-primary);
+    background: var(--cad-bg-tertiary);
+    flex-shrink: 0;
+}
+
+.panel-actions .btn {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-width: 28px;
+    height: 28px;
+}
+
+.panel-actions .btn-icon-only {
+    padding: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Panel body (main content) */
+.panel-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-body > * {
+    flex: 1;
+}
+
+/* Update existing panel section styles to work with accordion */
+.panel-accordion-content .panel-section {
+    display: block !important;
+    width: 100%;
+    height: 100%;
+    min-width: unset;
+    max-width: unset;
+}
+
+/* Special handling for different panel content types */
+.panel-accordion-content .lights-panel-wrapper,
+.panel-accordion-content .entities-panel-wrapper,
+.panel-accordion-content .layers-container,
+.panel-accordion-content .debug-panel-wrapper {
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Responsive behavior */
+@media (max-height: 600px) {
+    .panel-accordion-content.expanded {
+        max-height: 40vh;
+    }
+}
+
+/* Dark theme compatibility */
+[data-theme="dark"] .panel-accordion-header {
+    background: var(--cad-bg-primary);
+    color: var(--cad-text-secondary);
+}
+
+[data-theme="dark"] .panel-accordion-header:hover {
+    background: var(--cad-hover);
+}
+
+[data-theme="dark"] .panel-accordion-header.active {
+    background: var(--cad-bg-secondary);
+    color: var(--cad-text-primary);
+}
+
+/* Hide old panel tab styles */
+.panel-tabs {
+    display: none;
+}
+
+.panel-content {
+    display: none;
+}
+
+/* Ensure proper scrolling */
+.panel-accordion-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-accordion-content::-webkit-scrollbar-track {
+    background: var(--cad-bg-primary);
+}
+
+.panel-accordion-content::-webkit-scrollbar-thumb {
+    background: var(--cad-border-primary);
+    border-radius: 4px;
+}
+
+.panel-accordion-content::-webkit-scrollbar-thumb:hover {
+    background: var(--cad-text-muted);
+}
