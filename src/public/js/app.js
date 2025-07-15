@@ -16,6 +16,7 @@ function getApiBasePath() {
 }
 
 const API_BASE = getApiBasePath();
+window.API_BASE = API_BASE;
 console.log('🔗 API Base Path detected:', API_BASE || '(root)');
 
 // ========================================
