@@ -926,7 +926,10 @@ app.get('/api/lights/enhanced', async (req, res) => {
         platform: light.platform,
         device: light.device,
         area: light.area,
-        attributes: currentState ? currentState.attributes : {}
+        attributes: currentState ? {
+          ...currentState.attributes,
+          icon: currentState.attributes.icon // Include icon from state
+        } : {}
       };
     });
     

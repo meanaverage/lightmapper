@@ -76,7 +76,19 @@ export class EntitiesPanel extends BasePanel {
 
     async loadEntities() {
         try {
-            const response = await this.fetchData(`${window.API_BASE}/api/lights`);
+            // Try enhanced endpoint first for better icon support
+            let response;
+            let useEnhanced = false;
+            
+            try {
+                response = await this.fetchData(`${window.API_BASE}/api/lights/enhanced`);
+                useEnhanced = true;
+                console.log('✅ Using enhanced lights endpoint with full metadata');
+            } catch (error) {
+                console.log('⚠️ Enhanced endpoint not available, using standard endpoint');
+                response = await this.fetchData(`${window.API_BASE}/api/lights`);
+            }
+            
             // Map the response to match expected format
             this.entities = response.map(light => ({
                 entity_id: light.entityId,
@@ -87,9 +99,12 @@ export class EntitiesPanel extends BasePanel {
                     color_temp_kelvin: light.colorTemp,
                     hs_color: light.hsColor,
                     rgb_color: light.hsColor ? this.hsToRgb(light.hsColor[0], light.hsColor[1]) : null,
-                    supported_features: this.inferSupportedFeatures(light)
+                    supported_features: this.inferSupportedFeatures(light),
+                    icon: useEnhanced ? light.attributes?.icon : null // Get icon from enhanced endpoint
                 },
-                area: light.area
+                area: light.area,
+                device: useEnhanced ? light.device : null,
+                platform: useEnhanced ? light.platform : null
             }));
             
             // Also get device registry info if available
@@ -191,7 +206,7 @@ export class EntitiesPanel extends BasePanel {
                  ondragstart="window.panelManager.getPanel('entities').handleDragStart(event, '${entity.entity_id}')">
                 <div class="entity-header">
                     <div class="entity-icon">
-                        <i class="fas ${this.getEntityIcon(domain, entity)}"></i>
+                        ${this.renderEntityIcon(entity)}
                     </div>
                     <div class="entity-info">
                         <div class="entity-name">${friendlyName}</div>
@@ -305,26 +320,53 @@ export class EntitiesPanel extends BasePanel {
         return features;
     }
 
+    renderEntityIcon(entity) {
+        const domain = entity.entity_id.split('.')[0];
+        const isOn = entity.state === 'on';
+        
+        // If entity has a custom icon from Home Assistant, use it
+        if (entity.attributes?.icon) {
+            const iconName = entity.attributes.icon;
+            if (iconName.startsWith('mdi:')) {
+                const mdiIcon = iconName.replace('mdi:', '');
+                return `<i class="mdi mdi-${mdiIcon}" style="color: ${isOn ? '#ffb347' : '#888'}"></i>`;
+            }
+        }
+        
+        // Otherwise use our default mapping
+        const iconInfo = this.getEntityIcon(domain, entity);
+        if (iconInfo.type === 'mdi') {
+            return `<i class="mdi mdi-${iconInfo.icon}" style="color: ${isOn ? '#ffb347' : '#888'}"></i>`;
+        } else {
+            return `<i class="fas ${iconInfo.icon}" style="color: ${isOn ? '#ffb347' : '#888'}"></i>`;
+        }
+    }
+
     getEntityIcon(domain, entity) {
+        const isOn = entity.state === 'on';
+        
         if (domain === 'light') {
-            return entity.state === 'on' ? 'fa-lightbulb' : 'fa-lightbulb';
+            return {
+                type: 'mdi',
+                icon: isOn ? 'lightbulb-on' : 'lightbulb-outline'
+            };
         }
         
         const iconMap = {
-            'switch': 'fa-toggle-on',
-            'sensor': 'fa-chart-line',
-            'binary_sensor': 'fa-shield-alt',
-            'climate': 'fa-thermometer-half',
-            'cover': 'fa-window-maximize',
-            'fan': 'fa-fan',
-            'lock': 'fa-lock',
-            'media_player': 'fa-play-circle',
-            'scene': 'fa-image',
-            'script': 'fa-file-code',
-            'automation': 'fa-robot'
+            'switch': { type: 'mdi', icon: isOn ? 'toggle-switch' : 'toggle-switch-off' },
+            'sensor': { type: 'mdi', icon: 'chart-line' },
+            'binary_sensor': { type: 'mdi', icon: 'shield-check' },
+            'climate': { type: 'mdi', icon: 'thermostat' },
+            'cover': { type: 'mdi', icon: 'window-shutter' },
+            'fan': { type: 'mdi', icon: 'fan' },
+            'lock': { type: 'mdi', icon: isOn ? 'lock-open' : 'lock' },
+            'media_player': { type: 'mdi', icon: 'play-circle' },
+            'scene': { type: 'mdi', icon: 'image-multiple' },
+            'script': { type: 'mdi', icon: 'script-text' },
+            'automation': { type: 'mdi', icon: 'robot' }
         };
         
-        return iconMap[domain] || 'fa-cube';
+        return iconMap[domain] || { type: 'mdi', icon: 'help-circle' };
     }
 
     selectEntity(entityId) {
