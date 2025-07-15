@@ -299,14 +299,16 @@ export class LayersPanel extends BasePanel {
             item.classList.toggle('selected-layer', item.dataset.layer === layerId);
         });
 
-        // Get the canvas object for this layer
-        const canvasPanel = window.panelManager?.getPanel('canvas');
-        if (canvasPanel && this.layerManager) {
-            const layer = this.layerManager.layers[layerId];
-            if (layer) {
-                const object = canvasPanel.findObjectById(layer.objectId);
-                if (object) {
-                    canvasPanel.selectObject(object);
+        // Get the canvas object for this layer - but only if we're not responding to a canvas selection
+        if (!this._respondingToSelection) {
+            const canvasPanel = window.panelManager?.getPanel('canvas');
+            if (canvasPanel && this.layerManager) {
+                const layer = this.layerManager.layers[layerId];
+                if (layer) {
+                    const object = canvasPanel.findObjectById(layer.objectId);
+                    if (object) {
+                        canvasPanel.selectObject(object);
+                    }
                 }
             }
         }
@@ -614,7 +616,10 @@ export class LayersPanel extends BasePanel {
         
         const layerId = data.object.customLayer;
         if (layerId && this.layerManager.layers[layerId]) {
+            // Set flag to prevent circular selection
+            this._respondingToSelection = true;
             this.selectLayer(layerId);
+            this._respondingToSelection = false;
         }
     }
 

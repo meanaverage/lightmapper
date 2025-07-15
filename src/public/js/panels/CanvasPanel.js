@@ -78,16 +78,28 @@ export class CanvasPanel extends BasePanel {
     }
 
     onObjectSelected(object) {
+        // Prevent circular broadcasts by checking if we're already broadcasting
+        if (this._broadcasting) return;
+        
+        this._broadcasting = true;
+        
         // Broadcast to other panels
         window.panelManager?.broadcast('onObjectSelected', { object });
         
         // Store reference
         this.floorplanEditor.selectedLight = object.lightObject ? object : null;
+        
+        this._broadcasting = false;
     }
 
     onObjectDeselected() {
+        // Prevent circular broadcasts by checking if we're already broadcasting
+        if (this._broadcasting) return;
+        
+        this._broadcasting = true;
         window.panelManager?.broadcast('onObjectDeselected', {});
         this.floorplanEditor.selectedLight = null;
+        this._broadcasting = false;
     }
 
     // ===== PUBLIC API FOR OTHER PANELS =====
