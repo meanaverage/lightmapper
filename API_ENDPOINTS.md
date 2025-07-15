@@ -1,5 +1,7 @@
 # LightMapper API Endpoints Reference
 
+> 📖 **Note**: Complete OpenAPI documentation is available in `openapi.yaml` and can be viewed interactively at `/docs/api-docs.html`
+
 ## Internal API Endpoints (/api/internal/)
 
 ### Scene Management

@@ -1,0 +1,883 @@
+openapi: 3.0.0
+info:
+  title: LightMapper API
+  description: |
+    REST API for LightMapper - Advanced Home Assistant lighting controller with interactive floorplan editor.
+    
+    This API allows external applications to interact with LightMapper's floorplan and lighting system.
+  version: 3.0.71
+  contact:
+    name: LightMapper Support
+    url: https://github.com/meanaverage/lightmapper
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: http://homeassistant.local:8123/api/hassio_ingress/{ingressToken}
+    description: Home Assistant Ingress
+    variables:
+      ingressToken:
+        default: YOUR_INGRESS_TOKEN
+        description: Home Assistant ingress token
+
+security:
+  - ApiKeyAuth: []
+  - ApiKeyQuery: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for external access (when enable_external_api is true)
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api_key
+      description: API key as query parameter (alternative method)
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    Position:
+      type: object
+      properties:
+        x:
+          type: number
+          description: X coordinate on the floorplan
+        y:
+          type: number
+          description: Y coordinate on the floorplan
+      required:
+        - x
+        - y
+
+    LightState:
+      type: object
+      properties:
+        brightness:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Brightness level
+        color_temp:
+          type: integer
+          minimum: 153
+          maximum: 500
+          description: Color temperature in mireds
+        rgb_color:
+          type: array
+          items:
+            type: integer
+          minItems: 3
+          maxItems: 3
+          description: RGB color values [R, G, B]
+        hs_color:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+          description: Hue and saturation [H, S]
+
+    Light:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          example: light.kitchen
+        position:
+          $ref: '#/components/schemas/Position'
+        icon_style:
+          type: string
+          enum: [bulb, recessed, strip, flood, default]
+          default: default
+        state:
+          type: string
+          enum: [on, off, unavailable]
+        attributes:
+          $ref: '#/components/schemas/LightState'
+
+    Scene:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        area_id:
+          type: string
+        area_name:
+          type: string
+        lights:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/LightState'
+        timestamp:
+          type: string
+          format: date-time
+
+    Area:
+      type: object
+      properties:
+        area_id:
+          type: string
+        name:
+          type: string
+        picture:
+          type: string
+          nullable: true
+
+    Layer:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        visible:
+          type: boolean
+        locked:
+          type: boolean
+        objectId:
+          type: string
+        objectType:
+          type: string
+        zIndex:
+          type: integer
+
+paths:
+  # Internal API Endpoints
+  /api/internal/scenes:
+    get:
+      tags:
+        - Scenes
+      summary: Get all scenes
+      description: Retrieve all saved lighting scenes
+      responses:
+        '200':
+          description: List of scenes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Scene'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Scenes
+      summary: Create a new scene
+      description: Create a new lighting scene with specific light settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Evening Mood
+                area_id:
+                  type: string
+                  example: living_room
+                lights:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/LightState'
+              required:
+                - name
+      responses:
+        '201':
+          description: Scene created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  message:
+                    type: string
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/internal/scenes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Scene ID
+
+    get:
+      tags:
+        - Scenes
+      summary: Get a specific scene
+      description: Retrieve details of a specific scene
+      responses:
+        '200':
+          description: Scene details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scene'
+        '404':
+          description: Scene not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Scenes
+      summary: Update a scene
+      description: Update an existing scene
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                lights:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/LightState'
+      responses:
+        '200':
+          description: Scene updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Scene not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Scenes
+      summary: Delete a scene
+      description: Delete a specific scene
+      responses:
+        '200':
+          description: Scene deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Scene not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/internal/scenes/{id}/apply:
+    post:
+      tags:
+        - Scenes
+      summary: Apply a scene
+      description: Apply a saved scene to Home Assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Scene ID
+      responses:
+        '200':
+          description: Scene applied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  applied:
+                    type: integer
+                    description: Number of lights affected
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          description: Scene not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/internal/floorplan:
+    get:
+      tags:
+        - Floorplan
+      summary: Get current floorplan layout
+      description: Retrieve the current floorplan layout data
+      responses:
+        '200':
+          description: Floorplan data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_outline:
+                    type: string
+                    description: JSON string of room outline
+                  lights_data:
+                    type: string
+                    description: JSON string of lights and objects data
+        '404':
+          description: No floorplan found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Floorplan
+      summary: Save floorplan layout
+      description: Save or update the floorplan layout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                layout:
+                  type: object
+                  description: Floorplan layout data
+              required:
+                - layout
+      responses:
+        '200':
+          description: Floorplan saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/internal/floorplan/lights:
+    get:
+      tags:
+        - Floorplan Lights
+      summary: Get all lights with positions
+      description: Retrieve all lights on the floorplan with their positions and current states
+      responses:
+        '200':
+          description: List of lights with positions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lights:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Light'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Floorplan Lights
+      summary: Add light to floorplan
+      description: Add a new light to the floorplan at a specific position
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entity_id:
+                  type: string
+                  example: light.new_light
+                position:
+                  $ref: '#/components/schemas/Position'
+                icon_style:
+                  type: string
+                  enum: [bulb, recessed, strip, flood]
+                  default: default
+              required:
+                - entity_id
+                - position
+      responses:
+        '200':
+          description: Light added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  entity_id:
+                    type: string
+                  position:
+                    $ref: '#/components/schemas/Position'
+                  icon_style:
+                    type: string
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/internal/floorplan/lights/{entityId}:
+    parameters:
+      - name: entityId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Light entity ID (e.g., light.kitchen)
+
+    get:
+      tags:
+        - Floorplan Lights
+      summary: Get specific light
+      description: Get position and information for a specific light
+      responses:
+        '200':
+          description: Light information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entity_id:
+                    type: string
+                  position:
+                    $ref: '#/components/schemas/Position'
+                  icon_style:
+                    type: string
+        '404':
+          description: Light not found on floorplan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Floorplan Lights
+      summary: Update light position
+      description: Update the position of an existing light on the floorplan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  $ref: '#/components/schemas/Position'
+              required:
+                - position
+      responses:
+        '200':
+          description: Light position updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  entity_id:
+                    type: string
+                  position:
+                    $ref: '#/components/schemas/Position'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Floorplan Lights
+      summary: Delete light from floorplan
+      description: Remove a light from the floorplan
+      responses:
+        '200':
+          description: Light removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  entity_id:
+                    type: string
+
+  /api/internal/floorplan/lights/{entityId}/highlight:
+    post:
+      tags:
+        - Floorplan Lights
+      summary: Highlight light on map
+      description: Temporarily highlight a light on the map with a pulsing effect
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Light entity ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                duration:
+                  type: integer
+                  default: 3000
+                  description: Duration in milliseconds
+                color:
+                  type: string
+                  default: "#ffff00"
+                  description: Hex color code
+      responses:
+        '200':
+          description: Highlight command sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  entity_id:
+                    type: string
+                  duration:
+                    type: integer
+                  color:
+                    type: string
+        '503':
+          description: No connected clients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/internal/layers/{layerId}/bring-to-front:
+    post:
+      tags:
+        - Layers
+      summary: Bring layer to front
+      description: Move a layer to the front of the layer stack
+      parameters:
+        - name: layerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer ID
+      responses:
+        '200':
+          description: Layer moved to front
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/internal/layers/{layerId}/send-to-back:
+    post:
+      tags:
+        - Layers
+      summary: Send layer to back
+      description: Move a layer to the back of the layer stack
+      parameters:
+        - name: layerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer ID
+      responses:
+        '200':
+          description: Layer moved to back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/internal/layers/{layerId}/bring-forward:
+    post:
+      tags:
+        - Layers
+      summary: Bring layer forward
+      description: Move a layer forward one position in the layer stack
+      parameters:
+        - name: layerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer ID
+      responses:
+        '200':
+          description: Layer moved forward
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/internal/layers/{layerId}/send-backward:
+    post:
+      tags:
+        - Layers
+      summary: Send layer backward
+      description: Move a layer backward one position in the layer stack
+      parameters:
+        - name: layerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Layer ID
+      responses:
+        '200':
+          description: Layer moved backward
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/internal/config:
+    get:
+      tags:
+        - Configuration
+      summary: Get LightMapper configuration
+      description: Retrieve the current LightMapper configuration
+      responses:
+        '200':
+          description: Configuration data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logLevel:
+                    type: string
+                  gridSize:
+                    type: integer
+                  defaults:
+                    type: object
+                    properties:
+                      brightness:
+                        type: integer
+                      colorTemp:
+                        type: integer
+                      hue:
+                        type: integer
+                      saturation:
+                        type: integer
+                  ingress:
+                    type: boolean
+
+  /api/internal/mappings:
+    get:
+      tags:
+        - Configuration
+      summary: Get entity mappings
+      description: Get all entity to position mappings
+      responses:
+        '200':
+          description: Entity mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    position:
+                      type: integer
+                    ha_entity_id:
+                      type: string
+                    friendly_name:
+                      type: string
+
+    post:
+      tags:
+        - Configuration
+      summary: Update entity mappings
+      description: Update entity to position mappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mappings:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      ha_entity_id:
+                        type: string
+                      friendly_name:
+                        type: string
+      responses:
+        '200':
+          description: Mappings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # Home Assistant Proxy Endpoints
+  /api/lights:
+    get:
+      tags:
+        - Home Assistant Proxy
+      summary: Get all lights from Home Assistant
+      description: Retrieve all light entities from Home Assistant
+      security: []  # No API key required for HA proxy endpoints
+      responses:
+        '200':
+          description: List of light entities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    entity_id:
+                      type: string
+                    state:
+                      type: string
+                      enum: [on, off, unavailable]
+                    attributes:
+                      $ref: '#/components/schemas/LightState'
+                    last_changed:
+                      type: string
+                      format: date-time
+                    last_updated:
+                      type: string
+                      format: date-time
+        '500':
+          description: Failed to fetch lights from Home Assistant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/areas:
+    get:
+      tags:
+        - Home Assistant Proxy
+      summary: Get all areas from Home Assistant
+      description: Retrieve all areas/rooms from Home Assistant
+      security: []  # No API key required for HA proxy endpoints
+      responses:
+        '200':
+          description: List of areas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Area'
+        '500':
+          description: Failed to fetch areas from Home Assistant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # System Endpoints
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check if the LightMapper service is running
+      security: []  # No authentication required
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+
+tags:
+  - name: Scenes
+    description: Manage lighting scenes
+  - name: Floorplan
+    description: Manage floorplan layout
+  - name: Floorplan Lights
+    description: Manage lights on the floorplan
+  - name: Layers
+    description: Manage layer ordering
+  - name: Configuration
+    description: System configuration
+  - name: Home Assistant Proxy
+    description: Proxy endpoints to Home Assistant
+  - name: System
+    description: System endpoints
