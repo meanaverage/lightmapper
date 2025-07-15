@@ -60,16 +60,11 @@ class HAWebSocketClient {
         const isIngress = window.location.href.includes('hassio_ingress');
         
         if (isIngress) {
-            // In ingress mode, we need to connect to the Home Assistant WebSocket API
-            // NOT through the ingress path, but directly to HA
-            // The supervisor token will handle authentication
+            // In ingress mode, use our WebSocket proxy
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname;
-            const port = window.location.port || (wsProtocol === 'wss:' ? '443' : '80');
-            
-            // Connect directly to Home Assistant's WebSocket API
-            const wsUrl = `${wsProtocol}//${host}:${port}/api/websocket`;
-            console.log('🏠 Ingress mode: connecting to HA WebSocket API:', wsUrl);
+            const basePath = window.API_BASE || '';
+            const wsUrl = `${wsProtocol}//${window.location.host}${basePath}/api/websocket`;
+            console.log('🏠 Ingress mode: using WebSocket proxy:', wsUrl);
             return wsUrl;
         } else {
             // Otherwise, try to construct from current location
@@ -144,14 +139,25 @@ class HAWebSocketClient {
     async authenticate() {
         console.log('🔐 Authenticating with Home Assistant...');
         
+        // In ingress mode with proxy, we don't send auth from client
+        // The proxy handles authentication on the server side
+        const isIngress = window.location.href.includes('hassio_ingress');
+        if (isIngress) {
+            console.log('🏠 Ingress mode: auth handled by proxy');
+            // Just send a dummy auth to satisfy the client flow
+            this.ws.send(JSON.stringify({
+                type: 'auth',
+                access_token: 'proxy-handled'
+            }));
+            return;
+        }
+        
+        // For non-ingress mode, get token from config
         try {
-            // Get the supervisor token from the server
             const configResponse = await fetch(`${window.API_BASE || ''}/api/internal/config`);
             if (configResponse.ok) {
                 const config = await configResponse.json();
                 console.log('🔑 Config received, token available:', !!config.ha?.token);
-                console.log('🔑 Token length:', config.ha?.token?.length || 0);
-                console.log('🔑 Ingress mode:', config.ingress);
                 
                 if (config.ha && config.ha.token) {
                     // Send auth message with token

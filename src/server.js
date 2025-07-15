@@ -1435,7 +1435,9 @@ async function startServer() {
       console.log('🏠 Ready to manage your lighting scenes!');
     });
     
-    console.log('📋 Step 3: Initialize WebSocket server');
+    console.log('📋 Step 3: Initialize WebSocket servers');
+    
+    // Original LightMapper WebSocket server for internal messages
     const wss = new WebSocket.Server({ 
         server,
         path: '/ws'
@@ -1443,16 +1445,16 @@ async function startServer() {
     global.wsClients = new Set();
     
     wss.on('connection', (ws) => {
-      console.log('🔌 Client connected to WebSocket');
+      console.log('🔌 Client connected to LightMapper WebSocket');
       global.wsClients.add(ws);
       
       ws.on('close', () => {
-        console.log('🔌 Client disconnected from WebSocket');
+        console.log('🔌 Client disconnected from LightMapper WebSocket');
         global.wsClients.delete(ws);
       });
       
       ws.on('error', (error) => {
-        console.error('❌ WebSocket client error:', error);
+        console.error('❌ LightMapper WebSocket client error:', error);
         global.wsClients.delete(ws);
       });
       
@@ -1461,6 +1463,84 @@ async function startServer() {
         type: 'connection',
         message: 'Connected to LightMapper WebSocket'
       }));
+    });
+    
+    // Home Assistant WebSocket proxy for ingress mode
+    const haWss = new WebSocket.Server({ 
+        server,
+        path: '/api/websocket'
+    });
+    
+    haWss.on('connection', (clientWs, request) => {
+      console.log('🏠 Client connected to HA WebSocket proxy');
+      
+      // Create connection to Home Assistant
+      const haWsUrl = 'ws://supervisor/core/websocket';
+      const haWs = new WebSocket(haWsUrl);
+      let authenticated = false;
+      
+      haWs.on('open', () => {
+        console.log('✅ Connected to Home Assistant WebSocket');
+      });
+      
+      haWs.on('message', (data) => {
+        const message = JSON.parse(data.toString());
+        
+        // Intercept auth_required to inject our token
+        if (message.type === 'auth_required') {
+          console.log('🔐 Authenticating with Home Assistant...');
+          haWs.send(JSON.stringify({
+            type: 'auth',
+            access_token: config.ha.token
+          }));
+        } else if (message.type === 'auth_ok') {
+          authenticated = true;
+          console.log('✅ Authenticated with Home Assistant');
+          // Forward auth_ok to client
+          clientWs.send(data.toString());
+        } else {
+          // Forward all other messages to client
+          clientWs.send(data.toString());
+        }
+      });
+      
+      haWs.on('error', (error) => {
+        console.error('❌ HA WebSocket error:', error);
+        clientWs.close();
+      });
+      
+      haWs.on('close', () => {
+        console.log('🏠 HA WebSocket closed');
+        clientWs.close();
+      });
+      
+      // Forward client messages to Home Assistant
+      clientWs.on('message', (data) => {
+        const message = JSON.parse(data.toString());
+        
+        // Skip auth messages from client since we handle auth
+        if (message.type === 'auth') {
+          return;
+        }
+        
+        // Forward all other messages
+        if (haWs.readyState === WebSocket.OPEN && authenticated) {
+          haWs.send(data.toString());
+        }
+      });
+      
+      clientWs.on('close', () => {
+        console.log('🏠 Client disconnected from HA WebSocket proxy');
+        haWs.close();
+      });
+      
+      clientWs.on('error', (error) => {
+        console.error('❌ Client WebSocket error:', error);
+        haWs.close();
+      });
+      
+      // Send auth_required to trigger client auth flow
+      clientWs.send(JSON.stringify({ type: 'auth_required' }));
     });
     
     console.log('✅ WebSocket server initialized');
