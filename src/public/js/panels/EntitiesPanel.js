@@ -75,7 +75,20 @@ export class EntitiesPanel extends BasePanel {
     async loadEntities() {
         try {
             const response = await this.fetchData(`${window.API_BASE}/api/lights`);
-            this.entities = response;
+            // Map the response to match expected format
+            this.entities = response.map(light => ({
+                entity_id: light.entityId,
+                state: light.state,
+                attributes: {
+                    friendly_name: light.friendlyName,
+                    brightness: light.brightness,
+                    color_temp_kelvin: light.colorTemp,
+                    hs_color: light.hsColor,
+                    rgb_color: light.hsColor ? this.hsToRgb(light.hsColor[0], light.hsColor[1]) : null,
+                    supported_features: this.inferSupportedFeatures(light)
+                },
+                area: light.area
+            }));
             
             // Also get device registry info if available
             await this.enrichEntitiesWithDeviceInfo();
@@ -119,7 +132,7 @@ export class EntitiesPanel extends BasePanel {
         
         this.filteredEntities = this.entities.filter(entity => {
             // Type filter
-            if (showLightsOnly && !entity.entity_id.startsWith('light.')) {
+            if (showLightsOnly && entity.entity_id && !entity.entity_id.startsWith('light.')) {
                 return false;
             }
             
@@ -131,7 +144,7 @@ export class EntitiesPanel extends BasePanel {
             // Search filter
             if (this.currentFilter) {
                 const searchStr = this.currentFilter;
-                const entityStr = (entity.entity_id + ' ' + (entity.attributes?.friendly_name || '')).toLowerCase();
+                const entityStr = ((entity.entity_id || '') + ' ' + (entity.attributes?.friendly_name || '')).toLowerCase();
                 if (!entityStr.includes(searchStr)) {
                     return false;
                 }
@@ -245,6 +258,47 @@ export class EntitiesPanel extends BasePanel {
         if (features & SUPPORT_WHITE_VALUE) supported.push('White');
         
         return supported;
+    }
+
+    hsToRgb(h, s) {
+        h = h / 360;
+        s = s / 100;
+        const l = 0.5; // Assume 50% lightness
+        let r, g, b;
+
+        if (s === 0) {
+            r = g = b = l;
+        } else {
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    inferSupportedFeatures(light) {
+        let features = 0;
+        const SUPPORT_BRIGHTNESS = 1;
+        const SUPPORT_COLOR_TEMP = 2;
+        const SUPPORT_COLOR = 16;
+        
+        if (light.brightness !== undefined) features |= SUPPORT_BRIGHTNESS;
+        if (light.colorTemp !== undefined) features |= SUPPORT_COLOR_TEMP;
+        if (light.hsColor !== undefined) features |= SUPPORT_COLOR;
+        
+        return features;
     }
 
     getEntityIcon(domain, entity) {
