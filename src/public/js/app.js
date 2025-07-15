@@ -668,6 +668,27 @@ class CADInterfaceManager {
             });
         });
         
+        // Setup tertiary panel accordion
+        const tertiaryHeaders = document.querySelectorAll('.tertiary-panel .panel-accordion-header');
+        console.log(`📋 Found ${tertiaryHeaders.length} tertiary panel headers`);
+        tertiaryHeaders.forEach(header => {
+            header.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Don't toggle if there's only one panel in tertiary
+                const tertiaryItems = document.querySelectorAll('.tertiary-panel .panel-accordion-item');
+                if (tertiaryItems.length === 1) {
+                    console.log('📋 Only one panel in tertiary sidebar, not toggling');
+                    return;
+                }
+                
+                const panelName = e.target.closest('.panel-accordion-header').dataset.panel;
+                console.log(`🖱️ Tertiary panel header clicked: ${panelName}`);
+                this.toggleAccordionPanel(panelName, 'tertiary');
+            });
+        });
+        
         console.log('✅ Accordion panels setup complete');
     }
     
@@ -687,7 +708,8 @@ class CADInterfaceManager {
             delete this._accordionThrottle[throttleKey];
         }, 350); // Slightly longer than CSS transition
         
-        const selector = side === 'left' ? '.left-panel' : '.right-panel';
+        const selector = side === 'left' ? '.left-panel' : 
+                         side === 'tertiary' ? '.tertiary-panel' : '.right-panel';
         const header = document.querySelector(`${selector} [data-panel="${panelName}"].panel-accordion-header`);
         const content = document.querySelector(`${selector} [data-panel="${panelName}"] .panel-accordion-content`);
         const chevron = header.querySelector('.accordion-chevron');

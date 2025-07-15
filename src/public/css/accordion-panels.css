@@ -205,6 +205,20 @@
     display: none;
 }
 
+/* Hide accordion chevron in tertiary sidebar when only one panel */
+.tertiary-panel .panel-accordion-item:only-child .accordion-chevron {
+    display: none;
+}
+
+/* Also remove pointer cursor and hover effect for single panel */
+.tertiary-panel .panel-accordion-item:only-child .panel-accordion-header {
+    cursor: default;
+}
+
+.tertiary-panel .panel-accordion-item:only-child .panel-accordion-header:hover {
+    background: var(--cad-bg-secondary);
+}
+
 /* Ensure proper scrolling */
 .panel-accordion-content::-webkit-scrollbar {
     width: 8px;

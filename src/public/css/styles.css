@@ -393,6 +393,12 @@ body {
   display: flex;
   flex-direction: column;
   order: 2;
+  transition: margin-right 0.3s ease;
+}
+
+/* When tertiary is collapsed, center extends under it */
+.main-interface:has(.dock-tertiary.collapsed) .dock-center {
+  margin-right: calc(-1 * var(--cad-panel-width) + 24px);
 }
 
 .dock-tertiary {
@@ -400,11 +406,17 @@ body {
   flex-shrink: 0;
   order: 3;
   position: relative;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, margin-right 0.3s ease;
 }
 
 .dock-tertiary.collapsed {
-  width: 40px;
+  width: 24px;
+  position: absolute;
+  right: var(--cad-panel-width);
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  margin-right: 0;
 }
 
 .dock-right {
@@ -476,7 +488,7 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
+  width: 24px;
   height: 60px;
   background: var(--cad-bg-tertiary);
   border: 1px solid var(--cad-border-primary);
