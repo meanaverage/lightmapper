@@ -30,10 +30,16 @@ export class LayersPanel extends BasePanel {
                         <i class="fas fa-trash"></i>
                     </button>
                     <button class="btn btn-icon-only" title="Bring to Front" onclick="window.panelManager.getPanel('layers').bringToFront()">
-                        <i class="fas fa-arrow-up"></i>
+                        <i class="fas fa-angle-double-up"></i>
+                    </button>
+                    <button class="btn btn-icon-only" title="Bring Forward" onclick="window.panelManager.getPanel('layers').bringForward()">
+                        <i class="fas fa-angle-up"></i>
+                    </button>
+                    <button class="btn btn-icon-only" title="Send Backward" onclick="window.panelManager.getPanel('layers').sendBackward()">
+                        <i class="fas fa-angle-down"></i>
                     </button>
                     <button class="btn btn-icon-only" title="Send to Back" onclick="window.panelManager.getPanel('layers').sendToBack()">
-                        <i class="fas fa-arrow-down"></i>
+                        <i class="fas fa-angle-double-down"></i>
                     </button>
                 </div>
             </div>
@@ -486,8 +492,17 @@ export class LayersPanel extends BasePanel {
     /**
      * Bring selected layer to front
      */
-    bringToFront() {
+    async bringToFront() {
         if (!this.selectedLayerId || !this.layerManager) return;
+        
+        // Call API endpoint
+        try {
+            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/bring-to-front`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.warn('API call failed, continuing with local operation:', error);
+        }
         
         // Move to front of layer order
         const index = this.layerManager.layerOrder.indexOf(this.selectedLayerId);
@@ -503,8 +518,17 @@ export class LayersPanel extends BasePanel {
     /**
      * Send selected layer to back
      */
-    sendToBack() {
+    async sendToBack() {
         if (!this.selectedLayerId || !this.layerManager) return;
+        
+        // Call API endpoint
+        try {
+            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/send-to-back`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.warn('API call failed, continuing with local operation:', error);
+        }
         
         // Move to back of layer order
         const index = this.layerManager.layerOrder.indexOf(this.selectedLayerId);
@@ -514,6 +538,70 @@ export class LayersPanel extends BasePanel {
             this.layerManager.updateAllZIndices();
             this.layerManager.updateCanvasObjectOrder(this.layerManager.layerOrder);
             this.refresh();
+        }
+    }
+
+    /**
+     * Bring selected layer forward one position
+     */
+    async bringForward() {
+        if (!this.selectedLayerId || !this.layerManager) return;
+        
+        // Call API endpoint
+        try {
+            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/bring-forward`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.warn('API call failed, continuing with local operation:', error);
+        }
+        
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return;
+        
+        const layer = this.layerManager.layers[this.selectedLayerId];
+        if (!layer) return;
+        
+        const object = canvasPanel.findObjectById(layer.objectId);
+        if (object) {
+            const editor = canvasPanel.getEditor();
+            if (editor) {
+                editor.canvas.setActiveObject(object);
+                editor.bringForward();
+                this.refresh();
+            }
+        }
+    }
+
+    /**
+     * Send selected layer backward one position
+     */
+    async sendBackward() {
+        if (!this.selectedLayerId || !this.layerManager) return;
+        
+        // Call API endpoint
+        try {
+            await this.fetchData(`${window.API_BASE}/api/layers/${this.selectedLayerId}/send-backward`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.warn('API call failed, continuing with local operation:', error);
+        }
+        
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel) return;
+        
+        const layer = this.layerManager.layers[this.selectedLayerId];
+        if (!layer) return;
+        
+        const object = canvasPanel.findObjectById(layer.objectId);
+        if (object) {
+            const editor = canvasPanel.getEditor();
+            if (editor) {
+                editor.canvas.setActiveObject(object);
+                editor.sendBackward();
+                this.refresh();
+            }
         }
     }
 

@@ -4953,6 +4953,16 @@ class FloorplanEditor {
             sendToBackBtn.addEventListener('click', () => this.sendToBack());
         }
         
+        const bringForwardBtn = document.getElementById('bring-forward-btn');
+        if (bringForwardBtn) {
+            bringForwardBtn.addEventListener('click', () => this.bringForward());
+        }
+        
+        const sendBackwardBtn = document.getElementById('send-backward-btn');
+        if (sendBackwardBtn) {
+            sendBackwardBtn.addEventListener('click', () => this.sendBackward());
+        }
+        
         const rotateBtn = document.getElementById('rotate-btn');
         if (rotateBtn) {
             rotateBtn.addEventListener('click', () => this.rotateSelected());
@@ -8155,6 +8165,60 @@ class FloorplanEditor {
         }
     }
 
+    bringForward() {
+        const activeObjects = this.canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            // Only manipulate user-created objects, not grid lines or system elements
+            const objectsToManipulate = activeObjects.filter(obj => 
+                !obj.gridLine && 
+                !obj.snapGuide && 
+                !obj.roomPreview && 
+                !obj.selectionRing &&
+                obj.selectable !== false
+            );
+            
+            if (objectsToManipulate.length > 0) {
+                objectsToManipulate.forEach(obj => {
+                    this.canvas.bringForward(obj);
+                    // Also bring associated label forward if it exists
+                    if (obj.lightObject && obj.labelObject) {
+                        this.canvas.bringForward(obj.labelObject);
+                    }
+                });
+                this.canvas.renderAll();
+                this.triggerAutoSave();
+                console.log('⬆️ Brought objects forward:', objectsToManipulate.length);
+            }
+        }
+    }
+
+    sendBackward() {
+        const activeObjects = this.canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            // Only manipulate user-created objects, not grid lines or system elements
+            const objectsToManipulate = activeObjects.filter(obj => 
+                !obj.gridLine && 
+                !obj.snapGuide && 
+                !obj.roomPreview && 
+                !obj.selectionRing &&
+                obj.selectable !== false
+            );
+            
+            if (objectsToManipulate.length > 0) {
+                objectsToManipulate.forEach(obj => {
+                    this.canvas.sendBackward(obj);
+                    // Also send associated label backward if it exists
+                    if (obj.lightObject && obj.labelObject) {
+                        this.canvas.sendBackward(obj.labelObject);
+                    }
+                });
+                this.canvas.renderAll();
+                this.triggerAutoSave();
+                console.log('⬇️ Sent objects backward:', objectsToManipulate.length);
+            }
+        }
+    }
+
     updateLayerControlButtons() {
         const activeObjects = this.canvas.getActiveObjects();
         const hasSelectableObjects = activeObjects.some(obj => 
@@ -8167,23 +8231,24 @@ class FloorplanEditor {
 
         const bringToFrontBtn = document.getElementById('bring-to-front-btn');
         const sendToBackBtn = document.getElementById('send-to-back-btn');
+        const bringForwardBtn = document.getElementById('bring-forward-btn');
+        const sendBackwardBtn = document.getElementById('send-backward-btn');
         const rotateBtn = document.getElementById('rotate-btn');
         const deleteBtn = document.getElementById('delete-btn');
 
-        // Update front/back buttons
-        if (bringToFrontBtn && sendToBackBtn) {
-            if (hasSelectableObjects) {
-                bringToFrontBtn.disabled = false;
-                sendToBackBtn.disabled = false;
-                bringToFrontBtn.classList.remove('disabled');
-                sendToBackBtn.classList.remove('disabled');
-            } else {
-                bringToFrontBtn.disabled = true;
-                sendToBackBtn.disabled = true;
-                bringToFrontBtn.classList.add('disabled');
-                sendToBackBtn.classList.add('disabled');
+        // Update all layer control buttons
+        const layerButtons = [bringToFrontBtn, sendToBackBtn, bringForwardBtn, sendBackwardBtn];
+        layerButtons.forEach(btn => {
+            if (btn) {
+                if (hasSelectableObjects) {
+                    btn.disabled = false;
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.disabled = true;
+                    btn.classList.add('disabled');
+                }
             }
-        }
+        });
 
         // Update rotate and delete buttons
         if (rotateBtn) {

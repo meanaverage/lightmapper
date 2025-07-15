@@ -966,6 +966,27 @@ app.get('/api/config', (req, res) => {
   res.json(config);
 });
 
+// Layer operations endpoints
+app.post('/api/layers/:layerId/bring-to-front', (req, res) => {
+  console.log('🔝 Bring to front requested for layer:', req.params.layerId);
+  res.json({ success: true, message: 'Layer brought to front' });
+});
+
+app.post('/api/layers/:layerId/send-to-back', (req, res) => {
+  console.log('🔻 Send to back requested for layer:', req.params.layerId);
+  res.json({ success: true, message: 'Layer sent to back' });
+});
+
+app.post('/api/layers/:layerId/bring-forward', (req, res) => {
+  console.log('⬆️ Bring forward requested for layer:', req.params.layerId);
+  res.json({ success: true, message: 'Layer brought forward' });
+});
+
+app.post('/api/layers/:layerId/send-backward', (req, res) => {
+  console.log('⬇️ Send backward requested for layer:', req.params.layerId);
+  res.json({ success: true, message: 'Layer sent backward' });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   console.log('💓 Health check requested');
