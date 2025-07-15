@@ -1496,7 +1496,7 @@ class LightMapperController {
                 area_id: this.selectedArea,
                 area_name: this.getAreaName(this.selectedArea),
                 layout: layoutData,
-                version: '3.0.68',
+                version: '3.0.69',
                 timestamp: new Date().toISOString(),
                 lights_count: this.getAssignedFloorplanEntities().length
             };
@@ -6351,6 +6351,9 @@ class FloorplanEditor {
         
         let light;
         
+        // Generate unique ID for this object
+        const objectId = Date.now() + Math.random();
+        
         if (this.lightIconStyle === 'bulb') {
             // Create bulb icon using fabric.Text with FontAwesome
             light = new fabric.Text('\uf0eb', { // FontAwesome lightbulb
@@ -6373,7 +6376,8 @@ class FloorplanEditor {
                 evented: true,
                 lightObject: true,
                 entityId: null,
-                iconStyle: 'bulb'
+                iconStyle: 'bulb',
+                id: objectId
             });
         } else if (this.lightIconStyle === 'recessed') {
             // Create recessed light icon
