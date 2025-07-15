@@ -78,6 +78,22 @@ export class CanvasPanel extends BasePanel {
     // ===== PUBLIC API FOR OTHER PANELS =====
     
     /**
+     * Get the canvas instance
+     * @returns {fabric.Canvas|null} The fabric canvas instance
+     */
+    getCanvas() {
+        return this.floorplanEditor?.canvas || null;
+    }
+    
+    /**
+     * Get the floorplan editor instance
+     * @returns {FloorplanEditor|null} The floorplan editor instance
+     */
+    getEditor() {
+        return this.floorplanEditor;
+    }
+    
+    /**
      * Get all lights from the canvas
      * @returns {Array<Object>} Array of light objects with their properties
      * @returns {string} [].entityId - The assigned Home Assistant entity ID

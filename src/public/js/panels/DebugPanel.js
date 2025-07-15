@@ -14,6 +14,9 @@ export class DebugPanel extends BasePanel {
         this.maxLogs = 100;
         this.autoRefresh = false;
         this.refreshInterval = null;
+        this.apiCalls = [];
+        this.maxApiCalls = 10;
+        this.setupApiInterceptor();
     }
 
     render() {
@@ -54,6 +57,11 @@ export class DebugPanel extends BasePanel {
                 </div>
                 
                 <div class="debug-section">
+                    <h4>Recent API Calls</h4>
+                    <div id="apiCalls" class="debug-info"></div>
+                </div>
+                
+                <div class="debug-section">
                     <h4>Event Log</h4>
                     <div id="eventLog" class="debug-log"></div>
                 </div>
@@ -68,6 +76,7 @@ export class DebugPanel extends BasePanel {
         this.updatePanelStates();
         this.updateLayerInfo();
         this.updateCanvasInfo();
+        this.updateApiCalls();
         this.updateEventLog();
     }
 
@@ -348,6 +357,118 @@ export class DebugPanel extends BasePanel {
             this.toggleAutoRefresh();
         }
     }
+
+    setupApiInterceptor() {
+        // Store original fetch
+        const originalFetch = window.fetch;
+        const debugPanel = this;
+        
+        // Override fetch to log API calls
+        window.fetch = async function(...args) {
+            const [url, options = {}] = args;
+            const method = options.method || 'GET';
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Create API call record
+            const apiCall = {
+                id: Date.now(),
+                time: timestamp,
+                method: method,
+                url: url,
+                status: 'pending',
+                duration: null,
+                error: null
+            };
+            
+            debugPanel.apiCalls.unshift(apiCall);
+            if (debugPanel.apiCalls.length > debugPanel.maxApiCalls) {
+                debugPanel.apiCalls.pop();
+            }
+            
+            const startTime = performance.now();
+            
+            try {
+                const response = await originalFetch(...args);
+                const endTime = performance.now();
+                
+                // Update call record
+                apiCall.status = response.ok ? 'success' : 'error';
+                apiCall.statusCode = response.status;
+                apiCall.duration = Math.round(endTime - startTime);
+                
+                // Log to event log
+                debugPanel.log(`API ${method} ${url} - ${response.status} (${apiCall.duration}ms)`, 
+                    response.ok ? 'success' : 'error');
+                
+                // Update display if visible
+                if (debugPanel.container?.style.display !== 'none') {
+                    debugPanel.updateApiCalls();
+                }
+                
+                return response;
+            } catch (error) {
+                const endTime = performance.now();
+                
+                // Update call record
+                apiCall.status = 'error';
+                apiCall.duration = Math.round(endTime - startTime);
+                apiCall.error = error.message;
+                
+                // Log to event log
+                debugPanel.log(`API ${method} ${url} - Error: ${error.message}`, 'error');
+                
+                // Update display if visible
+                if (debugPanel.container?.style.display !== 'none') {
+                    debugPanel.updateApiCalls();
+                }
+                
+                throw error;
+            }
+        };
+    }
+
+    updateApiCalls() {
+        const container = document.getElementById('apiCalls');
+        if (!container) return;
+
+        if (this.apiCalls.length === 0) {
+            container.innerHTML = '<div class="debug-info">No API calls yet</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="debug-table api-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Method</th>
+                        <th>URL</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.apiCalls.map(call => {
+                        const urlPath = call.url.replace(window.API_BASE, '').replace(/^https?:\/\/[^\/]+/, '');
+                        const statusClass = call.status === 'success' ? 'success' : 
+                                          call.status === 'error' ? 'error' : 'warning';
+                        return `
+                            <tr>
+                                <td>${call.time}</td>
+                                <td><span class="method-${call.method.toLowerCase()}">${call.method}</span></td>
+                                <td title="${call.url}">${urlPath}</td>
+                                <td class="${statusClass}">
+                                    ${call.statusCode || call.status}
+                                    ${call.error ? `<br><small>${call.error}</small>` : ''}
+                                </td>
+                                <td>${call.duration !== null ? call.duration + 'ms' : '-'}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
 }
 
 // Add CSS for debug panel
@@ -489,5 +610,20 @@ style.textContent = `
 .log-message {
     word-break: break-word;
 }
+
+.api-table {
+    font-size: 11px;
+}
+
+.api-table td {
+    padding: 2px 6px;
+    font-family: monospace;
+}
+
+.method-get { color: #4caf50; }
+.method-post { color: #2196f3; }
+.method-put { color: #ff9800; }
+.method-delete { color: #f44336; }
+.method-patch { color: #9c27b0; }
 `;
 document.head.appendChild(style);

@@ -420,6 +420,7 @@ export class EntitiesPanel extends BasePanel {
     
     // Drag and Drop Methods
     handleDragStart(event, entityId) {
+        console.log('🎯 Drag started for entity:', entityId);
         event.dataTransfer.effectAllowed = 'copy';
         event.dataTransfer.setData('text/plain', entityId);
         event.dataTransfer.setData('application/x-home-assistant-entity', entityId);
@@ -438,6 +439,9 @@ export class EntitiesPanel extends BasePanel {
         // Visual feedback
         event.target.style.opacity = '0.5';
         
+        // Log to debug panel
+        window.panelManager?.getPanel('debug')?.log(`Drag started: ${entityId}`, 'event');
+        
         // Setup canvas drop zone
         this.setupCanvasDropZone();
     }
@@ -448,8 +452,11 @@ export class EntitiesPanel extends BasePanel {
         
         if (!canvas) {
             console.warn('⚠️ Canvas not found for drop zone setup');
+            window.panelManager?.getPanel('debug')?.log('Canvas not found for drop zone', 'error');
             return;
         }
+        
+        console.log('📌 Setting up canvas drop zone');
         
         const canvasElement = canvas.getElement();
         const drawingArea = document.querySelector('.drawing-area');
@@ -486,6 +493,8 @@ export class EntitiesPanel extends BasePanel {
             e.stopPropagation();
             dropZone.classList.remove('drag-over');
             
+            console.log('💧 Drop event triggered');
+            
             // Get entity ID
             const entityId = e.dataTransfer.getData('application/x-home-assistant-entity') || 
                             e.dataTransfer.getData('text/plain');
@@ -494,6 +503,9 @@ export class EntitiesPanel extends BasePanel {
                 console.warn('⚠️ No entity ID in drop data');
                 return;
             }
+            
+            console.log('✅ Dropped entity:', entityId);
+            window.panelManager?.getPanel('debug')?.log(`Dropped entity: ${entityId}`, 'event');
             
             // Calculate drop position on canvas
             const rect = canvasElement.getBoundingClientRect();
@@ -505,13 +517,19 @@ export class EntitiesPanel extends BasePanel {
             const canvasX = (x - vpt[4]) / vpt[0];
             const canvasY = (y - vpt[5]) / vpt[3];
             
+            console.log(`📍 Drop position: canvas(${Math.round(canvasX)}, ${Math.round(canvasY)})`);
+            
             // Create light at drop position through canvas API
             this.createLightAtPosition(entityId, canvasX, canvasY);
         };
         
         // Drag end handler to reset opacity
         const handleDragEnd = (e) => {
-            e.target.style.opacity = '';
+            // Find all entity cards and reset their opacity
+            document.querySelectorAll('.entity-card').forEach(card => {
+                card.style.opacity = '';
+            });
+            
             dropZone.classList.remove('drag-over');
             
             // Clean up drop handlers
@@ -539,16 +557,20 @@ export class EntitiesPanel extends BasePanel {
     }
     
     createLightAtPosition(entityId, x, y) {
+        console.log(`🏗️ Creating light at position (${x}, ${y}) for entity: ${entityId}`);
+        window.panelManager?.getPanel('debug')?.log(`Creating light at (${Math.round(x)}, ${Math.round(y)}) for ${entityId}`, 'event');
+        
         const canvasPanel = window.panelManager?.getPanel('canvas');
         const editor = canvasPanel?.getEditor();
         
         if (!editor) {
             console.error('❌ Floorplan editor not available');
+            window.panelManager?.getPanel('debug')?.log('Floorplan editor not available', 'error');
             return;
         }
         
-        // Use the editor's API to create a light
-        const light = editor.createLight(x, y);
+        // Use the editor's addLight method to create a light
+        const light = editor.addLight({ x, y });
         
         if (light) {
             // Assign the entity to the newly created light
@@ -557,8 +579,17 @@ export class EntitiesPanel extends BasePanel {
             // Show success message
             window.sceneManager?.showStatus(`Light created and assigned to ${entityId}`, 'success');
             
+            // Log to debug panel
+            window.panelManager?.getPanel('debug')?.log(`Light created and assigned: ${entityId}`, 'success');
+            
+            // Refresh the lights panel
+            window.panelManager?.refreshPanel('lights');
+            
             // Refresh our entity list to update assignment status
             this.loadEntities();
+        } else {
+            console.error('❌ Failed to create light');
+            window.panelManager?.getPanel('debug')?.log('Failed to create light', 'error');
         }
     }
 }
