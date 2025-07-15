@@ -164,12 +164,13 @@
 
 /* Panel Headers */
 .panel-header {
-    padding: 15px;
+    padding: 10px 12px;
     background: var(--cad-bg-tertiary, #1e1e1e);
     border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .panel-header h3 {
@@ -315,14 +316,15 @@
 }
 
 .entities-controls {
-    padding: 10px 15px;
+    padding: 8px 12px;
     background: var(--cad-bg-secondary, #2d2d2d);
     border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+    flex-shrink: 0;
 }
 
 .search-box {
     position: relative;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .search-box i {
@@ -360,9 +362,10 @@
 .entity-stats {
     display: flex;
     gap: 20px;
-    padding: 10px 15px;
+    padding: 8px 15px;
     background: var(--cad-blue-primary, #4a9eff);
     color: white;
+    flex-shrink: 0;
 }
 
 .stat-item {

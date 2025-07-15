@@ -94,6 +94,8 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
+  position: relative;
+  overflow: hidden;
 }
 
 /* ========================================
@@ -371,6 +373,7 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
 /* ========================================
@@ -864,8 +867,8 @@ body {
   background: var(--cad-bg-canvas);
   position: relative;
   overflow: hidden;
-  padding-bottom: 350px;
-  transition: padding-bottom 0.3s ease;
+  margin-bottom: 250px;
+  transition: margin-bottom 0.3s ease;
 }
 
 .drawing-area.drag-over {
@@ -1903,16 +1906,17 @@ body {
    Entity Panel - Photoshop Style
    ======================================== */
 .entity-panel {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--cad-bg-secondary);
   border-top: 1px solid var(--cad-border-primary);
-  height: 350px;
+  height: 250px;
   display: flex;
   flex-direction: column;
   z-index: 100;
+  transition: height 0.3s ease;
 }
 
 .entity-panel-tabs {

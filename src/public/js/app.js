@@ -1160,10 +1160,8 @@ class LightMapperController {
                 window.lightEntities[light.entityId] = light;
             });
             
-            // Load entities for the entity panel
-            if (window.entityPanel) {
-                await window.entityPanel.loadEntities();
-            }
+            // Entity panel now loads entities automatically through the new panel system
+            // No need to manually call loadEntities
         } catch (error) {
             console.error('Error loading lights:', error);
             this.showStatus('Failed to load lights from Home Assistant', 'error');
@@ -4378,14 +4376,14 @@ class LightMapperController {
                 toggleBtn.title = 'Expand Entities Panel';
                 // Expand drawing area when panel is collapsed
                 if (drawingArea) {
-                    drawingArea.style.paddingBottom = '0';
+                    drawingArea.style.marginBottom = '0';
                 }
             } else {
                 toggleBtn.innerHTML = '&raquo;';
                 toggleBtn.title = 'Collapse Entity Panel';
-                // Restore drawing area padding
+                // Restore drawing area margin
                 if (drawingArea) {
-                    drawingArea.style.paddingBottom = '350px';
+                    drawingArea.style.marginBottom = '250px';
                 }
             }
             
@@ -4439,7 +4437,7 @@ class LightMapperController {
             const newHeight = Math.max(150, Math.min(600, startHeight + deltaY));
             
             entityPanel.style.height = newHeight + 'px';
-            drawingArea.style.paddingBottom = newHeight + 'px';
+            drawingArea.style.marginBottom = newHeight + 'px';
             
             // Update canvas size
             if (window.floorplanEditor) {
