@@ -378,7 +378,7 @@
 .entities-list {
     padding: 10px;
     overflow-y: auto;
-    max-height: calc(100vh - 350px);
+    height: calc(100% - 150px);
     background: var(--cad-bg-secondary, #2d2d2d);
 }
 
@@ -388,8 +388,9 @@
     border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
-    cursor: pointer;
+    cursor: move;
     transition: all 0.2s;
+    user-select: none;
 }
 
 .entity-card:hover {

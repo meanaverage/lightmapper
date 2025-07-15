@@ -1276,6 +1276,10 @@ class LightMapperController {
 
         // Setup control sliders
         this.setupControlSliders();
+        
+        // Setup entity panel functionality
+        this.setupEntityPanelToggle();
+        this.setupPanelResizing();
     }
 
     initializeFloorplanEditor() {
@@ -4353,6 +4357,102 @@ class LightMapperController {
         this.clearHostnameLabels();
         this.clearMACLabels();
         this.canvas.renderAll();
+    }
+    
+    // Entity Panel Methods
+    setupEntityPanelToggle() {
+        const toggleBtn = document.getElementById('entityPanelToggle');
+        const panel = document.getElementById('entityPanel');
+        const drawingArea = document.querySelector('.drawing-area');
+        
+        if (!toggleBtn || !panel) {
+            console.warn('⚠️ Entity panel toggle elements not found');
+            return;
+        }
+        
+        toggleBtn.addEventListener('click', () => {
+            panel.classList.toggle('collapsed');
+            
+            if (panel.classList.contains('collapsed')) {
+                toggleBtn.innerHTML = '<i class="fas fa-lightbulb"></i>';
+                toggleBtn.title = 'Expand Entities Panel';
+                // Expand drawing area when panel is collapsed
+                if (drawingArea) {
+                    drawingArea.style.marginBottom = '0';
+                }
+            } else {
+                toggleBtn.innerHTML = '&raquo;';
+                toggleBtn.title = 'Collapse Entity Panel';
+                // Restore drawing area margin
+                if (drawingArea) {
+                    drawingArea.style.marginBottom = '250px';
+                }
+            }
+            
+            // Trigger canvas resize to adjust to new space
+            if (window.floorplanEditor) {
+                window.floorplanEditor.resizeCanvas();
+            }
+        });
+    }
+    
+    setupPanelResizing() {
+        const entityPanel = document.getElementById('entityPanel');
+        const drawingArea = document.querySelector('.drawing-area');
+        
+        if (!entityPanel || !drawingArea) {
+            console.warn('⚠️ Entity panel or drawing area not found for resizing');
+            return;
+        }
+        
+        // Create resize handle at the top of entity panel
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'entity-panel-resize-handle';
+        resizeHandle.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            cursor: ns-resize;
+            background: transparent;
+            z-index: 10;
+        `;
+        entityPanel.appendChild(resizeHandle);
+        
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 0;
+        
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = entityPanel.offsetHeight;
+            document.body.style.cursor = 'ns-resize';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const deltaY = startY - e.clientY;
+            const newHeight = Math.max(150, Math.min(600, startHeight + deltaY));
+            
+            entityPanel.style.height = newHeight + 'px';
+            drawingArea.style.marginBottom = newHeight + 'px';
+            
+            // Update canvas size
+            if (window.floorplanEditor) {
+                window.floorplanEditor.resizeCanvas();
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+            }
+        });
     }
 }
 

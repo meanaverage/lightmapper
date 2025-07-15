@@ -184,7 +184,9 @@ export class EntitiesPanel extends BasePanel {
         
         return `
             <div class="entity-card ${entity.isAssigned ? 'assigned' : ''} ${this.selectedEntity === entity.entity_id ? 'selected' : ''}" 
-                 data-entity-id="${entity.entity_id}">
+                 data-entity-id="${entity.entity_id}"
+                 draggable="true"
+                 ondragstart="window.panelManager.getPanel('entities').handleDragStart(event, '${entity.entity_id}')">
                 <div class="entity-header">
                     <div class="entity-icon">
                         <i class="fas ${this.getEntityIcon(domain, entity)}"></i>
@@ -412,5 +414,149 @@ export class EntitiesPanel extends BasePanel {
 
     refresh() {
         this.loadEntities();
+    }
+    
+    // Drag and Drop Methods
+    handleDragStart(event, entityId) {
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', entityId);
+        event.dataTransfer.setData('application/x-home-assistant-entity', entityId);
+        
+        // Find the entity data
+        const entity = this.entities.find(e => e.entity_id === entityId);
+        if (entity) {
+            // Store entity data for the drop handler
+            event.dataTransfer.setData('application/json', JSON.stringify({
+                entityId: entityId,
+                friendlyName: entity.attributes?.friendly_name || entityId,
+                domain: entityId.split('.')[0]
+            }));
+        }
+        
+        // Visual feedback
+        event.target.style.opacity = '0.5';
+        
+        // Setup canvas drop zone
+        this.setupCanvasDropZone();
+    }
+    
+    setupCanvasDropZone() {
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        const canvas = canvasPanel?.getCanvas();
+        
+        if (!canvas) {
+            console.warn('⚠️ Canvas not found for drop zone setup');
+            return;
+        }
+        
+        const canvasElement = canvas.getElement();
+        const drawingArea = document.querySelector('.drawing-area');
+        
+        // Use drawing area as the drop zone for better coverage
+        const dropZone = drawingArea || canvasElement;
+        
+        // Remove any existing listeners
+        if (this._dropHandlers) {
+            this._dropHandlers.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
+            });
+        }
+        
+        this._dropHandlers = [];
+        
+        // Drag over handler
+        const handleDragOver = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('drag-over');
+        };
+        
+        // Drag leave handler
+        const handleDragLeave = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        };
+        
+        // Drop handler
+        const handleDrop = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+            
+            // Get entity ID
+            const entityId = e.dataTransfer.getData('application/x-home-assistant-entity') || 
+                            e.dataTransfer.getData('text/plain');
+            
+            if (!entityId) {
+                console.warn('⚠️ No entity ID in drop data');
+                return;
+            }
+            
+            // Calculate drop position on canvas
+            const rect = canvasElement.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Convert to canvas coordinates accounting for viewport transform
+            const vpt = canvas.viewportTransform;
+            const canvasX = (x - vpt[4]) / vpt[0];
+            const canvasY = (y - vpt[5]) / vpt[3];
+            
+            // Create light at drop position through canvas API
+            this.createLightAtPosition(entityId, canvasX, canvasY);
+        };
+        
+        // Drag end handler to reset opacity
+        const handleDragEnd = (e) => {
+            e.target.style.opacity = '';
+            dropZone.classList.remove('drag-over');
+            
+            // Clean up drop handlers
+            if (this._dropHandlers) {
+                this._dropHandlers.forEach(({ element, event, handler }) => {
+                    element.removeEventListener(event, handler);
+                });
+                this._dropHandlers = [];
+            }
+        };
+        
+        // Add event listeners
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+        document.addEventListener('dragend', handleDragEnd, { once: true });
+        
+        // Store for cleanup
+        this._dropHandlers = [
+            { element: dropZone, event: 'dragover', handler: handleDragOver },
+            { element: dropZone, event: 'dragleave', handler: handleDragLeave },
+            { element: dropZone, event: 'drop', handler: handleDrop },
+            { element: document, event: 'dragend', handler: handleDragEnd }
+        ];
+    }
+    
+    createLightAtPosition(entityId, x, y) {
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        const editor = canvasPanel?.getEditor();
+        
+        if (!editor) {
+            console.error('❌ Floorplan editor not available');
+            return;
+        }
+        
+        // Use the editor's API to create a light
+        const light = editor.createLight(x, y);
+        
+        if (light) {
+            // Assign the entity to the newly created light
+            canvasPanel.assignEntityToLight(light, entityId);
+            
+            // Show success message
+            window.sceneManager?.showStatus(`Light created and assigned to ${entityId}`, 'success');
+            
+            // Refresh our entity list to update assignment status
+            this.loadEntities();
+        }
     }
 }
