@@ -149,8 +149,13 @@ class HAWebSocketClient {
             const configResponse = await fetch(`${window.API_BASE || ''}/api/internal/config`);
             if (configResponse.ok) {
                 const config = await configResponse.json();
+                console.log('🔑 Config received, token available:', !!config.ha?.token);
+                console.log('🔑 Token length:', config.ha?.token?.length || 0);
+                console.log('🔑 Ingress mode:', config.ingress);
+                
                 if (config.ha && config.ha.token) {
                     // Send auth message with token
+                    console.log('🔐 Sending authentication with token...');
                     this.ws.send(JSON.stringify({
                         type: 'auth',
                         access_token: config.ha.token

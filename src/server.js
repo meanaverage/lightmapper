@@ -61,7 +61,7 @@ const config = {
     baseUrl: userOptions.ha_base_url || 
              process.env.HA_BASE_URL || 
              'http://supervisor/core',
-    token: process.env.SUPERVISOR_TOKEN || userOptions.ha_token || process.env.HASSIO_TOKEN
+    token: process.env.HASSIO_TOKEN || process.env.SUPERVISOR_TOKEN || userOptions.ha_token
   },
   ingress: isIngress,
   ingressPath: INGRESS_ENTRY || INGRESS_URL || ''
@@ -83,7 +83,10 @@ console.log('🔍 User options debug:');
 console.log('  userOptions.ha_token available:', !!userOptions.ha_token);
 console.log('  process.env.SUPERVISOR_TOKEN available:', !!process.env.SUPERVISOR_TOKEN);
 console.log('🔧 Final configuration choice:');
-console.log('  Using token type:', config.ha.token === process.env.SUPERVISOR_TOKEN ? 'SUPERVISOR_TOKEN' : 'USER_TOKEN');
+console.log('  Using token type:', 
+  config.ha.token === process.env.HASSIO_TOKEN ? 'HASSIO_TOKEN' :
+  config.ha.token === process.env.SUPERVISOR_TOKEN ? 'SUPERVISOR_TOKEN' : 
+  'USER_TOKEN');
 console.log('  Using base URL source:', 
   userOptions.ha_base_url ? 'USER_CONFIG' : 
   process.env.HA_BASE_URL ? 'AUTO_DETECTED' : 
@@ -1153,6 +1156,9 @@ app.get('/api/internal/config', (req, res) => {
   // Include HA configuration for internal use (WebSocket authentication)
   // Only include token if request is from same origin (not external API)
   const isInternalRequest = !req.get('X-API-Key') && !req.query.api_key;
+  
+  console.log('🔐 Config endpoint - Token available:', !!config.ha.token);
+  console.log('🔐 Config endpoint - Is internal request:', isInternalRequest);
   
   if (isInternalRequest) {
     responseConfig.ha = {
