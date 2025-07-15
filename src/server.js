@@ -1508,15 +1508,20 @@ async function startServer() {
         
         // Intercept auth_required to inject our token
         if (message.type === 'auth_required') {
-          console.log('🔐 Authenticating with Home Assistant...');
+          console.log('🔐 Proxy authenticating with Home Assistant...');
           haWs.send(JSON.stringify({
             type: 'auth',
             access_token: config.ha.token
           }));
+          // Don't forward auth_required to client since we handle auth
         } else if (message.type === 'auth_ok') {
           authenticated = true;
-          console.log('✅ Authenticated with Home Assistant');
-          // Forward auth_ok to client
+          console.log('✅ Proxy authenticated with Home Assistant');
+          // Send auth_ok to client to complete their auth flow
+          clientWs.send(JSON.stringify({ type: 'auth_ok' }));
+        } else if (message.type === 'auth_invalid') {
+          console.error('❌ Proxy authentication failed');
+          // Still send auth_invalid to client
           clientWs.send(data.toString());
         } else {
           // Forward all other messages to client
@@ -1538,8 +1543,10 @@ async function startServer() {
       clientWs.on('message', (data) => {
         const message = JSON.parse(data.toString());
         
-        // Skip auth messages from client since we handle auth
+        // Handle auth messages from client
         if (message.type === 'auth') {
+          // Client is trying to auth, but we handle it, so just acknowledge
+          console.log('🔐 Client auth attempt received (handled by proxy)');
           return;
         }
         

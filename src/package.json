@@ -1,6 +1,6 @@
 {
   "name": "lightmapper",
-  "version": "3.0.82",
+  "version": "3.0.83",
   "description": "Advanced Home Assistant lighting controller with interactive floorplan editor",
   "main": "server.js",
   "scripts": {

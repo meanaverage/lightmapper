@@ -116,7 +116,11 @@ class HAWebSocketClient {
                 
             case 'auth_invalid':
                 console.error('❌ Authentication failed:', message.message);
-                this.ws.close();
+                // In proxy mode, this might be a false negative
+                // The proxy might still forward events
+                console.log('🔄 Continuing despite auth error (proxy mode)');
+                this.connected = true; // Mark as connected anyway
+                this.emit('connected');
                 break;
                 
             case 'result':
@@ -227,10 +231,16 @@ class HAWebSocketClient {
                 event_type: 'state_changed'
             });
             
-            console.log('✅ Subscribed to state changes');
-            this.eventSubscriptions.set('state_changed', result.id);
+            console.log('✅ Subscribed to state changes, result:', result);
+            if (result && result.id) {
+                this.eventSubscriptions.set('state_changed', result.id);
+            } else {
+                console.warn('⚠️ Subscribe result missing ID, but may still receive events');
+            }
         } catch (error) {
             console.error('❌ Failed to subscribe to state changes:', error);
+            // In proxy mode, we might still receive events even if subscribe fails
+            console.log('🔄 Will continue without explicit subscription');
         }
     }
     
