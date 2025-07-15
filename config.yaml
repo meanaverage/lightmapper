@@ -1,6 +1,6 @@
 name: "LightMapper"
 description: "Advanced Home Assistant lighting controller with interactive floorplan editor"
-version: "3.0.64"
+version: "3.0.65"
 slug: lightmapper
 startup: application
 boot: auto

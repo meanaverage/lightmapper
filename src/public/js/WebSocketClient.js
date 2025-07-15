@@ -12,7 +12,18 @@ class WebSocketClient {
         this.listeners = new Map();
         
         console.log('🔌 WebSocketClient initialized');
-        this.connect();
+        
+        // Defer connection until API_BASE is available
+        this.waitForApiBase();
+    }
+    
+    waitForApiBase() {
+        if (window.API_BASE !== undefined) {
+            this.connect();
+        } else {
+            // Wait for API_BASE to be set
+            setTimeout(() => this.waitForApiBase(), 100);
+        }
     }
     
     connect() {
