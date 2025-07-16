@@ -51,6 +51,18 @@ class Blueprint3DAdapter {
             return;
         }
         
+        // Check if Three.js and required components are loaded
+        if (typeof THREE === 'undefined') {
+            console.error('❌ Three.js not loaded!');
+            throw new Error('Three.js library not found');
+        }
+        
+        if (typeof OrbitControls === 'undefined') {
+            console.error('❌ OrbitControls not loaded!');
+            throw new Error('OrbitControls not found');
+        }
+        
+        console.log('✅ Three.js and controls loaded successfully');
         console.log('📦 Container dimensions:', container.clientWidth, 'x', container.clientHeight);
         
         // Setup scene
@@ -81,8 +93,8 @@ class Blueprint3DAdapter {
         
         container.appendChild(this.renderer.domElement);
         
-        // Setup controls
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        // Setup controls - OrbitControls is in global scope when loaded from CDN
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.screenSpacePanning = false;
@@ -546,7 +558,8 @@ class Blueprint3DAdapter {
      * Export scene as GLTF
      */
     exportGLTF(callback) {
-        const exporter = new THREE.GLTFExporter();
+        // GLTFExporter is in global scope when loaded from CDN
+        const exporter = new GLTFExporter();
         exporter.parse(this.scene, callback, { binary: false });
     }
     
