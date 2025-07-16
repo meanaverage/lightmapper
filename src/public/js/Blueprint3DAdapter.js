@@ -158,7 +158,7 @@ class Blueprint3DAdapter {
         // First pass - find bounds
         fabricData.objects.forEach(obj => {
             if (obj.roomObject) {
-                if (obj.type === 'rect') {
+                if (obj.type === 'rect' || obj.type === 'Rect') {
                     // Rectangle room
                     minX = Math.min(minX, obj.left);
                     maxX = Math.max(maxX, obj.left + obj.width);
@@ -192,7 +192,7 @@ class Blueprint3DAdapter {
                 const roomCorners = [];
                 let points = [];
                 
-                if (obj.type === 'rect') {
+                if (obj.type === 'rect' || obj.type === 'Rect') {
                     // Convert rectangle to points
                     points = [
                         { x: 0, y: 0 },
