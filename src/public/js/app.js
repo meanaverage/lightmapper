@@ -5851,8 +5851,174 @@ class FloorplanEditor {
     }
 
     getGridColor() {
-        // Return appropriate grid color based on theme
+        // Return custom grid color if set, otherwise use theme-based default
+        if (this.customGridColor) {
+            return this.customGridColor;
+        }
         return this.isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    }
+    
+    setupGridColorPicker() {
+        const gridButton = document.getElementById('gridStatus');
+        if (!gridButton) return;
+        
+        let longClickTimer = null;
+        let isLongClick = false;
+        
+        const handleMouseDown = (e) => {
+            isLongClick = false;
+            longClickTimer = setTimeout(() => {
+                isLongClick = true;
+                this.showGridColorPicker();
+            }, 500); // 500ms for long click
+        };
+        
+        const handleMouseUp = () => {
+            clearTimeout(longClickTimer);
+            // Don't trigger normal click if it was a long click
+            if (isLongClick) {
+                return;
+            }
+        };
+        
+        const handleClick = (e) => {
+            if (isLongClick) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            // Normal grid toggle will be handled by existing code
+        };
+        
+        gridButton.addEventListener('mousedown', handleMouseDown);
+        gridButton.addEventListener('mouseup', handleMouseUp);
+        gridButton.addEventListener('mouseleave', () => clearTimeout(longClickTimer));
+        gridButton.addEventListener('click', handleClick);
+    }
+    
+    showGridColorPicker() {
+        // Create color picker popup
+        const popup = document.createElement('div');
+        popup.style.position = 'fixed';
+        popup.style.bottom = '40px';
+        popup.style.right = '20px';
+        popup.style.backgroundColor = '#2b2b2b';
+        popup.style.border = '1px solid #666';
+        popup.style.borderRadius = '4px';
+        popup.style.padding = '12px';
+        popup.style.zIndex = '10000';
+        popup.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+        
+        const title = document.createElement('div');
+        title.textContent = 'Grid Color';
+        title.style.color = '#fff';
+        title.style.fontSize = '12px';
+        title.style.marginBottom = '8px';
+        title.style.fontWeight = 'bold';
+        
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = this.customGridColor || '#ffffff';
+        colorInput.style.width = '100%';
+        colorInput.style.height = '30px';
+        colorInput.style.border = 'none';
+        colorInput.style.borderRadius = '2px';
+        colorInput.style.cursor = 'pointer';
+        
+        const opacityContainer = document.createElement('div');
+        opacityContainer.style.marginTop = '8px';
+        
+        const opacityLabel = document.createElement('label');
+        opacityLabel.textContent = 'Opacity: ';
+        opacityLabel.style.color = '#fff';
+        opacityLabel.style.fontSize = '11px';
+        
+        const opacitySlider = document.createElement('input');
+        opacitySlider.type = 'range';
+        opacitySlider.min = '0.05';
+        opacitySlider.max = '1';
+        opacitySlider.step = '0.05';
+        opacitySlider.value = '0.1';
+        opacitySlider.style.width = '80px';
+        opacitySlider.style.marginLeft = '8px';
+        
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.marginTop = '8px';
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.gap = '8px';
+        
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reset';
+        resetButton.style.padding = '4px 8px';
+        resetButton.style.fontSize = '11px';
+        resetButton.style.backgroundColor = '#666';
+        resetButton.style.color = '#fff';
+        resetButton.style.border = 'none';
+        resetButton.style.borderRadius = '2px';
+        resetButton.style.cursor = 'pointer';
+        
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '4px 8px';
+        closeButton.style.fontSize = '11px';
+        closeButton.style.backgroundColor = '#0078d4';
+        closeButton.style.color = '#fff';
+        closeButton.style.border = 'none';
+        closeButton.style.borderRadius = '2px';
+        closeButton.style.cursor = 'pointer';
+        
+        // Update grid color in real-time
+        const updateGridColor = () => {
+            const color = colorInput.value;
+            const opacity = parseFloat(opacitySlider.value);
+            
+            // Convert hex to rgba
+            const r = parseInt(color.slice(1, 3), 16);
+            const g = parseInt(color.slice(3, 5), 16);
+            const b = parseInt(color.slice(5, 7), 16);
+            
+            this.customGridColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+            this.drawGrid();
+        };
+        
+        colorInput.addEventListener('input', updateGridColor);
+        opacitySlider.addEventListener('input', updateGridColor);
+        
+        resetButton.addEventListener('click', () => {
+            this.customGridColor = null;
+            this.drawGrid();
+            document.body.removeChild(popup);
+        });
+        
+        closeButton.addEventListener('click', () => {
+            document.body.removeChild(popup);
+        });
+        
+        // Close on click outside
+        const handleClickOutside = (e) => {
+            if (!popup.contains(e.target)) {
+                document.body.removeChild(popup);
+                document.removeEventListener('click', handleClickOutside);
+            }
+        };
+        
+        opacityContainer.appendChild(opacityLabel);
+        opacityContainer.appendChild(opacitySlider);
+        
+        buttonsContainer.appendChild(resetButton);
+        buttonsContainer.appendChild(closeButton);
+        
+        popup.appendChild(title);
+        popup.appendChild(colorInput);
+        popup.appendChild(opacityContainer);
+        popup.appendChild(buttonsContainer);
+        
+        document.body.appendChild(popup);
+        
+        // Add click outside handler after a short delay to prevent immediate closing
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 100);
     }
     
     // Utility functions for measurement conversion
@@ -8315,33 +8481,45 @@ class FloorplanEditor {
                 const center = getTouchCenter(e.touches);
                 const currentDistance = getTouchDistance(e.touches);
                 
-                // Calculate zoom
-                const scale = currentDistance / lastTouchDistance;
-                let zoom = this.canvas.getZoom() * scale;
-                if (zoom > 5) zoom = 5;
-                if (zoom < 0.1) zoom = 0.1;
+                // Calculate distance change for zoom detection
+                const distanceChange = Math.abs(currentDistance - lastTouchDistance);
+                const centerChange = Math.abs(center.x - lastPosX) + Math.abs(center.y - lastPosY);
                 
-                // Calculate pan
-                const deltaX = center.x - lastPosX;
-                const deltaY = center.y - lastPosY;
+                // Determine if this is primarily a zoom or pan gesture
+                const isZoomGesture = distanceChange > centerChange * 0.5;
                 
-                // Apply zoom to center point
-                const rect = canvasElement.getBoundingClientRect();
-                const centerPoint = new fabric.Point(
-                    center.x - rect.left,
-                    center.y - rect.top
-                );
-                this.canvas.zoomToPoint(centerPoint, zoom);
-                
-                // Apply pan
-                const vpt = this.canvas.viewportTransform;
-                vpt[4] += deltaX;
-                vpt[5] += deltaY;
-                
-                this.zoomLevel = zoom;
-                this.updateZoomDisplay();
-                this.drawGrid();
-                this.canvas.requestRenderAll();
+                if (isZoomGesture) {
+                    // Pinch zoom with 3x sensitivity
+                    const scale = currentDistance / lastTouchDistance;
+                    const zoomChange = (scale - 1) * 3; // 3x sensitivity
+                    let zoom = this.canvas.getZoom() * (1 + zoomChange);
+                    if (zoom > 5) zoom = 5;
+                    if (zoom < 0.1) zoom = 0.1;
+                    
+                    // Apply zoom to center point
+                    const rect = canvasElement.getBoundingClientRect();
+                    const centerPoint = new fabric.Point(
+                        center.x - rect.left,
+                        center.y - rect.top
+                    );
+                    this.canvas.zoomToPoint(centerPoint, zoom);
+                    
+                    this.zoomLevel = zoom;
+                    this.updateZoomDisplay();
+                    this.drawGrid();
+                    this.canvas.requestRenderAll();
+                } else {
+                    // Two-finger pan
+                    const deltaX = center.x - lastPosX;
+                    const deltaY = center.y - lastPosY;
+                    
+                    const vpt = this.canvas.viewportTransform;
+                    vpt[4] += deltaX;
+                    vpt[5] += deltaY;
+                    
+                    this.canvas.requestRenderAll();
+                    this.drawGrid();
+                }
                 
                 lastTouchDistance = currentDistance;
                 lastPosX = center.x;
@@ -8378,8 +8556,11 @@ class FloorplanEditor {
         const zoomDisplay = document.getElementById('zoom-level');
         if (zoomDisplay) {
             zoomDisplay.style.cursor = 'pointer';
-            zoomDisplay.addEventListener('click', () => this.showZoomDialog());
+            zoomDisplay.addEventListener('click', () => this.showZoomInput());
         }
+        
+        // Add long-click grid color picker
+        this.setupGridColorPicker();
         
         // Attach event listeners
         canvasElement.addEventListener('wheel', handleWheel, { passive: false });
@@ -8400,12 +8581,37 @@ class FloorplanEditor {
         console.log('✅ Canvas navigation setup complete');
     }
     
-    showZoomDialog() {
-        const currentZoom = Math.round(this.zoomLevel * 100);
-        const input = prompt('Enter zoom percentage (10-500%):', currentZoom);
+    showZoomInput() {
+        const zoomElement = document.getElementById('zoom-level');
+        if (!zoomElement) return;
         
-        if (input !== null) {
-            const zoomPercent = parseInt(input);
+        const currentZoom = Math.round(this.zoomLevel * 100);
+        const currentText = zoomElement.textContent;
+        
+        // Create input element
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = currentZoom;
+        input.min = 10;
+        input.max = 500;
+        input.style.width = '60px';
+        input.style.height = '20px';
+        input.style.padding = '0 4px';
+        input.style.border = '1px solid #666';
+        input.style.borderRadius = '2px';
+        input.style.backgroundColor = '#2b2b2b';
+        input.style.color = '#fff';
+        input.style.fontSize = '12px';
+        input.style.textAlign = 'center';
+        
+        // Replace text with input
+        zoomElement.textContent = '';
+        zoomElement.appendChild(input);
+        input.focus();
+        input.select();
+        
+        const applyZoom = () => {
+            const zoomPercent = parseInt(input.value);
             if (!isNaN(zoomPercent) && zoomPercent >= 10 && zoomPercent <= 500) {
                 this.zoomLevel = zoomPercent / 100;
                 this.canvas.setZoom(this.zoomLevel);
@@ -8414,8 +8620,25 @@ class FloorplanEditor {
                 this.canvas.renderAll();
             } else {
                 window.sceneManager?.showStatus('Please enter a value between 10 and 500', 'warning');
+                zoomElement.textContent = currentText;
             }
-        }
+        };
+        
+        const cancelEdit = () => {
+            zoomElement.textContent = currentText;
+        };
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                applyZoom();
+            } else if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+        
+        input.addEventListener('blur', () => {
+            applyZoom();
+        });
     }
     
     rotateSelected() {
