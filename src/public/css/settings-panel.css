@@ -254,24 +254,40 @@
     background: transparent;
     border: none;
     transition: none;
-    color: rgb(125, 125, 125);
+    position: relative;
 }
 
 .settings-close:hover {
     background: rgba(0, 0, 0, 0.05);
-    color: rgb(80, 80, 80);
 }
 
 .dark-theme .settings-close:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: rgb(180, 180, 180);
 }
 
-.settings-close svg {
-    width: 12px;
-    height: 12px;
-    stroke: currentColor;
-    stroke-width: 2;
+/* Left-facing arrow using border technique */
+.settings-close::before {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    border-top: 4px solid rgba(0, 0, 0, 0);
+    border-right: 4px solid rgb(125, 125, 125);
+    border-bottom: 4px solid rgba(0, 0, 0, 0);
+    border-left: 0px none;
+    transition: none;
+}
+
+.settings-close:hover::before {
+    border-right-color: rgb(80, 80, 80);
+}
+
+.dark-theme .settings-close::before {
+    border-right-color: rgb(176, 176, 176);
+}
+
+.dark-theme .settings-close:hover::before {
+    border-right-color: rgb(180, 180, 180);
 }
 
 /* Settings Button with Icon */

@@ -107,11 +107,7 @@ export class SettingsBarComponent {
                 </button>
             </div>
             
-            <button class="settings-close">
-                <svg width="12" height="12" viewBox="0 0 12 12">
-                    <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="2"/>
-                </svg>
-            </button>
+            <button class="settings-close"></button>
         `;
     }
     
