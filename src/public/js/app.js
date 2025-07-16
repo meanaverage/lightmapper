@@ -5148,6 +5148,13 @@ class FloorplanEditor {
         
         // Keyboard shortcuts (handled by CAD interface, but keep local ones)
         document.addEventListener('keydown', (e) => {
+            // Always handle ESC key for drawing tools, regardless of focus
+            if (e.key === 'Escape' && this.isDrawing) {
+                console.log('⌨️ ESC pressed during drawing - canceling');
+                this.handleKeyDown(e);
+                return;
+            }
+            
             if (document.activeElement === this.canvas.upperCanvasEl || 
                 document.querySelector('.drawing-area:hover')) {
                 console.log('⌨️ Keyboard event:', e.key);
@@ -6702,6 +6709,12 @@ class FloorplanEditor {
                 this.linePreview = null;
                 window.sceneManager?.showStatus('Line tool: click to place points, ESC to cancel', 'info');
             } else {
+                // Safety check - if we're not drawing or don't have a start point, don't create line
+                if (!this.isDrawing || !this.lineStartPoint) {
+                    console.log('⚠️ Line drawing cancelled - not creating line');
+                    return;
+                }
+                
                 // Place line segment and continue drawing
                 // Remove preview
                 if (this.linePreview) {
@@ -6740,6 +6753,12 @@ class FloorplanEditor {
                 this.linePreview = null;
             }
         } else if (action === 'move' && this.isDrawing) {
+            // Safety check - if we don't have a start point, don't create preview
+            if (!this.lineStartPoint) {
+                console.log('⚠️ Line preview cancelled - no start point');
+                return;
+            }
+            
             // Remove existing preview
             if (this.linePreview) {
                 this.canvas.remove(this.linePreview);
@@ -6776,14 +6795,19 @@ class FloorplanEditor {
         }
         this.clearMeasurementDisplay();
         
+        // Reset all drawing state
         this.isDrawing = false;
         this.lineStartPoint = null;
         this.linePreview = null;
+        
+        // Ensure canvas is refreshed
         this.canvas.renderAll();
         
         // Switch back to select tool
         this.setTool('select');
         window.sceneManager?.showStatus('Line drawing cancelled', 'info');
+        
+        console.log('✅ Line drawing cancelled - all state reset');
     }
     
     addLight(position) {
