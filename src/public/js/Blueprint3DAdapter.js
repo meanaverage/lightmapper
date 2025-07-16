@@ -157,15 +157,24 @@ class Blueprint3DAdapter {
         
         // First pass - find bounds
         fabricData.objects.forEach(obj => {
-            if (obj.roomObject && obj.points) {
-                obj.points.forEach(point => {
-                    const x = obj.left + point.x;
-                    const z = obj.top + point.y;
-                    minX = Math.min(minX, x);
-                    maxX = Math.max(maxX, x);
-                    minZ = Math.min(minZ, z);
-                    maxZ = Math.max(maxZ, z);
-                });
+            if (obj.roomObject) {
+                if (obj.type === 'rect') {
+                    // Rectangle room
+                    minX = Math.min(minX, obj.left);
+                    maxX = Math.max(maxX, obj.left + obj.width);
+                    minZ = Math.min(minZ, obj.top);
+                    maxZ = Math.max(maxZ, obj.top + obj.height);
+                } else if (obj.points) {
+                    // Polygon room
+                    obj.points.forEach(point => {
+                        const x = obj.left + point.x;
+                        const z = obj.top + point.y;
+                        minX = Math.min(minX, x);
+                        maxX = Math.max(maxX, x);
+                        minZ = Math.min(minZ, z);
+                        maxZ = Math.max(maxZ, z);
+                    });
+                }
             }
         });
         
@@ -179,10 +188,27 @@ class Blueprint3DAdapter {
         
         // Process room objects to extract corners and walls
         fabricData.objects.forEach(obj => {
-            if (obj.roomObject && obj.points) {
+            if (obj.roomObject) {
                 const roomCorners = [];
+                let points = [];
                 
-                obj.points.forEach(point => {
+                if (obj.type === 'rect') {
+                    // Convert rectangle to points
+                    points = [
+                        { x: 0, y: 0 },
+                        { x: obj.width, y: 0 },
+                        { x: obj.width, y: obj.height },
+                        { x: 0, y: obj.height }
+                    ];
+                } else if (obj.points) {
+                    // Use existing polygon points
+                    points = obj.points;
+                } else {
+                    console.warn('Unknown room type:', obj.type);
+                    return;
+                }
+                
+                points.forEach(point => {
                     // Center the coordinates
                     const x = (obj.left + point.x) - centerX;
                     const z = (obj.top + point.y) - centerZ;

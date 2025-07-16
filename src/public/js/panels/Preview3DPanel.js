@@ -39,7 +39,7 @@ class Preview3DPanel extends BasePanel {
                     <h3>3D Preview</h3>
                     <div class="preview-3d-controls">
                         <button class="btn btn-icon-only" id="preview3d-sync" title="Sync with Canvas">
-                            <i class="fas fa-sync ${this.syncWithCanvas ? 'active' : ''}"></i>
+                            <i class="fas fa-sync active"></i>
                         </button>
                         <button class="btn btn-icon-only" id="preview3d-rotate" title="Auto Rotate">
                             <i class="fas fa-sync-alt ${this.autoRotate ? 'active' : ''}"></i>
@@ -87,8 +87,12 @@ class Preview3DPanel extends BasePanel {
         const syncBtn = document.getElementById('preview3d-sync');
         if (syncBtn) {
             syncBtn.addEventListener('click', () => {
+                console.log('🔄 Sync button clicked, current state:', this.syncWithCanvas);
+                
                 this.syncWithCanvas = !this.syncWithCanvas;
                 syncBtn.querySelector('i').classList.toggle('active');
+                
+                console.log('🔄 New sync state:', this.syncWithCanvas);
                 
                 if (this.syncWithCanvas) {
                     this.updateFromCanvas();
@@ -216,7 +220,11 @@ class Preview3DPanel extends BasePanel {
             
             // Initial sync if enabled
             if (this.syncWithCanvas) {
-                this.updateFromCanvas();
+                console.log('🔄 Initial sync on panel load');
+                // Small delay to ensure canvas is ready
+                setTimeout(() => {
+                    this.updateFromCanvas();
+                }, 100);
             }
             
             // Setup auto-rotate if enabled
@@ -240,19 +248,35 @@ class Preview3DPanel extends BasePanel {
     }
     
     updateFromCanvas() {
+        console.log('📐 Preview3DPanel: updateFromCanvas called, sync:', this.syncWithCanvas);
+        
         if (!this.blueprint3d || !this.syncWithCanvas) return;
         
         const canvasPanel = window.panelManager?.getPanel('canvas');
         const canvas = canvasPanel?.getCanvas();
         
-        if (!canvas) return;
+        console.log('📐 Canvas panel:', canvasPanel, 'Canvas:', canvas);
         
-        // Get canvas data
-        const canvasData = canvas.toJSON([
+        if (!canvas) {
+            console.error('❌ No canvas found!');
+            return;
+        }
+        
+        // Get canvas data with custom properties
+        const customProperties = [
             'lightObject', 'entityId', 'iconStyle',
             'roomObject', 'roomOutline', 'points',
-            'textObject', 'lineObject', 'backgroundImage'
-        ]);
+            'textObject', 'lineObject', 'backgroundImage',
+            'customLayer', 'roomName', 'fill'
+        ];
+        
+        const canvasData = canvas.toJSON(customProperties);
+        console.log('📐 Canvas data:', canvasData);
+        console.log('📐 Number of objects:', canvasData.objects?.length || 0);
+        
+        // Log room objects
+        const roomObjects = canvasData.objects?.filter(obj => obj.roomObject) || [];
+        console.log('🏠 Room objects found:', roomObjects.length, roomObjects);
         
         // Convert and load into 3D
         this.blueprint3d.loadFromFabric(canvasData);
