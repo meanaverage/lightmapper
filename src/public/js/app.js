@@ -6495,6 +6495,21 @@ class FloorplanEditor {
         objectsToRemove.forEach(obj => this.canvas.remove(obj));
     }
     
+    toggleMeasuring() {
+        this.showMeasurements = !this.showMeasurements;
+        const status = this.showMeasurements ? 'enabled' : 'disabled';
+        
+        if (!this.showMeasurements) {
+            // Clear any existing measurements when disabled
+            this.clearMeasurementDisplay();
+        }
+        
+        window.sceneManager?.showStatus(`Measurements ${status}`, 'info');
+        console.log(`📏 Measurements ${status}`);
+        
+        return this.showMeasurements;
+    }
+    
     handleMouseDown(e) {
         const pointer = this.canvas.getPointer(e.e);
         const snappedPoint = this.snapToGrid(pointer);

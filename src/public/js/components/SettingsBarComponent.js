@@ -51,6 +51,9 @@ export class SettingsBarComponent {
         toggleButton.addEventListener('click', () => this.toggle());
         this.bindContentEvents(content);
         
+        // Initialize measurement button state
+        this.initializeMeasurementButton(content);
+        
         // Click outside to close
         document.addEventListener('click', (e) => {
             if (this.isVisible && 
@@ -170,7 +173,18 @@ export class SettingsBarComponent {
         measuringToggle.addEventListener('click', () => {
             // Toggle measuring mode
             if (window.floorplanEditor) {
-                window.floorplanEditor.toggleMeasuring();
+                const isEnabled = window.floorplanEditor.toggleMeasuring();
+                
+                // Update button visual state
+                if (isEnabled) {
+                    measuringToggle.classList.add('active');
+                    measuringToggle.style.backgroundColor = '#0066cc';
+                    measuringToggle.style.color = 'white';
+                } else {
+                    measuringToggle.classList.remove('active');
+                    measuringToggle.style.backgroundColor = '';
+                    measuringToggle.style.color = '';
+                }
             }
         });
         
@@ -255,6 +269,23 @@ export class SettingsBarComponent {
                 // Update grid scale
                 window.floorplanEditor.gridSize = value.from;
                 window.floorplanEditor.drawGrid();
+            }
+        }
+    }
+    
+    initializeMeasurementButton(content) {
+        const measuringToggle = content.querySelector('#measuringToggle');
+        if (measuringToggle && window.floorplanEditor) {
+            // Set initial button state based on current measurement setting
+            const isEnabled = window.floorplanEditor.showMeasurements;
+            if (isEnabled) {
+                measuringToggle.classList.add('active');
+                measuringToggle.style.backgroundColor = '#0066cc';
+                measuringToggle.style.color = 'white';
+            } else {
+                measuringToggle.classList.remove('active');
+                measuringToggle.style.backgroundColor = '';
+                measuringToggle.style.color = '';
             }
         }
     }
