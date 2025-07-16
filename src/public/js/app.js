@@ -5756,6 +5756,11 @@ class FloorplanEditor {
             console.log('❌ Grid not visible or canvas not ready');
             return;
         }
+        
+        // Skip grid redraw if we're in the middle of panel resizing
+        if (this.isResizing) {
+            return;
+        }
 
         // Create grid pattern using canvas background
         this.createGridPattern();
@@ -5765,6 +5770,11 @@ class FloorplanEditor {
     createGridPattern() {
         if (!this.canvas) {
             console.log('❌ Cannot create grid pattern - canvas not ready');
+            return;
+        }
+        
+        // Skip grid pattern creation if we're in the middle of panel resizing
+        if (this.isResizing) {
             return;
         }
 
@@ -8716,6 +8726,11 @@ class FloorplanEditor {
     }
     
     resizeCanvas() {
+        // Skip canvas resize if we're in the middle of panel resizing
+        if (this.isResizing) {
+            return;
+        }
+        
         const workspace = document.querySelector('.drawing-area');
         const canvasElement = document.getElementById('floorplan-canvas');
         
@@ -10503,6 +10518,9 @@ function setupPanelResize() {
         { divider: 'rightDivider', panel: 'dockRight', side: 'right', storageKey: 'rightPanelWidth' }
     ];
     
+    // Global flag to prevent canvas updates during resize
+    let isAnyPanelResizing = false;
+    
     panels.forEach(({ divider, panel, side, storageKey }) => {
         const dividerEl = document.getElementById(divider);
         const panelEl = document.getElementById(panel);
@@ -10526,11 +10544,18 @@ function setupPanelResize() {
             }
             
             isResizing = true;
+            isAnyPanelResizing = true;
             startX = e.clientX;
             startWidth = panelEl.offsetWidth;
             dividerEl.classList.add('dragging');
             document.body.style.cursor = 'ew-resize';
             document.body.style.userSelect = 'none';
+            
+            // Set flag on floorplan editor to prevent grid updates
+            if (window.floorplanEditor) {
+                window.floorplanEditor.isResizing = true;
+            }
+            
             e.preventDefault();
         });
         
@@ -10561,18 +10586,24 @@ function setupPanelResize() {
             // Save to localStorage
             localStorage.setItem(storageKey, newWidth);
             
-            // Trigger canvas resize
-            if (window.floorplanEditor && window.floorplanEditor.resizeCanvas) {
-                window.floorplanEditor.resizeCanvas();
-            }
+            // Don't trigger canvas resize during drag - wait until mouseup
         });
         
         document.addEventListener('mouseup', () => {
             if (isResizing) {
                 isResizing = false;
+                isAnyPanelResizing = false;
                 dividerEl.classList.remove('dragging');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+                
+                // Clear resize flag and trigger single canvas resize
+                if (window.floorplanEditor) {
+                    window.floorplanEditor.isResizing = false;
+                    if (window.floorplanEditor.resizeCanvas) {
+                        window.floorplanEditor.resizeCanvas();
+                    }
+                }
             }
         });
     });
