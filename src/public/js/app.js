@@ -10812,11 +10812,21 @@ class FloorplanEditor {
     
     handleObjectScaled(e) {
         const obj = e.target;
+        console.log('🎯 handleObjectScaled called for:', obj.type, 'roomObject:', obj.roomObject);
         
         // Apply scale to actual dimensions for rooms
-        if (obj.roomObject) {
+        if (obj.roomObject || obj.type === 'rect') {
             const newWidth = obj.getScaledWidth();
             const newHeight = obj.getScaledHeight();
+            
+            console.log('📐 Updating room dimensions:', {
+                oldWidth: obj.width,
+                oldHeight: obj.height,
+                newWidth: newWidth,
+                newHeight: newHeight,
+                scaleX: obj.scaleX,
+                scaleY: obj.scaleY
+            });
             
             obj.set({
                 width: newWidth,
@@ -10824,6 +10834,10 @@ class FloorplanEditor {
                 scaleX: 1,
                 scaleY: 1
             });
+            
+            // Force canvas to update
+            obj.setCoords();
+            this.canvas.requestRenderAll();
             
             // Force properties panel update
             this.updatePropertiesPanel(obj);
@@ -10835,6 +10849,35 @@ class FloorplanEditor {
     
     handleObjectModified(e) {
         const obj = e.target;
+        console.log('🛠️ handleObjectModified called for:', obj.type, {
+            transform: e.transform,
+            action: e.action,
+            width: obj.width,
+            height: obj.height,
+            scaleX: obj.scaleX,
+            scaleY: obj.scaleY
+        });
+        
+        // Handle scaling for rooms (in case object:scaled doesn't fire)
+        if ((obj.roomObject || obj.type === 'rect') && (obj.scaleX !== 1 || obj.scaleY !== 1)) {
+            const newWidth = obj.getScaledWidth();
+            const newHeight = obj.getScaledHeight();
+            
+            console.log('📐 Fixing room scale in modified event:', {
+                newWidth: newWidth,
+                newHeight: newHeight
+            });
+            
+            obj.set({
+                width: newWidth,
+                height: newHeight,
+                scaleX: 1,
+                scaleY: 1
+            });
+            
+            obj.setCoords();
+            this.canvas.requestRenderAll();
+        }
         
         // Update properties panel
         this.updatePropertiesPanel(obj);
@@ -10849,7 +10892,15 @@ class FloorplanEditor {
     updatePropertiesPanel(obj) {
         // Update properties panel if this object is selected
         const propertiesPanel = window.panelManager?.getPanel('properties');
-        if (propertiesPanel && propertiesPanel.selectedObject === obj) {
+        if (propertiesPanel) {
+            console.log('🔄 Updating properties panel for:', obj.type, {
+                width: obj.width,
+                height: obj.height,
+                scaleX: obj.scaleX,
+                scaleY: obj.scaleY
+            });
+            
+            // Force update even if the same object
             propertiesPanel.setSelectedObject(obj);
         }
     }
