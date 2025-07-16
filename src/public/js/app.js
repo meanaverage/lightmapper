@@ -4638,17 +4638,6 @@ class FloorplanEditor {
         this.isLoadingLayout = false; // Flag to prevent auto-save during loading
         this.initialLoadComplete = false; // Flag to prevent automatic loading after init
         this.zoomLevel = 1.0; // Initialize zoom level to 100%
-    }
-    
-    updateSelectionCount() {
-        const selection = this.canvas.getActiveObjects();
-        const count = selection ? selection.length : 0;
-        
-        // Dispatch event for footer
-        window.dispatchEvent(new CustomEvent('selection:changed', {
-            detail: { count }
-        }));
-    }
         
         // Panning state
         this.isPanning = false;
@@ -4761,6 +4750,16 @@ class FloorplanEditor {
         console.log('✅ Layer event handlers setup complete');
         
         console.log('✅ FloorplanEditor initialization complete');
+    }
+    
+    updateSelectionCount() {
+        const selection = this.canvas.getActiveObjects();
+        const count = selection ? selection.length : 0;
+        
+        // Dispatch event for footer
+        window.dispatchEvent(new CustomEvent('selection:changed', {
+            detail: { count }
+        }));
     }
     
     setupCanvas() {
