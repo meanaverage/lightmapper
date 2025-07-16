@@ -4562,7 +4562,15 @@ class LightMapperController {
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Initializing LightMapper Controller...');
-window.sceneManager = new LightMapperController();
+    window.sceneManager = new LightMapperController();
+    
+    // Initialize floating settings panel
+    import('./panels/SettingsPanel.js').then(module => {
+        window.settingsPanel = new module.SettingsPanel();
+        console.log('✅ Settings panel initialized');
+    }).catch(err => {
+        console.error('Failed to load settings panel:', err);
+    });
     
     // Setup scene name input validation after sceneManager is initialized
     const newSceneName = document.getElementById('newSceneName');
@@ -4630,6 +4638,17 @@ class FloorplanEditor {
         this.isLoadingLayout = false; // Flag to prevent auto-save during loading
         this.initialLoadComplete = false; // Flag to prevent automatic loading after init
         this.zoomLevel = 1.0; // Initialize zoom level to 100%
+    }
+    
+    updateSelectionCount() {
+        const selection = this.canvas.getActiveObjects();
+        const count = selection ? selection.length : 0;
+        
+        // Dispatch event for footer
+        window.dispatchEvent(new CustomEvent('selection:changed', {
+            detail: { count }
+        }));
+    }
         
         // Panning state
         this.isPanning = false;
@@ -4949,6 +4968,9 @@ class FloorplanEditor {
                 console.log('🔄 Calling handleObjectSelected from selection:created');
                 this.handleObjectSelected({ target: obj, selected: e.selected });
             }
+            
+            // Update selection count in footer
+            this.updateSelectionCount();
         });
         
         this.canvas.on('selection:updated', (e) => {
@@ -4966,11 +4988,17 @@ class FloorplanEditor {
                 console.log('🔄 Calling handleObjectSelected from selection:updated');
                 this.handleObjectSelected({ target: obj, selected: e.selected });
             }
+            
+            // Update selection count in footer
+            this.updateSelectionCount();
         });
         
         this.canvas.on('selection:cleared', (e) => {
             console.log('🎯 SELECTION CLEARED:', e);
             this.handleSelectionCleared();
+            
+            // Update selection count in footer
+            this.updateSelectionCount();
         });
         
         // Movement events
@@ -4982,6 +5010,22 @@ class FloorplanEditor {
         this.canvas.on('object:moved', (e) => {
             console.log('🚀 OBJECT MOVED:', e.target?.type, e.target?.lightObject);
             this.handleObjectMoved(e);
+        });
+        
+        // Resize/Scale events
+        this.canvas.on('object:scaling', (e) => {
+            console.log('📏 OBJECT SCALING:', e.target?.type);
+            this.handleObjectScaling(e);
+        });
+        
+        this.canvas.on('object:scaled', (e) => {
+            console.log('📏 OBJECT SCALED:', e.target?.type);
+            this.handleObjectScaled(e);
+        });
+        
+        this.canvas.on('object:modified', (e) => {
+            console.log('✏️ OBJECT MODIFIED:', e.target?.type);
+            this.handleObjectModified(e);
         });
         
         // Object events
@@ -9397,6 +9441,16 @@ class FloorplanEditor {
         if (window.cadInterface) {
             window.cadInterface.updateZoomLevel(currentZoom || 1.0);
         }
+        
+        // Update footer zoom display
+        if (window.footerComponent) {
+            window.footerComponent.updateZoom(currentZoom || 1.0);
+        }
+        
+        // Dispatch zoom event
+        window.dispatchEvent(new CustomEvent('canvas:zoom', {
+            detail: { zoom: currentZoom || 1.0 }
+        }));
     }
     
     handleObjectSelected(e) {
@@ -10737,6 +10791,76 @@ class FloorplanEditor {
         }
         
         this.triggerAutoSave();
+    }
+    
+    handleObjectScaling(e) {
+        const obj = e.target;
+        
+        // Apply snap to grid while scaling if enabled
+        if (this.snapEnabled && obj.roomObject) {
+            const gridSize = this.gridSize;
+            
+            // Snap dimensions to grid
+            const width = Math.round(obj.getScaledWidth() / gridSize) * gridSize;
+            const height = Math.round(obj.getScaledHeight() / gridSize) * gridSize;
+            
+            obj.set({
+                scaleX: width / obj.width,
+                scaleY: height / obj.height
+            });
+        }
+    }
+    
+    handleObjectScaled(e) {
+        const obj = e.target;
+        
+        // Apply scale to actual dimensions for rooms
+        if (obj.roomObject) {
+            const newWidth = obj.getScaledWidth();
+            const newHeight = obj.getScaledHeight();
+            
+            obj.set({
+                width: newWidth,
+                height: newHeight,
+                scaleX: 1,
+                scaleY: 1
+            });
+            
+            // Force properties panel update
+            this.updatePropertiesPanel(obj);
+        }
+        
+        this.triggerAutoSave();
+        this.triggerUpdatePreview();
+    }
+    
+    handleObjectModified(e) {
+        const obj = e.target;
+        
+        // Update properties panel
+        this.updatePropertiesPanel(obj);
+        
+        // Trigger auto-save
+        this.triggerAutoSave();
+        
+        // Trigger 3D preview update
+        this.triggerUpdatePreview();
+    }
+    
+    updatePropertiesPanel(obj) {
+        // Update properties panel if this object is selected
+        const propertiesPanel = window.panelManager?.getPanel('properties');
+        if (propertiesPanel && propertiesPanel.selectedObject === obj) {
+            propertiesPanel.setSelectedObject(obj);
+        }
+    }
+    
+    triggerUpdatePreview() {
+        // Trigger 3D preview update
+        const preview3DPanel = window.panelManager?.getPanel('preview3d');
+        if (preview3DPanel) {
+            preview3DPanel.updateFromCanvas();
+        }
     }
     
     updateLabelForLight(light) {
