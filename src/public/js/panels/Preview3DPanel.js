@@ -23,6 +23,10 @@ class Preview3DPanel extends BasePanel {
         // Retry counter for initialization
         this.initRetryCount = 0;
         this.maxRetries = 20; // 10 seconds max wait
+        
+        // Retry counter for canvas sync
+        this.canvasSyncRetryCount = 0;
+        this.maxCanvasSyncRetries = 10; // 5 seconds max wait
     }
     
     render() {
@@ -221,10 +225,10 @@ class Preview3DPanel extends BasePanel {
             // Initial sync if enabled
             if (this.syncWithCanvas) {
                 console.log('🔄 Initial sync on panel load');
-                // Small delay to ensure canvas is ready
+                // Longer delay to ensure canvas is ready
                 setTimeout(() => {
                     this.updateFromCanvas();
-                }, 100);
+                }, 1000);
             }
             
             // Setup auto-rotate if enabled
@@ -252,15 +256,42 @@ class Preview3DPanel extends BasePanel {
         
         if (!this.blueprint3d || !this.syncWithCanvas) return;
         
+        // Try multiple ways to get the canvas
+        let canvas = null;
+        
+        // Method 1: Through CanvasPanel
         const canvasPanel = window.panelManager?.getPanel('canvas');
-        const canvas = canvasPanel?.getCanvas();
+        if (canvasPanel && canvasPanel.getCanvas) {
+            canvas = canvasPanel.getCanvas();
+        }
+        
+        // Method 2: Through global floorplanEditor
+        if (!canvas && window.floorplanEditor && window.floorplanEditor.canvas) {
+            canvas = window.floorplanEditor.canvas;
+            console.log('📐 Got canvas from window.floorplanEditor');
+        }
+        
+        // Method 3: Direct from CanvasPanel's floorplanEditor
+        if (!canvas && canvasPanel && canvasPanel.floorplanEditor && canvasPanel.floorplanEditor.canvas) {
+            canvas = canvasPanel.floorplanEditor.canvas;
+            console.log('📐 Got canvas from canvasPanel.floorplanEditor');
+        }
         
         console.log('📐 Canvas panel:', canvasPanel, 'Canvas:', canvas);
         
         if (!canvas) {
-            console.error('❌ No canvas found!');
+            if (this.canvasSyncRetryCount++ < this.maxCanvasSyncRetries) {
+                console.warn(`⚠️ No canvas found! Retry ${this.canvasSyncRetryCount}/${this.maxCanvasSyncRetries} in 500ms...`);
+                setTimeout(() => this.updateFromCanvas(), 500);
+            } else {
+                console.error('❌ Failed to find canvas after maximum retries');
+                this.canvasSyncRetryCount = 0; // Reset for next attempt
+            }
             return;
         }
+        
+        // Reset retry count on success
+        this.canvasSyncRetryCount = 0;
         
         // Get canvas data with custom properties
         const customProperties = [
@@ -274,8 +305,15 @@ class Preview3DPanel extends BasePanel {
         console.log('📐 Canvas data:', canvasData);
         console.log('📐 Number of objects:', canvasData.objects?.length || 0);
         
+        // Let's see what's actually in the objects
+        if (canvasData.objects && canvasData.objects.length > 0) {
+            console.log('🔍 First object details:', canvasData.objects[0]);
+            console.log('🔍 Object type:', canvasData.objects[0].type);
+            console.log('🔍 Has roomObject property:', canvasData.objects[0].hasOwnProperty('roomObject'));
+        }
+        
         // Log room objects
-        const roomObjects = canvasData.objects?.filter(obj => obj.roomObject) || [];
+        const roomObjects = canvasData.objects?.filter(obj => obj.roomObject === true) || [];
         console.log('🏠 Room objects found:', roomObjects.length, roomObjects);
         
         // Convert and load into 3D
