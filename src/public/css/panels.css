@@ -926,3 +926,113 @@ button:disabled {
     margin-bottom: 10px;
     display: block;
 }
+
+/* ===== 3D Preview Panel ===== */
+.preview-3d-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--panel-bg);
+}
+
+.preview-3d-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.preview-3d-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.preview-3d-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-3d-controls .btn {
+    width: 32px;
+    height: 32px;
+}
+
+.preview-3d-controls .btn i.active {
+    color: var(--primary-color);
+}
+
+.preview-3d-container {
+    flex: 1;
+    position: relative;
+    background: #1a1a1a;
+    overflow: hidden;
+}
+
+.preview-3d-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.preview-3d-loading,
+.preview-3d-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.preview-3d-loading i,
+.preview-3d-error i {
+    font-size: 32px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.preview-3d-error {
+    color: var(--error-color);
+}
+
+.preview-3d-error small {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.preview-3d-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 16px;
+    background: var(--header-bg);
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.preview-3d-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.preview-3d-stats .stat-item i {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* Fullscreen mode */
+.preview-3d-container:fullscreen {
+    background: #000;
+}
+
+.preview-3d-container:fullscreen canvas {
+    max-width: 100%;
+    max-height: 100%;
+}

@@ -646,6 +646,18 @@
                             </div>
                         </div>
                         
+                        <!-- 3D Preview Panel -->
+                        <div class="panel-accordion-item" data-panel="preview3d">
+                            <div class="panel-accordion-header" data-panel="preview3d">
+                                <i class="fas fa-cube"></i>
+                                <span>3D Preview</span>
+                                <i class="fas fa-chevron-down accordion-chevron"></i>
+                            </div>
+                            <div class="panel-accordion-content" id="preview3dPanel">
+                                <!-- Content will be rendered by Preview3DPanel -->
+                            </div>
+                        </div>
+                        
                     </div>
                 </div>
             </div>
@@ -754,6 +766,17 @@
     <script src="js/fabric.min.js"></script>
     <script src="js/HAWebSocketClient.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- Import maps for ES6 modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+            "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.148.0/examples/jsm/controls/OrbitControls.js",
+            "three/examples/jsm/exporters/GLTFExporter.js": "https://unpkg.com/three@0.148.0/examples/jsm/exporters/GLTFExporter.js"
+        }
+    }
+    </script>
     <script type="module">
         // Import and initialize the panel system
         import { PanelManager } from './js/panels/PanelManager.js';
@@ -765,6 +788,7 @@
         import { SceneEditorPanel } from './js/panels/SceneEditorPanel.js';
         import { LayersPanel } from './js/panels/LayersPanel.js';
         import { DebugPanel } from './js/panels/DebugPanel.js';
+        import { Preview3DPanel } from './js/panels/Preview3DPanel.js';
         
         // Initialize panel system after app.js loads
         window.addEventListener('load', () => {
@@ -780,6 +804,7 @@
             window.panelManager.register(new SceneEditorPanel());
             window.panelManager.register(new LayersPanel());
             window.panelManager.register(new DebugPanel());
+            window.panelManager.register(new Preview3DPanel());
             
             // Initialize panels
             window.panelManager.init();

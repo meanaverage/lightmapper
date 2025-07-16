@@ -1,6 +1,6 @@
 {
   "name": "lightmapper",
-  "version": "3.2.32",
+  "version": "3.3.0",
   "description": "Advanced Home Assistant lighting controller with interactive floorplan editor",
   "main": "server.js",
   "scripts": {
@@ -22,7 +22,10 @@
     "sqlite3": "^5.1.6",
     "axios": "^1.6.0",
     "ws": "^8.14.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "three": "^0.148.0",
+    "pixi.js": "^6.4.2",
+    "gsap": "^3.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
