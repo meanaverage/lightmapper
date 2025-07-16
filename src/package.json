@@ -1,6 +1,6 @@
 {
   "name": "lightmapper",
-  "version": "3.3.22",
+  "version": "3.3.23",
   "description": "Advanced Home Assistant lighting controller with interactive floorplan editor",
   "main": "server.js",
   "scripts": {
@@ -10,7 +10,13 @@
     "docs": "jsdoc -c ../jsdoc.config.json public/js/panels/*.js -d ../docs/api",
     "docs:install": "npm install -g jsdoc"
   },
-  "keywords": ["home-assistant", "lighting", "scenes", "floorplan", "fabric.js"],
+  "keywords": [
+    "home-assistant",
+    "lighting",
+    "scenes",
+    "floorplan",
+    "fabric.js"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
@@ -33,4 +39,4 @@
   "engines": {
     "node": ">=16.0.0"
   }
-} 
+}
