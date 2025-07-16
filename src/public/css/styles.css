@@ -397,17 +397,8 @@ body {
   position: relative;
 }
 
-/* Canvas automatically takes available space when tertiary collapses */
-.main-interface {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
 
-/* When tertiary is collapsed, dock-center extends to full width */
-.main-interface:has(.dock-tertiary.collapsed) .dock-center {
-  margin-right: 0;
-}
+/* Dock center takes remaining space */
 
 .dock-tertiary {
   width: var(--cad-panel-width);
@@ -422,15 +413,11 @@ body {
 }
 
 .dock-tertiary.collapsed {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
   width: 20px;
   min-width: 20px;
   overflow: hidden;
   cursor: pointer;
-  z-index: 100;
+  flex-shrink: 0;
 }
 
 .dock-right {
