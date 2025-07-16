@@ -537,6 +537,7 @@ class LayerManager {
         if (lightObject) {
             lightObject.visible = layer.circleVisible;
             this.floorplanEditor.canvas.renderAll();
+            console.log('💡 Light circle visibility set to:', layer.circleVisible);
         }
     }
     
@@ -559,22 +560,48 @@ class LayerManager {
         console.log('🔍 Looking for brightness effects for light:', lightObject.entityId || lightObject.id);
         
         // Find brightness effects matching the light's entityId or id
-        // Make sure we only get the glow circles, not the light itself
-        const brightnessEffects = this.floorplanEditor.canvas.getObjects().filter(obj => 
-            obj.glowCircle && 
-            !obj.lightObject && // Exclude the main light object
-            (obj.parentLightId === lightObject.entityId || obj.parentLightId === lightObject.id)
-        );
+        // Look for both glowCircle property and brightnessEffect property
+        const allObjects = this.floorplanEditor.canvas.getObjects();
+        console.log('🔍 All objects on canvas:', allObjects.length);
+        
+        const brightnessEffects = allObjects.filter(obj => {
+            const isGlowCircle = obj.glowCircle === true;
+            const isBrightnessEffect = obj.brightnessEffect === true;
+            const isNotLight = !obj.lightObject;
+            const parentMatches = obj.parentLightId === lightObject.entityId || 
+                                obj.parentLightId === lightObject.id ||
+                                obj.parentLightId === `light_${lightObject.entityId}`;
+            
+            console.log('🔍 Object:', obj.name || obj.type, {
+                isGlowCircle,
+                isBrightnessEffect,
+                isNotLight,
+                parentLightId: obj.parentLightId,
+                lightEntityId: lightObject.entityId,
+                lightId: lightObject.id,
+                parentMatches
+            });
+            
+            return (isGlowCircle || isBrightnessEffect) && isNotLight && parentMatches;
+        });
         
         console.log('🌟 Found brightness effects:', brightnessEffects.length);
+        
+        if (brightnessEffects.length === 0) {
+            // Also check if the light has a glowCircle reference
+            if (lightObject.glowCircle) {
+                console.log('🔍 Found brightness effect via light reference');
+                brightnessEffects.push(lightObject.glowCircle);
+            }
+        }
         
         brightnessEffects.forEach(effect => {
             effect.visible = layer.brightnessVisible;
             console.log('👁️ Setting brightness effect visibility to:', layer.brightnessVisible);
         });
         
-        // Make sure the light itself stays visible
-        if (lightObject) {
+        // Make sure the light itself stays visible unless circleVisible is false
+        if (lightObject && layer.circleVisible !== false) {
             lightObject.visible = true;
             console.log('💡 Ensuring light object stays visible');
         }
@@ -6114,18 +6141,25 @@ class FloorplanEditor {
         
         console.log('📐 Found other objects for snapping:', otherObjects.length);
         
-        // Safety check for movingObject
-        if (!movingObject || typeof movingObject.left !== 'number' || typeof movingObject.top !== 'number') {
+        // For line tool, we snap to the target point directly
+        const isLineDrawing = this.currentTool === 'line';
+        let movingCenter = targetPoint;
+        
+        // Safety check for movingObject (only needed for non-line tools)
+        if (!isLineDrawing && (!movingObject || typeof movingObject.left !== 'number' || typeof movingObject.top !== 'number')) {
             console.warn('⚠️ movingObject is invalid:', movingObject);
             return targetPoint;
         }
         
-        const movingCenter = {
-            x: targetPoint.x + (movingObject.width || movingObject.radius || 0) / 2,
-            y: targetPoint.y + (movingObject.height || movingObject.radius || 0) / 2
-        };
+        // Calculate moving center for non-line tools
+        if (!isLineDrawing) {
+            movingCenter = {
+                x: targetPoint.x + (movingObject.width || movingObject.radius || 0) / 2,
+                y: targetPoint.y + (movingObject.height || movingObject.radius || 0) / 2
+            };
+        }
         
-        console.log('📐 Moving object center:', movingCenter);
+        console.log('📐 Moving target:', isLineDrawing ? 'line point' : 'object center', movingCenter);
         
         // Check for horizontal and vertical alignment with object centers
         otherObjects.forEach((obj, index) => {
@@ -6139,6 +6173,45 @@ class FloorplanEditor {
                 isNaN(obj.top)) {
                 console.warn(`⚠️ Object ${index} has invalid position:`, obj);
                 return;
+            }
+            
+            // Special handling for line objects - snap to endpoints
+            if (obj.type === 'line' && obj.x1 !== undefined && obj.y1 !== undefined && obj.x2 !== undefined && obj.y2 !== undefined) {
+                // Calculate absolute endpoint positions
+                const endpoint1 = {
+                    x: obj.left + obj.x1,
+                    y: obj.top + obj.y1
+                };
+                const endpoint2 = {
+                    x: obj.left + obj.x2,
+                    y: obj.top + obj.y2
+                };
+                
+                // Check snap to endpoint 1
+                if (Math.abs(targetPoint.x - endpoint1.x) < this.snapTolerance && 
+                    Math.abs(targetPoint.y - endpoint1.y) < this.snapTolerance) {
+                    snappedPoint.x = endpoint1.x;
+                    snappedPoint.y = endpoint1.y;
+                    hasSnap = true;
+                    console.log('📐 Line endpoint 1 snap applied:', endpoint1);
+                    
+                    // Create snap guide at endpoint
+                    this.createSnapGuide(endpoint1.x - 10, endpoint1.y, endpoint1.x + 10, endpoint1.y, 'endpoint');
+                    this.createSnapGuide(endpoint1.x, endpoint1.y - 10, endpoint1.x, endpoint1.y + 10, 'endpoint');
+                }
+                
+                // Check snap to endpoint 2
+                if (Math.abs(targetPoint.x - endpoint2.x) < this.snapTolerance && 
+                    Math.abs(targetPoint.y - endpoint2.y) < this.snapTolerance) {
+                    snappedPoint.x = endpoint2.x;
+                    snappedPoint.y = endpoint2.y;
+                    hasSnap = true;
+                    console.log('📐 Line endpoint 2 snap applied:', endpoint2);
+                    
+                    // Create snap guide at endpoint
+                    this.createSnapGuide(endpoint2.x - 10, endpoint2.y, endpoint2.x + 10, endpoint2.y, 'endpoint');
+                    this.createSnapGuide(endpoint2.x, endpoint2.y - 10, endpoint2.x, endpoint2.y + 10, 'endpoint');
+                }
             }
             
             // Additional safety checks for dimensions
@@ -6155,7 +6228,7 @@ class FloorplanEditor {
             
             // Vertical alignment (snap X coordinate)
             if (Math.abs(movingCenter.x - objCenter.x) < this.snapTolerance) {
-                const snapX = objCenter.x - (movingObject.width || movingObject.radius || 0) / 2;
+                const snapX = isLineDrawing ? objCenter.x : objCenter.x - (movingObject.width || movingObject.radius || 0) / 2;
                 snappedPoint.x = snapX;
                 hasSnap = true;
                 console.log('📐 Vertical snap applied:', snapX);
@@ -6166,7 +6239,7 @@ class FloorplanEditor {
             
             // Horizontal alignment (snap Y coordinate)
             if (Math.abs(movingCenter.y - objCenter.y) < this.snapTolerance) {
-                const snapY = objCenter.y - (movingObject.height || movingObject.radius || 0) / 2;
+                const snapY = isLineDrawing ? objCenter.y : objCenter.y - (movingObject.height || movingObject.radius || 0) / 2;
                 snappedPoint.y = snapY;
                 hasSnap = true;
                 console.log('📐 Horizontal snap applied:', snapY);
@@ -9107,7 +9180,7 @@ class FloorplanEditor {
             this.highlightSelectedLight(obj);
             
             // Update CAD interface selection indicators
-            this.updateSelectedLightIndicator(obj);
+            this.updateSelectedObjectIndicator(obj);
             if (window.cadInterface) {
                 window.cadInterface.updateSelectedCount(selectedCount);
             }
@@ -9178,7 +9251,7 @@ class FloorplanEditor {
                 });
                 
                 // Update CAD interface for non-light objects
-                this.hideSelectedLightIndicator();
+                this.updateSelectedObjectIndicator(obj);
                 if (window.cadInterface) {
                     window.cadInterface.updateSelectedCount(selectedCount);
                 }
@@ -10985,33 +11058,98 @@ class FloorplanEditor {
         }
     }
     
-    updateSelectedLightIndicator(light) {
+    updateSelectedObjectIndicator(obj) {
         const indicator = document.getElementById('selectedLightIndicator');
-        const lightName = document.getElementById('selectedLightName');
+        const objectName = document.getElementById('selectedLightName');
         
-        if (indicator && lightName) {
+        if (indicator && objectName) {
             // Show the indicator
             indicator.style.display = 'flex';
             
-            // Update the light name
-            if (light.entityId) {
-                // Get friendly name from Home Assistant entity
-                const entity = window.lightEntities ? window.lightEntities[light.entityId] : null;
-                let displayName = light.entityId;
+            // Generate object info based on type
+            let displayText = '';
+            
+            if (obj.lightObject) {
+                // Light object
+                if (obj.entityId) {
+                    // Get friendly name from Home Assistant entity
+                    const entity = window.lightEntities ? window.lightEntities[obj.entityId] : null;
+                    let displayName = obj.entityId;
+                    
+                    if (entity) {
+                        // Try multiple ways to get the friendly name
+                        displayName = entity.attributes?.friendly_name || 
+                                     entity.friendly_name || 
+                                     entity.attributes?.friendlyName ||
+                                     obj.entityId;
+                    }
+                    
+                    displayText = displayName;
+                } else {
+                    displayText = 'Unassigned Light';
+                }
+            } else if (obj.type === 'line') {
+                // Line object
+                const length = Math.sqrt(
+                    Math.pow(obj.x2 - obj.x1, 2) + 
+                    Math.pow(obj.y2 - obj.y1, 2)
+                );
+                const displayLength = this.formatDistance(length);
+                displayText = `Line: ${displayLength}`;
+            } else if (obj.roomObject) {
+                // Room object
+                const roomName = obj.roomName || 'Room';
+                let dimensions = '';
                 
-                if (entity) {
-                    // Try multiple ways to get the friendly name
-                    displayName = entity.attributes?.friendly_name || 
-                                 entity.friendly_name || 
-                                 entity.attributes?.friendlyName ||
-                                 light.entityId;
+                if (obj.type === 'rect' || obj.type === 'Rect') {
+                    const width = Math.round(obj.width || 0);
+                    const height = Math.round(obj.height || 0);
+                    const wallHeight = obj.wallHeight || 10;
+                    dimensions = `${width}px × ${height}px × ${wallHeight}ft`;
+                } else if (obj.points && obj.points.length > 0) {
+                    // Calculate polygon area approximately
+                    const area = this.calculatePolygonArea(obj.points);
+                    dimensions = `~${Math.round(area)}px²`;
                 }
                 
-                lightName.textContent = displayName;
+                displayText = `${roomName}: ${dimensions}`;
+            } else if (obj.type === 'text') {
+                // Text object
+                const text = obj.text || '';
+                const truncated = text.length > 20 ? text.substring(0, 20) + '...' : text;
+                displayText = `Text: "${truncated}"`;
+            } else if (obj.type === 'rect') {
+                // Rectangle object
+                const width = Math.round(obj.width || 0);
+                const height = Math.round(obj.height || 0);
+                displayText = `Rectangle: ${width}px × ${height}px`;
+            } else if (obj.type === 'circle') {
+                // Circle object
+                const radius = Math.round(obj.radius || 0);
+                displayText = `Circle: ${radius}px radius`;
+            } else if (obj.type === 'polygon') {
+                // Polygon object
+                const pointCount = obj.points ? obj.points.length : 0;
+                displayText = `Polygon: ${pointCount} points`;
             } else {
-                lightName.textContent = 'Unassigned Light';
+                // Generic object
+                displayText = `${obj.type || 'Object'}`;
             }
+            
+            objectName.textContent = displayText;
         }
+    }
+    
+    calculatePolygonArea(points) {
+        if (!points || points.length < 3) return 0;
+        
+        let area = 0;
+        for (let i = 0; i < points.length; i++) {
+            const j = (i + 1) % points.length;
+            area += points[i].x * points[j].y;
+            area -= points[j].x * points[i].y;
+        }
+        return Math.abs(area) / 2;
     }
     
     hideSelectedLightIndicator() {
