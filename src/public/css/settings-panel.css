@@ -11,7 +11,8 @@
 /* Settings Toggle Button */
 .plugin-settings-button {
     position: absolute;
-    inset: 0;
+    left: 0;
+    bottom: 0;
     border-radius: 1px;
     display: flex;
     flex-direction: row;
@@ -25,6 +26,11 @@
     box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 6px 0px;
     transition: none;
     background-color: rgb(242, 243, 245);
+}
+
+/* When active, modify button radius to connect with content */
+.plugin-settings.active .plugin-settings-button {
+    border-radius: 1px 0 0 1px;
 }
 
 .plugin-settings-button:hover {
@@ -41,11 +47,11 @@
 /* Settings Panel Content */
 .plugin-settings .content {
     position: absolute;
-    left: 0;
-    bottom: 36px;
+    left: 30px;
+    bottom: 0;
     background: rgb(242, 243, 245);
     box-shadow: rgba(0, 0, 0, 0.5) 0px 3px 6px 0px;
-    border-radius: 1px;
+    border-radius: 0 1px 1px 0;
     padding: 0;
     height: 30px;
     display: none;
@@ -68,6 +74,10 @@
 
 .dark-theme .plugin-settings-button:hover {
     background: rgb(56, 56, 56);
+}
+
+.dark-theme .plugin-settings.active .plugin-settings-button {
+    border-radius: 1px 0 0 1px;
 }
 
 .dark-theme .plugin-settings .content {
