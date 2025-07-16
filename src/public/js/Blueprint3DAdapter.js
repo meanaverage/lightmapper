@@ -118,24 +118,9 @@ class Blueprint3DAdapter {
         directionalLight.shadow.mapSize.height = 2048;
         this.scene.add(directionalLight);
         
-        // Add a test cube to verify rendering
-        const geometry = new THREE.BoxGeometry(5, 5, 5);
-        const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.y = 2.5;
-        cube.castShadow = true;
-        cube.receiveShadow = true;
-        this.scene.add(cube);
-        console.log('🟩 Test cube added to scene');
-        
-        // Add a ground plane
-        const planeGeometry = new THREE.PlaneGeometry(50, 50);
-        const planeMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2;
-        plane.receiveShadow = true;
-        this.scene.add(plane);
-        console.log('⬜ Ground plane added to scene');
+        // Add a grid helper for reference
+        const gridHelper = new THREE.GridHelper(100, 20, 0x444444, 0x222222);
+        this.scene.add(gridHelper);
         
         // Setup resize handler
         window.addEventListener('resize', () => this.onWindowResize(container));
@@ -155,8 +140,38 @@ class Blueprint3DAdapter {
      * @param {Object} fabricData - The Fabric.js canvas data
      */
     loadFromFabric(fabricData) {
+        console.log('🔄 Loading floorplan data into 3D scene...');
+        
         // Clear existing model
         this.clearScene();
+        
+        // Reset model data
+        this.model.corners = [];
+        this.model.walls = [];
+        this.model.rooms = [];
+        this.model.lights = [];
+        
+        // Find canvas bounds for centering
+        let minX = Infinity, maxX = -Infinity;
+        let minZ = Infinity, maxZ = -Infinity;
+        
+        // First pass - find bounds
+        fabricData.objects.forEach(obj => {
+            if (obj.roomObject && obj.points) {
+                obj.points.forEach(point => {
+                    const x = obj.left + point.x;
+                    const z = obj.top + point.y;
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minZ = Math.min(minZ, z);
+                    maxZ = Math.max(maxZ, z);
+                });
+            }
+        });
+        
+        // Calculate center offset
+        const centerX = (minX + maxX) / 2;
+        const centerZ = (minZ + maxZ) / 2;
         
         // Extract corners from room objects
         const corners = new Map();
@@ -168,8 +183,9 @@ class Blueprint3DAdapter {
                 const roomCorners = [];
                 
                 obj.points.forEach(point => {
-                    const x = obj.left + point.x;
-                    const z = obj.top + point.y;
+                    // Center the coordinates
+                    const x = (obj.left + point.x) - centerX;
+                    const z = (obj.top + point.y) - centerZ;
                     const key = `${x.toFixed(2)},${z.toFixed(2)}`;
                     
                     if (!corners.has(key)) {
@@ -196,7 +212,8 @@ class Blueprint3DAdapter {
                 
                 this.model.rooms.push({
                     corners: roomCorners,
-                    name: obj.roomName || `Room ${this.model.rooms.length + 1}`
+                    name: obj.roomName || `Room ${this.model.rooms.length + 1}`,
+                    fillColor: obj.fill || '#f0f0f0'
                 });
             }
         });
@@ -209,13 +226,15 @@ class Blueprint3DAdapter {
             if (obj.lightObject && obj.entityId) {
                 this.model.lights.push({
                     entityId: obj.entityId,
-                    x: obj.left,
-                    z: obj.top,
+                    x: obj.left - centerX,
+                    z: obj.top - centerZ,
                     y: this.options.wallHeight * 0.9, // Near ceiling
                     style: obj.iconStyle || 'spot'
                 });
             }
         });
+        
+        console.log(`📊 Loaded: ${this.model.rooms.length} rooms, ${this.model.walls.length} walls, ${this.model.lights.length} lights`);
         
         // Build 3D scene
         this.buildScene();
@@ -247,9 +266,10 @@ class Blueprint3DAdapter {
             // Create floor
             const geometry = new THREE.ShapeGeometry(shape);
             const material = new THREE.MeshStandardMaterial({ 
-                color: 0xcccccc,
+                color: 0xf0f0f0,
                 roughness: 0.8,
-                metalness: 0.1
+                metalness: 0.1,
+                side: THREE.DoubleSide
             });
             const floor = new THREE.Mesh(geometry, material);
             floor.rotation.x = -Math.PI / 2;
@@ -359,15 +379,23 @@ class Blueprint3DAdapter {
         
         light.name = lightData.entityId;
         this.scene.add(light);
-        this.lightObjects.set(lightData.entityId, light);
+        
+        // Store both light and bulb references
+        this.lightObjects.set(lightData.entityId, {
+            light: light,
+            bulb: bulb
+        });
     }
     
     /**
      * Update light state from Home Assistant
      */
     updateLightState(entityId, state) {
-        const light = this.lightObjects.get(entityId);
-        if (!light) return;
+        const lightData = this.lightObjects.get(entityId);
+        if (!lightData || !lightData.light) return;
+        
+        const light = lightData.light;
+        const bulb = lightData.bulb;
         
         // Update on/off
         light.visible = state.state === 'on';
@@ -449,15 +477,20 @@ class Blueprint3DAdapter {
      * Convert units based on settings
      */
     convertUnits(value) {
-        // Assuming Fabric.js uses pixels and we want feet/meters
-        // This is a rough conversion - adjust based on your actual scale
-        const pixelsPerFoot = 30; // Adjust this based on your grid size
-        const pixelsPerMeter = pixelsPerFoot * 3.28084;
+        // Convert from pixels to 3D units
+        // Default grid size is 8 pixels, which represents 1 foot or 0.3048 meters
+        const gridSize = 8; // Should match the grid size in FloorplanEditor
+        const unitsPerGrid = 1; // 1 grid unit = 1 foot
+        
+        const pixelsPerFoot = gridSize;
+        const feet = value / pixelsPerFoot;
         
         if (this.options.units === 'metric') {
-            return value / pixelsPerMeter;
+            // Convert feet to meters
+            return feet * 0.3048;
         } else {
-            return value / pixelsPerFoot;
+            // Keep in feet
+            return feet;
         }
     }
     
