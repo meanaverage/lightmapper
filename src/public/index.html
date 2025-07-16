@@ -765,13 +765,39 @@
     <!-- Scripts -->
     <script src="js/fabric.min.js"></script>
     <script src="js/HAWebSocketClient.js"></script>
-    <script src="js/app.js"></script>
     
-    <!-- Three.js from CDN -->
-    <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.148.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://unpkg.com/three@0.148.0/examples/js/exporters/GLTFExporter.js"></script>
-    <script src="js/Blueprint3DAdapter.js"></script>
+    <!-- Three.js from CDN - Load before app.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
+    <script>
+        // Verify Three.js loaded
+        if (typeof THREE !== 'undefined') {
+            console.log('✅ Three.js loaded successfully, version:', THREE.REVISION);
+        } else {
+            console.error('❌ Three.js failed to load from CDN');
+            // Try fallback
+            document.write('<script src="https://unpkg.com/three@0.148.0/build/three.min.js"><\/script>');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/exporters/GLTFExporter.js"></script>
+    <script src="js/Blueprint3DAdapter.js" onerror="console.error('❌ Failed to load Blueprint3DAdapter.js:', event)"></script>
+    <script>
+        // Verify Blueprint3DAdapter loaded
+        setTimeout(() => {
+            if (typeof Blueprint3DAdapter !== 'undefined') {
+                console.log('✅ Blueprint3DAdapter loaded successfully');
+            } else {
+                console.error('❌ Blueprint3DAdapter not found after load attempt');
+                // Check if THREE is available
+                if (typeof THREE === 'undefined') {
+                    console.error('❌ THREE.js is also not available - CDN might be blocked');
+                }
+            }
+        }, 100);
+    </script>
+    
+    <!-- Load app.js after Three.js -->
+    <script src="js/app.js"></script>
     <script type="module">
         // Import and initialize the panel system
         import { PanelManager } from './js/panels/PanelManager.js';
@@ -803,6 +829,15 @@
             
             // Initialize panels
             window.panelManager.init();
+            
+            // Debug: Check what loaded after initialization
+            setTimeout(() => {
+                console.log('🔍 Debug check after 2 seconds:');
+                console.log('   THREE available:', typeof THREE !== 'undefined');
+                console.log('   Blueprint3DAdapter available:', typeof Blueprint3DAdapter !== 'undefined');
+                console.log('   PanelManager available:', window.panelManager !== undefined);
+                console.log('   Preview3D Panel:', window.panelManager?.getPanel('preview3d'));
+            }, 2000);
         });
     </script>
 </body>
