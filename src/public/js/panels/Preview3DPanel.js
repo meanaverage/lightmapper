@@ -134,8 +134,15 @@ export class Preview3DPanel extends BasePanel {
     }
     
     initializeBlueprint3D() {
+        console.log('🚀 Preview3DPanel: Initializing Blueprint3D...');
+        
         const container = document.getElementById('preview3d-container');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ Preview3DPanel: Container not found!');
+            return;
+        }
+        
+        console.log('📦 Preview3DPanel: Container found:', container);
         
         try {
             // Initialize Blueprint3D adapter

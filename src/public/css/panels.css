@@ -970,6 +970,7 @@ button:disabled {
     position: relative;
     background: #1a1a1a;
     overflow: hidden;
+    min-height: 300px;
 }
 
 .preview-3d-container canvas {

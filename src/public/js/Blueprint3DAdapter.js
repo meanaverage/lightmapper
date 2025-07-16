@@ -46,14 +46,19 @@ class Blueprint3DAdapter {
      * @param {HTMLElement} container - The container element for the 3D view
      */
     init3DViewer(container) {
+        console.log('🎬 Initializing 3D viewer...');
+        
         if (!container) {
             console.error('Container element required for 3D viewer');
             return;
         }
         
+        console.log('📦 Container dimensions:', container.clientWidth, 'x', container.clientHeight);
+        
         // Setup scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xf0f0f0);
+        console.log('🎨 Scene created');
         
         // Setup camera
         const aspect = container.clientWidth / container.clientHeight;
