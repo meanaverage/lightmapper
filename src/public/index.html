@@ -782,8 +782,40 @@
             document.write('<script src="https://unpkg.com/three@0.148.0/build/three.min.js"><\/script>');
         }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/exporters/GLTFExporter.js"></script>
+    <script>
+        // Wait for Three.js to load, then load the additional modules
+        function loadThreeModules() {
+            if (typeof THREE === 'undefined') {
+                setTimeout(loadThreeModules, 100);
+                return;
+            }
+            
+            // Load OrbitControls
+            const orbitScript = document.createElement('script');
+            orbitScript.src = 'https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/controls/OrbitControls.js';
+            orbitScript.onload = () => {
+                console.log('✅ OrbitControls loaded successfully');
+                
+                // Load GLTFExporter after OrbitControls
+                const gltfScript = document.createElement('script');
+                gltfScript.src = 'https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/exporters/GLTFExporter.js';
+                gltfScript.onload = () => {
+                    console.log('✅ GLTFExporter loaded successfully');
+                };
+                gltfScript.onerror = () => {
+                    console.error('❌ Failed to load GLTFExporter');
+                };
+                document.head.appendChild(gltfScript);
+            };
+            orbitScript.onerror = () => {
+                console.error('❌ Failed to load OrbitControls');
+            };
+            document.head.appendChild(orbitScript);
+        }
+        
+        // Start loading Three.js modules
+        loadThreeModules();
+    </script>
     <script src="js/Blueprint3DAdapter.js" onerror="console.error('❌ Failed to load Blueprint3DAdapter.js:', event)"></script>
     <script>
         // Verify Blueprint3DAdapter loaded

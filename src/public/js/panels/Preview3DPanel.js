@@ -19,6 +19,10 @@ class Preview3DPanel extends BasePanel {
         
         // Debounce timer for canvas updates
         this.updateTimer = null;
+        
+        // Retry counter for initialization
+        this.initRetryCount = 0;
+        this.maxRetries = 20; // 10 seconds max wait
     }
     
     render() {
@@ -157,17 +161,42 @@ class Preview3DPanel extends BasePanel {
         // Check if container has proper dimensions
         if (container.offsetWidth === 0 || container.offsetHeight === 0) {
             console.warn('⚠️ Container has zero dimensions, waiting for layout...');
-            setTimeout(() => this.initializeBlueprint3D(), 500);
+            if (this.initRetryCount++ < this.maxRetries) {
+                setTimeout(() => this.initializeBlueprint3D(), 500);
+            } else {
+                console.error('❌ Max retries reached waiting for container dimensions');
+            }
             return;
         }
         
         try {
-            // Wait for Blueprint3DAdapter to be available
+            // Wait for all dependencies to be available
+            const missingDeps = [];
+            
             if (!window.Blueprint3DAdapter) {
-                console.error('❌ Blueprint3DAdapter not loaded yet');
-                setTimeout(() => this.initializeBlueprint3D(), 100);
+                missingDeps.push('Blueprint3DAdapter');
+            }
+            
+            if (typeof THREE === 'undefined') {
+                missingDeps.push('Three.js');
+            }
+            
+            if (typeof OrbitControls === 'undefined') {
+                missingDeps.push('OrbitControls');
+            }
+            
+            if (missingDeps.length > 0) {
+                console.warn(`⚠️ Waiting for dependencies: ${missingDeps.join(', ')} (retry ${this.initRetryCount}/${this.maxRetries})`);
+                
+                if (this.initRetryCount++ < this.maxRetries) {
+                    setTimeout(() => this.initializeBlueprint3D(), 500);
+                } else {
+                    throw new Error(`Failed to load dependencies: ${missingDeps.join(', ')}`);
+                }
                 return;
             }
+            
+            console.log('✅ All 3D dependencies loaded successfully');
             
             // Initialize Blueprint3D adapter
             this.blueprint3d = new window.Blueprint3DAdapter({
