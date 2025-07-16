@@ -30,7 +30,7 @@ A powerful Home Assistant add-on for managing complex lighting scenes with grid-
 
 1. **Add Repository**: In Home Assistant, go to **Supervisor** → **Add-on Store** → **⋮** → **Repositories** and add:
    ```
-   https://github.com/yourusername/ha-lightmapper
+   https://github.com/meanaverage/lightmapper
    ```
 
 2. **Install Add-on**: Find "LightMapper" in the store and click **Install**
@@ -38,18 +38,6 @@ A powerful Home Assistant add-on for managing complex lighting scenes with grid-
 3. **Configure**: Set your preferences in the **Configuration** tab
 
 4. **Start**: Click **Start** and optionally enable **Auto-start**
-
-### Method 2: Manual Installation
-
-1. **Clone Repository**: Clone this repository to your Home Assistant `addons` folder:
-   ```bash
-   cd /usr/share/hassio/addons/local
-   git clone https://github.com/yourusername/ha-lightmapper lightmapper
-   ```
-
-2. **Restart Supervisor**: Restart the Home Assistant Supervisor
-
-3. **Install**: The add-on will appear in your local add-ons list
 
 ## Configuration
 
@@ -80,24 +68,6 @@ default_saturation: 85
 ### Initial Setup
 
 1. **Access Interface**: Once started, access the web interface at `http://homeassistant.local:3000` or through the **Web UI** button
-
-2. **Configure Light Mappings**:
-   - Click the **⚙️ Settings** button
-   - Map each grid position to your Home Assistant light entities
-   - Click **Save Mappings**
-
-### Creating Scenes
-
-1. **Select Lights**: Click numbered buttons in the grid to select lights
-2. **Adjust Settings**:
-   - Use **Global Defaults** for uniform settings across all lights
-   - Toggle **Individual Light Control** for per-light customization
-3. **Save Scene**: Enter a name and click **💾 Save Scene**
-
-### Applying Scenes
-
-- **Quick Apply**: Click **Apply** button on any scene card
-- **Load First**: Click **Load** to preview selection, then **▶️ Apply Scene**
 
 ### Advanced Features
 
