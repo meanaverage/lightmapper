@@ -549,16 +549,33 @@ class LayerManager {
             obj.customLayer === layerId && obj.lightObject
         );
         
-        if (!lightObject) return;
+        if (!lightObject) {
+            console.warn('❌ Light object not found for layer:', layerId);
+            return;
+        }
+        
+        console.log('🔍 Looking for brightness effects for light:', lightObject.entityId || lightObject.id);
         
         // Find brightness effects matching the light's entityId or id
+        // Make sure we only get the glow circles, not the light itself
         const brightnessEffects = this.floorplanEditor.canvas.getObjects().filter(obj => 
-            obj.glowCircle && (obj.parentLightId === lightObject.entityId || obj.parentLightId === lightObject.id)
+            obj.glowCircle && 
+            !obj.lightObject && // Exclude the main light object
+            (obj.parentLightId === lightObject.entityId || obj.parentLightId === lightObject.id)
         );
+        
+        console.log('🌟 Found brightness effects:', brightnessEffects.length);
         
         brightnessEffects.forEach(effect => {
             effect.visible = layer.brightnessVisible;
+            console.log('👁️ Setting brightness effect visibility to:', layer.brightnessVisible);
         });
+        
+        // Make sure the light itself stays visible
+        if (lightObject) {
+            lightObject.visible = true;
+            console.log('💡 Ensuring light object stays visible');
+        }
         
         this.floorplanEditor.canvas.renderAll();
     }
