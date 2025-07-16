@@ -524,18 +524,6 @@
                             </div>
                         </div>
                         
-                        <!-- Live State Panel -->
-                        <div class="panel-accordion-item" data-panel="liveState">
-                            <div class="panel-accordion-header" data-panel="liveState">
-                                <i class="fas fa-broadcast-tower"></i>
-                                <span>Live</span>
-                                <i class="fas fa-chevron-down accordion-chevron"></i>
-                            </div>
-                            <div class="panel-accordion-content" id="liveStatePanel">
-                                <!-- Content will be rendered by LiveStatePanel -->
-                            </div>
-                        </div>
-                        
                         <!-- Layers Panel -->
                         <div class="panel-accordion-item" data-panel="layers">
                             <div class="panel-accordion-header" data-panel="layers">
@@ -590,19 +578,15 @@
             <div class="dock-tertiary" id="dockTertiary">
                 <!-- Tertiary Panel -->
                 <div class="tertiary-panel" id="tertiaryPanel">
-                    <!-- Panel Header with Collapse Button -->
-                    <div class="tertiary-panel-header">
-                        <button class="tertiary-collapse-btn" id="tertiaryCollapseToggle" title="Collapse Panel">
-                            <i class="fas fa-angle-double-right"></i>
-                        </button>
-                    </div>
                     <div class="panel-accordion">
                         <!-- Entities Panel -->
                         <div class="panel-accordion-item" data-panel="entities">
                             <div class="panel-accordion-header active" data-panel="entities">
                                 <i class="fas fa-lightbulb"></i>
                                 <span>Entities</span>
-                                <i class="fas fa-chevron-up accordion-chevron"></i>
+                                <button class="tertiary-collapse-btn" id="tertiaryCollapseToggle" title="Collapse Panel">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
                             </div>
                             <div class="panel-accordion-content expanded" id="entitiesPanel">
                                 <!-- Content will be rendered by EntitiesPanel -->
@@ -770,7 +754,6 @@
         import { CanvasPanel } from './js/panels/CanvasPanel.js';
         import { LightsPanel } from './js/panels/LightsPanel.js';
         import { ScenesPanel } from './js/panels/ScenesPanel.js';
-        import { LiveStatePanel } from './js/panels/LiveStatePanel.js';
         import { EntitiesPanel } from './js/panels/EntitiesPanel.js';
         import { PropertiesPanel } from './js/panels/PropertiesPanel.js';
         import { SceneEditorPanel } from './js/panels/SceneEditorPanel.js';
@@ -786,7 +769,6 @@
             window.panelManager.register(new CanvasPanel());
             window.panelManager.register(new LightsPanel());
             window.panelManager.register(new ScenesPanel());
-            window.panelManager.register(new LiveStatePanel());
             window.panelManager.register(new EntitiesPanel());
             window.panelManager.register(new PropertiesPanel());
             window.panelManager.register(new SceneEditorPanel());

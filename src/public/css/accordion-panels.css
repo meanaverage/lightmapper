@@ -85,7 +85,9 @@
     max-height: 100vh;
     opacity: 1;
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden; /* Changed from overflow-y: auto to prevent double scrollbars */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Smooth animation for content */
@@ -171,7 +173,20 @@
 .panel-accordion-content .layers-container,
 .panel-accordion-content .debug-panel-wrapper {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure entities panel scrolls correctly in accordion */
+.panel-accordion-content .entities-panel-wrapper {
+    height: 100%;
+    min-height: 0; /* Critical for flex children */
+}
+
+.panel-accordion-content .entities-scrollable {
+    flex: 1;
     overflow-y: auto;
+    min-height: 0; /* Critical for nested scrolling */
 }
 
 /* Responsive behavior */
@@ -208,6 +223,12 @@
 /* Hide accordion chevron in tertiary sidebar when only one panel */
 .tertiary-panel .panel-accordion-item:only-child .accordion-chevron {
     display: none;
+}
+
+/* Special styling for tertiary panel header with collapse button */
+.dock-tertiary .panel-accordion-header .tertiary-collapse-btn {
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 /* Also remove pointer cursor and hover effect for single panel */

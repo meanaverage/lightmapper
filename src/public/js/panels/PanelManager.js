@@ -23,7 +23,6 @@ export class PanelManager {
         this.defaultDockPositions = {
             // Left sidebar panels
             'lights': 'left',
-            'liveState': 'left',
             'layers': 'left',
             'debug': 'left',
             
@@ -106,7 +105,6 @@ export class PanelManager {
         this.panelContainers.set('canvas', document.getElementById('canvas-container'));
         this.panelContainers.set('lights', document.getElementById('lightsPanel'));
         this.panelContainers.set('scenes', document.getElementById('scenesPanel'));
-        this.panelContainers.set('liveState', document.getElementById('liveStatePanel'));
         this.panelContainers.set('entities', document.getElementById('entitiesPanel'));
         this.panelContainers.set('properties', document.getElementById('propertiesPanel'));
         this.panelContainers.set('sceneEditor', document.getElementById('sceneEditorPanel'));

@@ -416,6 +416,9 @@ body {
   order: 3;
   position: relative;
   transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .dock-tertiary.collapsed {
@@ -436,30 +439,23 @@ body {
   order: 4;
 }
 
-/* Tertiary Panel Header */
-.tertiary-panel-header {
-  height: 40px;
-  background: var(--cad-bg-secondary);
-  border-bottom: 1px solid var(--cad-border-primary);
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0 8px;
-}
+/* Tertiary Panel Header - Removed (collapse button now integrated into panel header) */
 
-/* Tertiary Panel Collapse Button */
+/* Tertiary Panel Collapse Button - Now inside panel header */
 .tertiary-collapse-btn {
   background: none;
   border: none;
   color: var(--cad-text-secondary);
   cursor: pointer;
-  padding: 6px 8px;
+  padding: 2px 4px;
   border-radius: 4px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  margin-left: auto; /* Push to right side */
+  font-size: 12px;
 }
 
 .tertiary-collapse-btn:hover {
@@ -483,11 +479,14 @@ body {
   margin: 0;
   background: transparent;
   border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dock-tertiary.collapsed .tertiary-collapse-btn i {
   transform: rotate(180deg);
-  font-size: 8px;
+  font-size: 10px;
 }
 
 /* Remove the after pseudo-element - we'll use the expand toggle instead */
@@ -507,6 +506,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Critical for nested flex containers */
 }
 
 .dock-tertiary.collapsed .tertiary-panel {
@@ -514,15 +514,34 @@ body {
   border-right: none; /* Remove right border when collapsed */
 }
 
-.dock-tertiary.collapsed .tertiary-panel-header {
-  padding: 0;
-  justify-content: center;
-  border-bottom: none;
+/* When collapsed, the panel header acts as the expand button */
+.dock-tertiary.collapsed .panel-accordion-header {
   height: 100%;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
 }
 
 .dock-tertiary.collapsed .panel-accordion {
+  height: 100%;
+}
+
+.dock-tertiary.collapsed .panel-accordion-content {
+  display: none !important;
+}
+
+.dock-tertiary.collapsed .panel-accordion-item {
+  height: 100%;
+}
+
+/* Hide regular panel content when collapsed */
+.dock-tertiary.collapsed .panel-accordion-header > i:first-child,
+.dock-tertiary.collapsed .panel-accordion-header > span {
   display: none;
 }
 
@@ -531,14 +550,26 @@ body {
   display: none;
 }
 
+/* Ensure proper flex layout for tertiary panel accordion */
+.tertiary-panel .panel-accordion {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Ensure proper spacing for single panel */
 .dock-tertiary .panel-accordion-item:only-child .panel-accordion-header {
   cursor: default;
 }
 
 .dock-tertiary .panel-accordion-item:only-child .panel-accordion-content {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column;
   max-height: none !important;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Removed dock-bottom - using only left and right docks */

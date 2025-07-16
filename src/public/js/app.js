@@ -680,6 +680,11 @@ class CADInterfaceManager {
         console.log(`📋 Found ${tertiaryHeaders.length} tertiary panel headers`);
         tertiaryHeaders.forEach(header => {
             header.addEventListener('click', (e) => {
+                // Skip if clicking on the collapse button
+                if (e.target.closest('.tertiary-collapse-btn')) {
+                    return;
+                }
+                
                 e.preventDefault();
                 e.stopPropagation();
                 
