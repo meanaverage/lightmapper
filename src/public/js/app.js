@@ -8375,7 +8375,7 @@ class FloorplanEditor {
         };
         
         // Add zoom percentage click handler
-        const zoomDisplay = document.querySelector('.zoom-display');
+        const zoomDisplay = document.getElementById('zoom-level');
         if (zoomDisplay) {
             zoomDisplay.style.cursor = 'pointer';
             zoomDisplay.addEventListener('click', () => this.showZoomDialog());
