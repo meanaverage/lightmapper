@@ -5815,7 +5815,7 @@ class FloorplanEditor {
                 this.canvas.renderAll();
             }
             
-            // Grid pattern applied successfully
+            console.log('✅ Grid pattern applied as background');
         } catch (error) {
             console.error('❌ Error creating grid pattern:', error);
             // Fallback to transparent background
@@ -8728,6 +8728,7 @@ class FloorplanEditor {
     resizeCanvas() {
         // Skip canvas resize if we're in the middle of panel resizing
         if (this.isResizing) {
+            console.log('⏭️ Skipping canvas resize during panel drag');
             return;
         }
         
@@ -10554,6 +10555,7 @@ function setupPanelResize() {
             // Set flag on floorplan editor to prevent grid updates
             if (window.floorplanEditor) {
                 window.floorplanEditor.isResizing = true;
+                console.log('🚫 Panel resize started - grid updates disabled');
             }
             
             e.preventDefault();
@@ -10600,6 +10602,7 @@ function setupPanelResize() {
                 // Clear resize flag and trigger single canvas resize
                 if (window.floorplanEditor) {
                     window.floorplanEditor.isResizing = false;
+                    console.log('✅ Panel resize complete - triggering canvas update');
                     if (window.floorplanEditor.resizeCanvas) {
                         window.floorplanEditor.resizeCanvas();
                     }
