@@ -1,10 +1,8 @@
 /* Panel System Styles */
 
-/* Panel Container - Fixed Width */
+/* Panel Container - Full Width */
 .panel-section {
-    width: 320px !important;
-    min-width: 320px !important;
-    max-width: 320px !important;
+    width: 100%;
     overflow: hidden;
 }
 

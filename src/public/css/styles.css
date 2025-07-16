@@ -491,8 +491,6 @@ body {
   width: 100%;
   height: 100%;
   background: var(--cad-bg-secondary);
-  border-left: 1px solid var(--cad-border-primary);
-  border-right: 1px solid var(--cad-border-primary);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -567,9 +565,8 @@ body {
    Left Panel
    ======================================== */
 .left-panel {
-  width: var(--cad-panel-width);
+  width: 100%;
   background: var(--cad-bg-secondary);
-  border-right: 1px solid var(--cad-border-primary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -1122,9 +1119,8 @@ body {
    Right Panel
    ======================================== */
 .right-panel {
-  width: var(--cad-panel-width);
+  width: 100%;
   background: var(--cad-bg-secondary);
-  border-left: 1px solid var(--cad-border-primary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -2498,7 +2494,7 @@ body {
 /* Draggable Vertical Divider */
 .vertical-divider {
   width: 4px;
-  background: transparent;
+  background: var(--cad-border-primary);
   cursor: ew-resize;
   flex-shrink: 0;
   position: relative;

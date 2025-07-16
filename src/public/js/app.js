@@ -5805,7 +5805,7 @@ class FloorplanEditor {
                 this.canvas.renderAll();
             }
             
-            console.log('✅ Grid pattern applied as background');
+            // Grid pattern applied successfully
         } catch (error) {
             console.error('❌ Error creating grid pattern:', error);
             // Fallback to transparent background
