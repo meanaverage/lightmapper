@@ -412,6 +412,15 @@ body {
   flex-direction: column;
 }
 
+/* Disable transitions during resize for performance */
+.resizing .dock-tertiary {
+  transition: none !important;
+}
+
+.resizing * {
+  transition: none !important;
+}
+
 .dock-tertiary.collapsed {
   width: 20px;
   min-width: 20px;
@@ -2500,6 +2509,13 @@ body {
   position: relative;
   z-index: 10;
   transition: background 0.2s;
+}
+
+/* Force GPU acceleration for panels during resize */
+.resizing .dock-left,
+.resizing .dock-tertiary,
+.resizing .dock-right {
+  will-change: width;
 }
 
 .vertical-divider:hover {

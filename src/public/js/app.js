@@ -10551,6 +10551,7 @@ function setupPanelResize() {
             dividerEl.classList.add('dragging');
             document.body.style.cursor = 'ew-resize';
             document.body.style.userSelect = 'none';
+            document.body.classList.add('resizing'); // Disable CSS transitions
             
             // Set flag on floorplan editor to prevent grid updates
             if (window.floorplanEditor) {
@@ -10598,6 +10599,7 @@ function setupPanelResize() {
                 dividerEl.classList.remove('dragging');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+                document.body.classList.remove('resizing'); // Re-enable CSS transitions
                 
                 // Clear resize flag and trigger single canvas resize
                 if (window.floorplanEditor) {
