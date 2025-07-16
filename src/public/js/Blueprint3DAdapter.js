@@ -372,7 +372,7 @@ class Blueprint3DAdapter {
         let light;
         
         if (lightData.style === 'spot') {
-            light = new THREE.SpotLight(0xffffff, 1, 0, Math.PI / 4, 0.5, 2);
+            light = new THREE.SpotLight(0xffffff, 1, 20, Math.PI / 4, 0.5, 2);
             light.target.position.set(
                 this.convertUnits(lightData.x),
                 0,
@@ -380,7 +380,7 @@ class Blueprint3DAdapter {
             );
             this.scene.add(light.target);
         } else {
-            light = new THREE.PointLight(0xffffff, 1, 0, 2);
+            light = new THREE.PointLight(0xffffff, 1, 20, 2);
         }
         
         light.position.set(
@@ -395,10 +395,13 @@ class Blueprint3DAdapter {
         
         // Add a visual indicator for the light
         const bulbGeometry = new THREE.SphereGeometry(0.2, 16, 8);
-        const bulbMaterial = new THREE.MeshBasicMaterial({ 
+        // Use MeshStandardMaterial which supports emissive
+        const bulbMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffff00,
             emissive: 0xffff00,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.8,
+            metalness: 0.3,
+            roughness: 0.4
         });
         const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
         light.add(bulb);
