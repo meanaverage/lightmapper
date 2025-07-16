@@ -207,6 +207,15 @@ export class SettingsBarComponent {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
+                
+                // MIGRATION: Fix old scale values (8 -> 48)
+                if (parsed.scaleFrom === 8) {
+                    console.log('🔄 Migrating old scale setting from 8 to 48 pixels per foot');
+                    parsed.scaleFrom = 48;
+                    // Save the migrated settings
+                    localStorage.setItem('lightmapper_settings', JSON.stringify(parsed));
+                }
+                
                 Object.assign(this.settings, parsed);
                 
                 // Update UI
