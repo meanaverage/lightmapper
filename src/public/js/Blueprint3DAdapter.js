@@ -654,11 +654,18 @@ class Blueprint3DAdapter {
      */
     convertUnits(value) {
         // Convert from pixels to 3D units
-        // Default grid size is 8 pixels, which represents 1 foot or 0.3048 meters
-        const gridSize = 8; // Should match the grid size in FloorplanEditor
-        const unitsPerGrid = 1; // 1 grid unit = 1 foot
+        // Get scale from settings or FloorplanEditor
+        let pixelsPerFoot = 48; // Default
         
-        const pixelsPerFoot = gridSize;
+        // Try to get from settings first
+        if (window.settingsBar && window.settingsBar.settings.scaleFrom) {
+            pixelsPerFoot = window.settingsBar.settings.scaleFrom;
+        } 
+        // Fall back to FloorplanEditor
+        else if (window.floorplanEditor && window.floorplanEditor.pixelsPerFoot) {
+            pixelsPerFoot = window.floorplanEditor.pixelsPerFoot;
+        }
+        
         const feet = value / pixelsPerFoot;
         
         if (this.options.units === 'metric') {

@@ -8,9 +8,9 @@ export class SettingsBarComponent {
         this.isVisible = false;
         this.settings = {
             units: 'ft',
-            scaleFrom: 8,
+            scaleFrom: 48,  // 48 pixels = 1 foot (matches FloorplanEditor)
             scaleTo: 1,
-            gridSize: 8
+            gridSize: 24    // Grid square size in pixels
         };
         
         this.init();
@@ -154,7 +154,7 @@ export class SettingsBarComponent {
         const scaleTo = content.querySelector('#scaleTo');
         
         scaleFrom.addEventListener('change', (e) => {
-            this.settings.scaleFrom = parseFloat(e.target.value) || 8;
+            this.settings.scaleFrom = parseFloat(e.target.value) || 48;
             this.saveSettings();
             this.notifyChange('scale', { from: this.settings.scaleFrom, to: this.settings.scaleTo });
         });
