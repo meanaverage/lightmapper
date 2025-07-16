@@ -330,6 +330,31 @@ select:focus {
   margin-right: 4px;
 }
 
+/* Fix for tertiary panel entities scrolling */
+.tertiary-panel #entitiesPanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tertiary-panel .entities-panel-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tertiary-panel .entities-header-fixed {
+  flex: 0 0 auto;
+}
+
+.tertiary-panel .entities-scrollable {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
 /* Layer items - Figma style */
 .layer-item {
   font-size: var(--cad-font-size-sm);

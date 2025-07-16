@@ -556,7 +556,6 @@ body {
   max-height: none !important;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 /* Removed dock-bottom - using only left and right docks */

@@ -181,12 +181,16 @@
 .panel-accordion-content .entities-panel-wrapper {
     height: 100%;
     min-height: 0; /* Critical for flex children */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .panel-accordion-content .entities-scrollable {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     min-height: 0; /* Critical for nested scrolling */
+    overflow-x: hidden;
 }
 
 /* Responsive behavior */
@@ -229,6 +233,21 @@
 .dock-tertiary .panel-accordion-header .tertiary-collapse-btn {
     margin-left: auto;
     flex-shrink: 0;
+}
+
+/* Ensure tertiary panel with single accordion item can scroll */
+.tertiary-panel .panel-accordion-item:only-child {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.tertiary-panel .panel-accordion-item:only-child .panel-accordion-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex !important;
 }
 
 /* Also remove pointer cursor and hover effect for single panel */

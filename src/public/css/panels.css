@@ -347,10 +347,12 @@
 }
 
 .entities-header-fixed {
+    flex: 0 0 auto;
     flex-shrink: 0;
     background: transparent;
     border-bottom: 1px solid var(--cad-border-primary, #383838);
     padding: var(--cad-spacing-sm, 6px);
+    min-height: fit-content;
 }
 
 
