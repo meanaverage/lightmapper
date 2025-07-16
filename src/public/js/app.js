@@ -4781,7 +4781,26 @@ class FloorplanEditor {
             console.log('✅ Fabric.js canvas created successfully');
             console.log('  Canvas dimensions in Fabric:', { 
                 width: this.canvas.width, 
-                height: this.canvas.height 
+                height: this.canvas.height
+            });
+            
+            // Override toObject for all fabric objects to include custom properties
+            const originalToObject = fabric.Object.prototype.toObject;
+            fabric.Object.prototype.toObject = function(propertiesToInclude) {
+                const obj = originalToObject.call(this, propertiesToInclude);
+                // Include our custom properties
+                if (this.roomObject !== undefined) obj.roomObject = this.roomObject;
+                if (this.roomOutline !== undefined) obj.roomOutline = this.roomOutline;
+                if (this.lightObject !== undefined) obj.lightObject = this.lightObject;
+                if (this.entityId !== undefined) obj.entityId = this.entityId;
+                if (this.iconStyle !== undefined) obj.iconStyle = this.iconStyle;
+                if (this.textObject !== undefined) obj.textObject = this.textObject;
+                if (this.lineObject !== undefined) obj.lineObject = this.lineObject;
+                if (this.customLayer !== undefined) obj.customLayer = this.customLayer;
+                if (this.roomName !== undefined) obj.roomName = this.roomName;
+                return obj;
+            };
+            console.log('✅ Custom properties serialization enabled' 
             });
             
             // 🔧 FIX: Additional context menu prevention for better browser compatibility
