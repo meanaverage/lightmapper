@@ -603,6 +603,18 @@ class HomeAssistantAPI {
     }
   }
   
+  async getStates() {
+    try {
+      console.log('🔍 Fetching all states from HA API...');
+      const response = await this.axios.get('/api/states');
+      console.log(`✅ Fetched ${response.data.length} states`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching states from HA:', error.message);
+      return []; // Return empty array if states can't be fetched
+    }
+  }
+  
   async controlLight(entityId, state) {
     try {
       const service = state.state === 'on' ? 'turn_on' : 'turn_off';
@@ -1028,6 +1040,77 @@ app.get('/api/lights', async (req, res) => {
       console.error('❌ Response data:', error.response.data);
     }
     res.status(500).json({ error: 'Failed to get lights from Home Assistant' });
+  }
+});
+
+// Get entities by type (generic endpoint for switches, binary_sensors, sensors, etc.)
+app.get('/api/entities/:entityType', async (req, res) => {
+  try {
+    const { entityType } = req.params;
+    console.log(`📋 Processing /api/entities/${entityType} request...`);
+    
+    // Get all states from Home Assistant
+    const states = await haAPI.getStates();
+    
+    // Filter by entity type
+    const filteredEntities = states.filter(state => {
+      return state.entity_id.startsWith(`${entityType}.`);
+    });
+    
+    console.log(`✅ Found ${filteredEntities.length} ${entityType} entities`);
+    
+    // Try to get additional data but don't fail if unavailable
+    let areas = [];
+    let devices = [];
+    let entities = [];
+    
+    try {
+      areas = await haAPI.getAreas();
+      devices = await haAPI.getDevices();
+      entities = await haAPI.getEntities();
+    } catch (error) {
+      console.log('⚠️ Could not fetch additional registry data:', error.message);
+    }
+    
+    // Create lookup maps
+    const areaMap = new Map(areas.map(area => [area.area_id || area.id, area]));
+    const deviceMap = new Map(devices.map(device => [device.id, device]));
+    const entityMap = new Map(entities.map(entity => [entity.entity_id, entity]));
+    
+    // Map entities with area information
+    const mappedEntities = filteredEntities.map(state => {
+      const entityInfo = entityMap.get(state.entity_id);
+      let areaInfo = null;
+      
+      if (entityInfo) {
+        if (entityInfo.area_id) {
+          areaInfo = areaMap.get(entityInfo.area_id);
+        } else if (entityInfo.device_id) {
+          const device = deviceMap.get(entityInfo.device_id);
+          if (device && device.area_id) {
+            areaInfo = areaMap.get(device.area_id);
+          }
+        }
+      }
+      
+      return {
+        entity_id: state.entity_id,
+        state: state.state,
+        attributes: state.attributes || {},
+        area: areaInfo ? {
+          id: areaInfo.area_id || areaInfo.id,
+          name: areaInfo.name
+        } : null,
+        last_changed: state.last_changed,
+        last_updated: state.last_updated
+      };
+    });
+    
+    console.log(`📋 Returning ${mappedEntities.length} ${entityType} entities to client`);
+    res.json(mappedEntities);
+  } catch (error) {
+    console.error(`❌ Error getting ${req.params.entityType} entities:`, error);
+    res.status(500).json({ error: `Failed to get ${req.params.entityType} entities from Home Assistant` });
   }
 });
 

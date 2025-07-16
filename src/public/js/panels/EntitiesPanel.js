@@ -19,6 +19,7 @@ export class EntitiesPanel extends BasePanel {
                             <select id="entityTypeFilter" class="entity-type-dropdown">
                                 <option value="light">Lights</option>
                                 <option value="switch">Switches</option>
+                                <option value="binary_sensor">Binary Sensors</option>
                                 <option value="sensor">Sensors</option>
                                 <option value="all">All Entities</option>
                             </select>
@@ -123,36 +124,73 @@ export class EntitiesPanel extends BasePanel {
 
     async loadEntities() {
         try {
-            // Try enhanced endpoint first for better icon support
-            let response;
-            let useEnhanced = false;
+            console.log('📋 Loading all entities...');
             
-            try {
-                response = await this.fetchData(`${window.API_BASE}/api/lights/enhanced`);
-                useEnhanced = true;
-                console.log('✅ Using enhanced lights endpoint with full metadata');
-            } catch (error) {
-                console.log('⚠️ Enhanced endpoint not available, using standard endpoint');
-                response = await this.fetchData(`${window.API_BASE}/api/lights`);
+            // Load all entity types we support
+            const entityTypes = ['light', 'switch', 'binary_sensor', 'sensor'];
+            const allEntities = [];
+            
+            for (const entityType of entityTypes) {
+                try {
+                    let response;
+                    let useEnhanced = false;
+                    
+                    // Try enhanced endpoint first for lights
+                    if (entityType === 'light') {
+                        try {
+                            response = await this.fetchData(`${window.API_BASE}/api/lights/enhanced`);
+                            useEnhanced = true;
+                            console.log('✅ Using enhanced lights endpoint with full metadata');
+                        } catch (error) {
+                            console.log('⚠️ Enhanced endpoint not available, using standard endpoint');
+                            response = await this.fetchData(`${window.API_BASE}/api/lights`);
+                        }
+                    } else {
+                        // For other entity types, use the generic entities endpoint
+                        response = await this.fetchData(`${window.API_BASE}/api/entities/${entityType}`);
+                        console.log(`✅ Loaded ${response.length} ${entityType} entities`);
+                    }
+                    
+                    // Map the response to match expected format
+                    const mappedEntities = response.map(entity => {
+                        // Handle different response formats
+                        if (entityType === 'light' && entity.entityId) {
+                            // Light-specific format from existing endpoint
+                            return {
+                                entity_id: entity.entityId,
+                                state: entity.state,
+                                attributes: {
+                                    friendly_name: entity.friendlyName,
+                                    brightness: entity.brightness,
+                                    color_temp_kelvin: entity.colorTemp,
+                                    hs_color: entity.hsColor,
+                                    rgb_color: entity.hsColor ? this.hsToRgb(entity.hsColor[0], entity.hsColor[1]) : null,
+                                    supported_features: this.inferSupportedFeatures(entity),
+                                    icon: useEnhanced ? entity.attributes?.icon : null
+                                },
+                                area: entity.area?.name || entity.area || null,
+                                device: useEnhanced ? entity.device : null,
+                                platform: useEnhanced ? entity.platform : null
+                            };
+                        } else {
+                            // Generic entity format
+                            return {
+                                entity_id: entity.entity_id || entity.entityId,
+                                state: entity.state,
+                                attributes: entity.attributes || {},
+                                area: entity.area?.name || entity.area || null
+                            };
+                        }
+                    });
+                    
+                    allEntities.push(...mappedEntities);
+                } catch (error) {
+                    console.warn(`⚠️ Could not load ${entityType} entities:`, error.message);
+                }
             }
             
-            // Map the response to match expected format
-            this.entities = response.map(light => ({
-                entity_id: light.entityId,
-                state: light.state,
-                attributes: {
-                    friendly_name: light.friendlyName,
-                    brightness: light.brightness,
-                    color_temp_kelvin: light.colorTemp,
-                    hs_color: light.hsColor,
-                    rgb_color: light.hsColor ? this.hsToRgb(light.hsColor[0], light.hsColor[1]) : null,
-                    supported_features: this.inferSupportedFeatures(light),
-                    icon: useEnhanced ? light.attributes?.icon : null // Get icon from enhanced endpoint
-                },
-                area: light.area?.name || light.area || null,
-                device: useEnhanced ? light.device : null,
-                platform: useEnhanced ? light.platform : null
-            }));
+            this.entities = allEntities;
+            console.log(`📋 Total entities loaded: ${this.entities.length}`);
             
             // Also get device registry info if available
             await this.enrichEntitiesWithDeviceInfo();
@@ -248,9 +286,24 @@ export class EntitiesPanel extends BasePanel {
         // Determine state badge
         let stateBadge = '';
         let stateBadgeClass = '';
+        const domain = entity.entity_id.split('.')[0];
+        
         if (isUnavailable) {
             stateBadge = 'UNAVAILABLE';
             stateBadgeClass = 'unavailable';
+        } else if (domain === 'binary_sensor') {
+            // Special handling for binary sensors
+            const deviceClass = entity.attributes?.device_class;
+            if (deviceClass === 'motion' || deviceClass === 'occupancy') {
+                stateBadge = isOn ? 'DETECTED' : 'CLEAR';
+                stateBadgeClass = isOn ? 'on' : 'off';
+            } else if (deviceClass === 'presence') {
+                stateBadge = isOn ? 'PRESENT' : 'AWAY';
+                stateBadgeClass = isOn ? 'on' : 'off';
+            } else {
+                stateBadge = isOn ? 'ON' : 'OFF';
+                stateBadgeClass = isOn ? 'on' : 'off';
+            }
         } else if (isOn) {
             stateBadge = 'ON';
             stateBadgeClass = 'on';
@@ -396,10 +449,32 @@ export class EntitiesPanel extends BasePanel {
             };
         }
         
+        // Special handling for binary sensors based on device class
+        if (domain === 'binary_sensor') {
+            const deviceClass = entity.attributes?.device_class;
+            
+            const binarySensorIcons = {
+                'motion': isOn ? 'motion-sensor' : 'motion-sensor-off',
+                'occupancy': isOn ? 'home-account' : 'home-outline',
+                'presence': isOn ? 'account-check' : 'account-outline',
+                'door': isOn ? 'door-open' : 'door-closed',
+                'window': isOn ? 'window-open' : 'window-closed',
+                'opening': isOn ? 'gate-open' : 'gate',
+                'garage_door': isOn ? 'garage-open' : 'garage',
+                'smoke': 'smoke-detector',
+                'moisture': isOn ? 'water' : 'water-off',
+                'light': isOn ? 'brightness-7' : 'brightness-5',
+                'vibration': 'vibrate',
+                'problem': isOn ? 'alert-circle' : 'check-circle'
+            };
+            
+            const icon = binarySensorIcons[deviceClass] || (isOn ? 'checkbox-marked-circle' : 'circle-outline');
+            return { type: 'mdi', icon };
+        }
+        
         const iconMap = {
             'switch': { type: 'mdi', icon: isOn ? 'toggle-switch' : 'toggle-switch-off' },
             'sensor': { type: 'mdi', icon: 'chart-line' },
-            'binary_sensor': { type: 'mdi', icon: 'shield-check' },
             'climate': { type: 'mdi', icon: 'thermostat' },
             'cover': { type: 'mdi', icon: 'window-shutter' },
             'fan': { type: 'mdi', icon: 'fan' },
