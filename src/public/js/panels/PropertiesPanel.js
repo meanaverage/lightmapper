@@ -212,6 +212,38 @@ export class PropertiesPanel extends BasePanel {
             step: 0.1
         });
         
+        // Room dimensions (for rectangles)
+        if (obj.type === 'rect' || obj.type === 'Rect') {
+            group.properties.push({
+                name: 'Width',
+                key: 'width',
+                value: Math.round(obj.width || 100),
+                type: 'number',
+                min: 10,
+                unit: 'px'
+            });
+            
+            group.properties.push({
+                name: 'Height',
+                key: 'height',
+                value: Math.round(obj.height || 100),
+                type: 'number',
+                min: 10,
+                unit: 'px'
+            });
+        }
+        
+        // Wall height (store in custom property)
+        group.properties.push({
+            name: 'Wall Height',
+            key: 'wallHeight',
+            value: obj.wallHeight || 10,
+            type: 'number',
+            min: 6,
+            max: 20,
+            unit: 'ft'
+        });
+        
         // Stroke width
         group.properties.push({
             name: 'Border Width',

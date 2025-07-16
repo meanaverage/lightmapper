@@ -4798,6 +4798,7 @@ class FloorplanEditor {
                 if (this.lineObject !== undefined) obj.lineObject = this.lineObject;
                 if (this.customLayer !== undefined) obj.customLayer = this.customLayer;
                 if (this.roomName !== undefined) obj.roomName = this.roomName;
+                if (this.wallHeight !== undefined) obj.wallHeight = this.wallHeight;
                 return obj;
             };
             console.log('✅ Custom properties serialization enabled');
@@ -6419,11 +6420,8 @@ class FloorplanEditor {
             return;
         }
         
-        if (this.currentTool === 'line' && this.isDrawing) {
-            const pointer = this.canvas.getPointer(e.e);
-            const snappedPoint = this.snapToObjects(null, pointer);
-            this.handleLineDrawing(snappedPoint, 'up');
-        } else if (this.currentTool === 'room' && this.isDrawing) {
+        // Note: Line tool doesn't use mouse up anymore, it uses mouse down for continuous drawing
+        if (this.currentTool === 'room' && this.isDrawing) {
             const pointer = this.canvas.getPointer(e.e);
             const snappedPoint = this.snapToGrid(pointer);
             if (this.roomDrawingMode === 'rectangle') {
@@ -6524,9 +6522,50 @@ class FloorplanEditor {
     
     handleLineDrawing(point, action) {
         if (action === 'down') {
-            this.isDrawing = true;
-            this.lineStartPoint = point;
-            this.linePreview = null;
+            if (!this.isDrawing) {
+                // Start continuous line drawing mode
+                this.isDrawing = true;
+                this.lineStartPoint = point;
+                this.linePreview = null;
+                window.sceneManager?.showStatus('Line tool: click to place points, ESC to cancel', 'info');
+            } else {
+                // Place line segment and continue drawing
+                // Remove preview
+                if (this.linePreview) {
+                    this.canvas.remove(this.linePreview);
+                }
+                this.clearMeasurementDisplay();
+                
+                // Calculate line length
+                const length = Math.sqrt(
+                    Math.pow(point.x - this.lineStartPoint.x, 2) + 
+                    Math.pow(point.y - this.lineStartPoint.y, 2)
+                );
+                
+                // Only create line if it's long enough
+                if (length > 10) {
+                    const strokeColor = this.isDarkTheme ? '#ffffff' : '#000000';
+                    
+                    const line = new fabric.Line([
+                        this.lineStartPoint.x, this.lineStartPoint.y,
+                        point.x, point.y
+                    ], {
+                        stroke: strokeColor,
+                        strokeWidth: 2,
+                        selectable: true,
+                        evented: true,
+                        lineObject: true
+                    });
+                    
+                    this.canvas.add(line);
+                    window.sceneManager?.showStatus(`Line added: ${this.formatDistance(length)}`, 'success');
+                    this.triggerAutoSave();
+                }
+                
+                // Continue drawing from the end point
+                this.lineStartPoint = point;
+                this.linePreview = null;
+            }
         } else if (action === 'move' && this.isDrawing) {
             // Remove existing preview
             if (this.linePreview) {
@@ -6554,44 +6593,24 @@ class FloorplanEditor {
             this.createMeasurementDisplay(this.lineStartPoint, point, true);
             
             this.canvas.renderAll();
-        } else if (action === 'up' && this.isDrawing) {
-            // Remove preview and measurements
-            if (this.linePreview) {
-                this.canvas.remove(this.linePreview);
-            }
-            this.clearMeasurementDisplay();
-            
-            // Calculate line length
-            const length = Math.sqrt(
-                Math.pow(point.x - this.lineStartPoint.x, 2) + 
-                Math.pow(point.y - this.lineStartPoint.y, 2)
-            );
-            
-            // Only create line if it's long enough
-            if (length > 10) {
-                const strokeColor = this.isDarkTheme ? '#ffffff' : '#000000';
-                
-                const line = new fabric.Line([
-                    this.lineStartPoint.x, this.lineStartPoint.y,
-                    point.x, point.y
-                ], {
-                    stroke: strokeColor,
-                    strokeWidth: 2,
-                    selectable: true,
-                    evented: true,
-                    lineObject: true
-                });
-                
-                this.canvas.add(line);
-                window.sceneManager?.showStatus(`Line added: ${this.formatDistance(length)}`, 'success');
-                this.triggerAutoSave();
-            }
-            
-            this.isDrawing = false;
-            this.lineStartPoint = null;
-            this.linePreview = null;
-            this.canvas.renderAll();
         }
+    }
+    
+    cancelLineDrawing() {
+        // Remove preview line and measurements
+        if (this.linePreview) {
+            this.canvas.remove(this.linePreview);
+        }
+        this.clearMeasurementDisplay();
+        
+        this.isDrawing = false;
+        this.lineStartPoint = null;
+        this.linePreview = null;
+        this.canvas.renderAll();
+        
+        // Switch back to select tool
+        this.setTool('select');
+        window.sceneManager?.showStatus('Line drawing cancelled', 'info');
     }
     
     addLight(position) {
@@ -9235,7 +9254,11 @@ class FloorplanEditor {
                 break;
             case 'Escape':
                 if (this.isDrawing) {
-                    this.cancelRoomDrawing();
+                    if (this.currentTool === 'line') {
+                        this.cancelLineDrawing();
+                    } else {
+                        this.cancelRoomDrawing();
+                    }
                 }
                 break;
             case '+':

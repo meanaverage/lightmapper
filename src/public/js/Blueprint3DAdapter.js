@@ -129,6 +129,18 @@ class Blueprint3DAdapter {
         container.addEventListener('mousemove', (e) => this.onMouseMove(e, container));
         container.addEventListener('click', (e) => this.onMouseClick(e, container));
         
+        // Listen for layer visibility changes
+        window.addEventListener('onLayerVisibilityChanged', (e) => {
+            this.onLayerVisibilityChanged(e.detail);
+        });
+        
+        // Listen for WebSocket light state changes
+        if (window.haWsClient) {
+            window.haWsClient.on('light_state_changed', (data) => {
+                this.onLightStateChanged(data);
+            });
+        }
+        
         this.isInitialized = true;
         this.animate();
         
@@ -232,14 +244,16 @@ class Blueprint3DAdapter {
                     this.model.walls.push({
                         corner1: corner1,
                         corner2: corner2,
-                        thickness: this.options.wallThickness
+                        thickness: this.options.wallThickness,
+                        height: obj.wallHeight || this.options.wallHeight
                     });
                 }
                 
                 this.model.rooms.push({
                     corners: roomCorners,
                     name: obj.roomName || `Room ${this.model.rooms.length + 1}`,
-                    fillColor: obj.fill || '#f0f0f0'
+                    fillColor: obj.fill || '#f0f0f0',
+                    wallHeight: obj.wallHeight || this.options.wallHeight
                 });
             }
         });
@@ -320,7 +334,8 @@ class Blueprint3DAdapter {
                 this.convertUnits(corner2.z)
             );
             
-            const wallMesh = this.createWall(start, end);
+            const wallHeight = wall.height || this.options.wallHeight;
+            const wallMesh = this.createWall(start, end, wallHeight);
             this.scene.add(wallMesh);
             this.wallMeshes.push(wallMesh);
         });
@@ -334,14 +349,16 @@ class Blueprint3DAdapter {
     /**
      * Create a wall mesh between two points
      */
-    createWall(start, end) {
+    createWall(start, end, wallHeight) {
         const direction = new THREE.Vector3().subVectors(end, start);
         const length = direction.length();
         direction.normalize();
         
+        const heightInUnits = this.convertUnits(wallHeight);
+        
         const geometry = new THREE.BoxGeometry(
             length,
-            this.convertUnits(this.options.wallHeight),
+            heightInUnits,
             this.convertUnits(this.options.wallThickness)
         );
         
@@ -353,7 +370,7 @@ class Blueprint3DAdapter {
         
         const wall = new THREE.Mesh(geometry, material);
         wall.position.copy(start).add(end).multiplyScalar(0.5);
-        wall.position.y = this.convertUnits(this.options.wallHeight) / 2;
+        wall.position.y = heightInUnits / 2;
         
         // Rotate wall to align with direction
         const angle = Math.atan2(direction.z, direction.x);
@@ -408,6 +425,25 @@ class Blueprint3DAdapter {
         
         light.name = lightData.entityId;
         this.scene.add(light);
+        
+        // Check if the light's layer is visible
+        const layerManager = window.layerManager;
+        if (layerManager) {
+            const canvasPanel = window.panelManager?.getPanel('canvas');
+            if (canvasPanel && canvasPanel.floorplanEditor?.canvas) {
+                const lightObject = canvasPanel.floorplanEditor.canvas.getObjects().find(obj => 
+                    obj.entityId === lightData.entityId && obj.lightObject
+                );
+                
+                if (lightObject && lightObject.customLayer) {
+                    const layer = layerManager.layers[lightObject.customLayer];
+                    if (layer && layer.visible === false) {
+                        bulb.visible = false;
+                        console.log(`🔦 3D bulb hidden for ${lightData.entityId} (layer not visible)`);
+                    }
+                }
+            }
+        }
         
         // Store both light and bulb references
         this.lightObjects.set(lightData.entityId, {
@@ -639,6 +675,57 @@ class Blueprint3DAdapter {
                 }));
             }
         }
+    }
+    
+    /**
+     * Handle layer visibility changes
+     * @param {Object} detail - The layer visibility change details
+     */
+    onLayerVisibilityChanged(detail) {
+        if (!detail || !detail.layerId) return;
+        
+        const layerId = detail.layerId;
+        const isVisible = detail.visible;
+        
+        // Get the layer from the layer manager
+        const layerManager = window.layerManager;
+        if (!layerManager) return;
+        
+        const layer = layerManager.layers[layerId];
+        if (!layer || layer.objectType !== 'light') return;
+        
+        // Find the light object by its entity ID
+        const canvasPanel = window.panelManager?.getPanel('canvas');
+        if (!canvasPanel || !canvasPanel.floorplanEditor?.canvas) return;
+        
+        const lightObject = canvasPanel.floorplanEditor.canvas.getObjects().find(obj => 
+            obj.customLayer === layerId && obj.lightObject
+        );
+        
+        if (lightObject && lightObject.entityId) {
+            // Update the 3D bulb visibility
+            const lightData = this.lightObjects.get(lightObject.entityId);
+            if (lightData && lightData.bulb) {
+                lightData.bulb.visible = isVisible;
+                console.log(`🔦 3D bulb visibility updated for ${lightObject.entityId}: ${isVisible}`);
+            }
+        }
+    }
+    
+    /**
+     * Handle light state changes from WebSocket
+     * @param {Object} data - The light state change data
+     */
+    onLightStateChanged(data) {
+        if (!data || !data.entityId || !data.state) return;
+        
+        const entityId = data.entityId;
+        const state = data.state;
+        
+        // Update the 3D light state
+        this.updateLightState(entityId, state);
+        
+        console.log(`💡 3D light state updated via WebSocket: ${entityId} (${state.state})`);
     }
     
     /**
