@@ -4,9 +4,7 @@
  * Based on the blueprint-js architecture but tailored for Home Assistant light control
  */
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+// Use global THREE object from CDN
 
 class Blueprint3DAdapter {
     constructor(options = {}) {
@@ -84,7 +82,7 @@ class Blueprint3DAdapter {
         container.appendChild(this.renderer.domElement);
         
         // Setup controls
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.screenSpacePanning = false;
@@ -529,7 +527,7 @@ class Blueprint3DAdapter {
      * Export scene as GLTF
      */
     exportGLTF(callback) {
-        const exporter = new GLTFExporter();
+        const exporter = new THREE.GLTFExporter();
         exporter.parse(this.scene, callback, { binary: false });
     }
     
@@ -550,4 +548,5 @@ class Blueprint3DAdapter {
     }
 }
 
-export default Blueprint3DAdapter;
+// Make available globally
+window.Blueprint3DAdapter = Blueprint3DAdapter;

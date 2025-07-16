@@ -1,5 +1,5 @@
 import { BasePanel } from './BasePanel.js';
-import Blueprint3DAdapter from '../Blueprint3DAdapter.js';
+// Blueprint3DAdapter will be loaded as a global script
 
 /**
  * 3D Preview Panel - Provides a Three.js 3D visualization of the floorplan
@@ -145,8 +145,15 @@ export class Preview3DPanel extends BasePanel {
         console.log('📦 Preview3DPanel: Container found:', container);
         
         try {
+            // Wait for Blueprint3DAdapter to be available
+            if (!window.Blueprint3DAdapter) {
+                console.error('❌ Blueprint3DAdapter not loaded yet');
+                setTimeout(() => this.initializeBlueprint3D(), 100);
+                return;
+            }
+            
             // Initialize Blueprint3D adapter
-            this.blueprint3d = new Blueprint3DAdapter({
+            this.blueprint3d = new window.Blueprint3DAdapter({
                 units: window.floorplanEditor?.useMetric ? 'metric' : 'imperial',
                 wallHeight: 10,
                 wallThickness: 0.5,
@@ -345,5 +352,3 @@ export class Preview3DPanel extends BasePanel {
         }
     }
 }
-
-export default Preview3DPanel;
