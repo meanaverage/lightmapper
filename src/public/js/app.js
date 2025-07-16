@@ -10437,8 +10437,8 @@ function setupTertiaryPanelCollapse() {
     
     if (!tertiaryDock || !collapseToggle) return;
     
-    // Toggle button handler - works for both collapse and expand
-    collapseToggle.addEventListener('click', () => {
+    // Function to toggle the panel
+    const togglePanel = () => {
         const isCollapsed = tertiaryDock.classList.contains('collapsed');
         
         if (isCollapsed) {
@@ -10457,6 +10457,17 @@ function setupTertiaryPanelCollapse() {
                 window.floorplanEditor.resizeCanvas();
             }
         }, 300);
+    };
+    
+    // Toggle button handler - works for both collapse and expand
+    collapseToggle.addEventListener('click', togglePanel);
+    
+    // Make entire collapsed dock clickable
+    tertiaryDock.addEventListener('click', (e) => {
+        // Only handle clicks when collapsed and not on the button itself
+        if (tertiaryDock.classList.contains('collapsed') && !e.target.closest('.tertiary-collapse-btn')) {
+            togglePanel();
+        }
     });
     
     // Restore collapse state from localStorage
