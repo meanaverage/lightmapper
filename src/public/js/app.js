@@ -4683,6 +4683,29 @@ class FloorplanEditor {
         // ✅ SET DEFAULT TOOL TO SELECT MODE
         console.log('🎯 Setting default tool to SELECT');
         this.setTool('select');
+        
+        // Fix existing rooms without wallHeight
+        this.fixExistingRooms();
+    }
+    
+    fixExistingRooms() {
+        // Fix any existing rooms that don't have wallHeight property
+        const objects = this.canvas.getObjects();
+        let fixedCount = 0;
+        
+        objects.forEach(obj => {
+            if (obj.roomObject && !obj.wallHeight) {
+                obj.wallHeight = 10; // Default 10 feet
+                fixedCount++;
+                console.log(`🔧 Fixed room ${obj.id || 'unnamed'} - added wallHeight: 10ft`);
+            }
+        });
+        
+        if (fixedCount > 0) {
+            console.log(`✅ Fixed ${fixedCount} rooms with missing wallHeight property`);
+            this.canvas.requestRenderAll();
+            this.triggerAutoSave();
+        }
     }
     
     setupLayerEventHandlers() {
@@ -6656,7 +6679,8 @@ class FloorplanEditor {
                     fill: this.getCurrentRoomFill(),
                     stroke: strokeColor,
                     strokeWidth: 2,
-                    roomObject: true
+                    roomObject: true,
+                    wallHeight: 10 // Default 10 feet wall height
                 });
                 
                 this.canvas.add(rectangle);
@@ -7598,6 +7622,7 @@ class FloorplanEditor {
             selectable: true,
             evented: true,
             roomObject: true,
+            wallHeight: 10, // Default 10 feet wall height
             perPixelTargetFind: true,
             hasControls: true,
             hasBorders: true,
@@ -10537,7 +10562,8 @@ class FloorplanEditor {
                             fill: roomData.fill || 'transparent',
                             stroke: roomData.stroke || (this.isDarkTheme ? '#00ff00' : '#0066cc'),
                             strokeWidth: 2,
-                            roomObject: true
+                            roomObject: true,
+                            wallHeight: roomData.wallHeight || 10
                         });
                     } else {
                         // Rectangle room
@@ -10549,7 +10575,8 @@ class FloorplanEditor {
                             fill: roomData.fill || 'transparent',
                             stroke: roomData.stroke || (this.isDarkTheme ? '#00ff00' : '#0066cc'),
                             strokeWidth: 2,
-                            roomObject: true
+                            roomObject: true,
+                            wallHeight: roomData.wallHeight || 10
                         });
                     }
                     this.canvas.add(room);
