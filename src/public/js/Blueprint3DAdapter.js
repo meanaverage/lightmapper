@@ -543,9 +543,29 @@ class Blueprint3DAdapter {
         });
         this.floorMeshes = [];
         
-        // Remove lights
-        this.lightObjects.forEach(light => {
-            this.scene.remove(light);
+        // Remove lights and their bulbs
+        this.lightObjects.forEach((lightData, entityId) => {
+            if (lightData.light) {
+                // Remove bulb first
+                if (lightData.bulb) {
+                    lightData.light.remove(lightData.bulb);
+                    if (lightData.bulb.geometry) lightData.bulb.geometry.dispose();
+                    if (lightData.bulb.material) lightData.bulb.material.dispose();
+                }
+                
+                // Remove light
+                this.scene.remove(lightData.light);
+                if (lightData.light.target) {
+                    this.scene.remove(lightData.light.target);
+                }
+                
+                // Dispose of shadow map
+                if (lightData.light.shadow && lightData.light.shadow.map) {
+                    lightData.light.shadow.map.dispose();
+                }
+                
+                lightData.light.dispose();
+            }
         });
         this.lightObjects.clear();
         
@@ -556,6 +576,11 @@ class Blueprint3DAdapter {
             rooms: [],
             lights: []
         };
+        
+        // Force renderer to clean up
+        if (this.renderer) {
+            this.renderer.renderLists.dispose();
+        }
     }
     
     /**
