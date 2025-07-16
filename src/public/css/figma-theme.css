@@ -166,65 +166,82 @@ select:focus {
 /* Search boxes */
 .search-box {
   position: relative;
-  margin-bottom: var(--cad-spacing-xs);
+  width: 100%;
 }
 
 .search-box i {
-  position: absolute;
-  left: var(--cad-spacing-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px;
-  color: var(--cad-text-muted);
-  pointer-events: none;
+  display: none; /* Hide search icon for cleaner look */
 }
 
 .search-box input,
 .entity-search {
-  padding-left: 22px;
   width: 100%;
-  height: 22px;
+  height: 28px;
+  padding: 0 10px;
   font-size: var(--cad-font-size-sm);
+  background: var(--cad-bg-tertiary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius-sm);
+  color: var(--cad-text-primary);
 }
 
 /* Entity specific search */
 #entitySearch {
-  background: var(--cad-bg-secondary);
+  background: var(--cad-bg-tertiary);
   border: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-primary);
 }
 
 #entitySearch:focus {
   border-color: var(--cad-blue-primary);
+  outline: none;
 }
 
-/* Entity cards - More compact */
+#entitySearch::placeholder {
+  color: var(--cad-text-muted);
+}
+
+/* Entities header */
+.entities-header-fixed {
+  padding: var(--cad-spacing-base) !important;
+  background: var(--cad-bg-primary) !important;
+  border-bottom: 1px solid var(--cad-border-primary) !important;
+}
+
+.entities-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cad-spacing-sm) !important;
+}
+
+/* Entity cards - Simplified design */
 .entity-card {
   font-size: var(--cad-font-size-sm);
-  padding: var(--cad-spacing-sm);
+  padding: 8px 10px;
   margin-bottom: 1px;
-  border: 1px solid transparent;
+  border: 1px solid var(--cad-border-primary);
   border-radius: var(--cad-border-radius-sm);
-  background: transparent;
+  background: var(--cad-bg-secondary);
   transition: all 0.1s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .entity-card:hover {
   background: var(--cad-hover);
+  border-color: var(--cad-border-secondary);
 }
 
 .entity-card.selected {
   background: var(--cad-selected);
-}
-
-.entity-header {
-  display: flex;
-  align-items: center;
-  gap: var(--cad-spacing-sm);
+  border-color: var(--cad-blue-primary);
 }
 
 .entity-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -232,7 +249,8 @@ select:focus {
 }
 
 .entity-icon i {
-  font-size: 14px;
+  font-size: 16px;
+  color: #ffa500;
 }
 
 .entity-info {
@@ -241,12 +259,13 @@ select:focus {
 }
 
 .entity-name {
-  font-size: var(--cad-font-size-sm);
+  font-size: var(--cad-font-size-base);
   font-weight: 400;
   color: var(--cad-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 
 .entity-id {
@@ -257,64 +276,68 @@ select:focus {
   white-space: nowrap;
 }
 
-.entity-state {
+.entity-right {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
-.state-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--cad-text-muted);
+.entity-state-badge {
+  font-size: var(--cad-font-size-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
-.state-indicator.on {
-  background: var(--cad-success);
+.entity-state-badge.on {
+  background: #4CAF50;
+  color: white;
 }
 
-.entity-attributes {
-  margin-top: var(--cad-spacing-xs);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.entity-state-badge.off {
+  background: #555;
+  color: #ccc;
 }
 
-.attr-chip {
-  font-size: 10px;
-  padding: 2px 6px;
-  background: var(--cad-bg-tertiary);
-  border-radius: 2px;
-  color: var(--cad-text-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+.entity-state-badge.unavailable {
+  background: #ff5252;
+  color: white;
 }
 
-.attr-chip i {
-  font-size: 9px;
-}
-
-.entity-actions {
-  margin-top: var(--cad-spacing-sm);
-}
-
-.entity-actions .btn {
-  width: 100%;
-  height: 20px;
-  font-size: 10px;
-  padding: 0 var(--cad-spacing-sm);
-}
-
-/* Entity stats */
-.entity-stats {
+.entity-area {
   font-size: var(--cad-font-size-xs);
   color: var(--cad-text-muted);
+}
+
+/* Entity type selector */
+.entity-type-selector {
   display: flex;
-  justify-content: space-between;
-  padding: var(--cad-spacing-xs) var(--cad-spacing-sm);
-  border-top: 1px solid var(--cad-border-primary);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.entity-type-selector label {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+}
+
+.entity-type-dropdown {
+  flex: 1;
+  height: 24px;
+  font-size: var(--cad-font-size-sm);
+  background: var(--cad-bg-tertiary);
+  border: 1px solid var(--cad-border-primary);
+  color: var(--cad-text-primary);
+  border-radius: var(--cad-border-radius-sm);
+  padding: 0 8px;
+}
+
+.entity-count {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
 }
 
 /* Entities list */
@@ -353,6 +376,65 @@ select:focus {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+}
+
+/* Entities footer */
+.entities-footer {
+  flex: 0 0 auto;
+  padding: var(--cad-spacing-base);
+  border-top: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cad-spacing-sm);
+}
+
+.selected-entity-display {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.selected-label {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+.selected-entity-id {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-primary);
+  font-weight: 500;
+}
+
+.assign-btn {
+  width: 100%;
+  height: 32px;
+  background: var(--cad-blue-primary);
+  color: white;
+  border: none;
+  border-radius: var(--cad-border-radius);
+  font-size: var(--cad-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.assign-btn:hover:not(:disabled) {
+  background: var(--cad-blue-secondary);
+}
+
+.assign-btn:disabled {
+  background: var(--cad-bg-tertiary);
+  color: var(--cad-text-muted);
+  cursor: not-allowed;
+}
+
+.assign-btn i {
+  font-size: 12px;
 }
 
 /* Layer items - Figma style */

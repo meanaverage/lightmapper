@@ -14,25 +14,33 @@ export class EntitiesPanel extends BasePanel {
             <div class="entities-panel-wrapper">
                 <div class="entities-header-fixed">
                     <div class="entities-controls">
+                        <div class="entity-type-selector">
+                            <label>Type:</label>
+                            <select id="entityTypeFilter" class="entity-type-dropdown">
+                                <option value="light">Lights</option>
+                                <option value="switch">Switches</option>
+                                <option value="sensor">Sensors</option>
+                                <option value="all">All Entities</option>
+                            </select>
+                            <span class="entity-count" id="entityCount">0 entities</span>
+                        </div>
                         <div class="search-box">
-                            <i class="fas fa-search"></i>
                             <input type="text" id="entitySearch" placeholder="Search entities..." class="entity-search">
                         </div>
-                        <div class="entity-filters">
-                            <label>
-                                <input type="checkbox" id="showLightsOnly" checked>
-                                <span>Lights Only</span>
-                            </label>
-                            <label>
-                                <input type="checkbox" id="showAssignedOnly">
-                                <span>Assigned Only</span>
-                            </label>
-                        </div>
                     </div>
-                    <div id="entityStats" class="entity-stats"></div>
                 </div>
                 <div class="entities-scrollable">
                     <div id="entitiesList" class="entities-list"></div>
+                </div>
+                <div class="entities-footer">
+                    <div class="selected-entity-display">
+                        <span class="selected-label">Selected Light:</span>
+                        <span class="selected-entity-id" id="selectedEntityId">None</span>
+                    </div>
+                    <button class="assign-btn" id="assignToLightBtn" disabled>
+                        <i class="fas fa-link"></i>
+                        Assign to Light
+                    </button>
                 </div>
             </div>
         `;
@@ -94,16 +102,22 @@ export class EntitiesPanel extends BasePanel {
             });
         }
 
-        // Filter checkboxes
-        const lightsOnlyCheck = document.getElementById('showLightsOnly');
-        const assignedOnlyCheck = document.getElementById('showAssignedOnly');
-        
-        if (lightsOnlyCheck) {
-            lightsOnlyCheck.addEventListener('change', () => this.applyFilters());
+        // Type filter dropdown
+        const typeFilter = document.getElementById('entityTypeFilter');
+        if (typeFilter) {
+            typeFilter.addEventListener('change', (e) => {
+                this.applyFilters();
+            });
         }
-        
-        if (assignedOnlyCheck) {
-            assignedOnlyCheck.addEventListener('change', () => this.applyFilters());
+
+        // Assign button
+        const assignBtn = document.getElementById('assignToLightBtn');
+        if (assignBtn) {
+            assignBtn.addEventListener('click', () => {
+                if (this.selectedEntity) {
+                    this.assignToSelected(this.selectedEntity);
+                }
+            });
         }
     }
 
@@ -177,18 +191,15 @@ export class EntitiesPanel extends BasePanel {
     }
 
     applyFilters() {
-        const showLightsOnly = document.getElementById('showLightsOnly')?.checked;
-        const showAssignedOnly = document.getElementById('showAssignedOnly')?.checked;
+        const typeFilter = document.getElementById('entityTypeFilter')?.value || 'light';
         
         this.filteredEntities = this.entities.filter(entity => {
             // Type filter
-            if (showLightsOnly && entity.entity_id && !entity.entity_id.startsWith('light.')) {
-                return false;
-            }
-            
-            // Assignment filter
-            if (showAssignedOnly && !entity.isAssigned) {
-                return false;
+            if (typeFilter !== 'all') {
+                const entityType = entity.entity_id.split('.')[0];
+                if (entityType !== typeFilter) {
+                    return false;
+                }
             }
             
             // Search filter
@@ -229,40 +240,40 @@ export class EntitiesPanel extends BasePanel {
 
     createEntityCard(entity) {
         const friendlyName = entity.attributes?.friendly_name || entity.entity_id;
-        const isOn = entity.state === 'on';
-        const domain = entity.entity_id.split('.')[0];
+        const state = entity.state;
+        const isUnavailable = state === 'unavailable';
+        const isOn = state === 'on';
+        const area = entity.area || '';
+        
+        // Determine state badge
+        let stateBadge = '';
+        let stateBadgeClass = '';
+        if (isUnavailable) {
+            stateBadge = 'UNAVAILABLE';
+            stateBadgeClass = 'unavailable';
+        } else if (isOn) {
+            stateBadge = 'ON';
+            stateBadgeClass = 'on';
+        } else {
+            stateBadge = 'OFF';
+            stateBadgeClass = 'off';
+        }
         
         return `
             <div class="entity-card ${entity.isAssigned ? 'assigned' : ''} ${this.selectedEntity === entity.entity_id ? 'selected' : ''}" 
                  data-entity-id="${entity.entity_id}"
                  draggable="true"
                  ondragstart="window.panelManager.getPanel('entities').handleDragStart(event, '${entity.entity_id}')">
-                <div class="entity-header">
-                    <div class="entity-icon">
-                        ${this.renderEntityIcon(entity)}
-                    </div>
-                    <div class="entity-info">
-                        <div class="entity-name">${friendlyName}</div>
-                        <div class="entity-id">${entity.entity_id}</div>
-                    </div>
-                    <div class="entity-state">
-                        <span class="state-indicator ${isOn ? 'on' : 'off'}"></span>
-                        ${entity.isAssigned ? '<i class="fas fa-link assigned-indicator" title="Assigned to floorplan"></i>' : ''}
-                    </div>
+                <div class="entity-icon">
+                    ${this.renderEntityIcon(entity)}
                 </div>
-                <div class="entity-attributes">
-                    ${this.renderEntityAttributes(entity)}
+                <div class="entity-info">
+                    <div class="entity-name">${friendlyName}</div>
+                    <div class="entity-id">${entity.entity_id}</div>
                 </div>
-                <div class="entity-actions">
-                    ${!entity.isAssigned ? `
-                        <button class="btn btn-small btn-primary" onclick="window.panelManager.getPanel('entities').assignToSelected('${entity.entity_id}')">
-                            <i class="fas fa-plus"></i> Assign to Selected
-                        </button>
-                    ` : `
-                        <button class="btn btn-small btn-secondary" onclick="window.panelManager.getPanel('entities').findInFloorplan('${entity.entity_id}')">
-                            <i class="fas fa-search"></i> Find in Floorplan
-                        </button>
-                    `}
+                <div class="entity-right">
+                    <div class="entity-state-badge ${stateBadgeClass}">${stateBadge}</div>
+                    ${area ? `<div class="entity-area">${area}</div>` : ''}
                 </div>
             </div>
         `;
@@ -410,6 +421,18 @@ export class EntitiesPanel extends BasePanel {
             card.classList.toggle('selected', card.dataset.entityId === entityId);
         });
         
+        // Update selected entity display
+        const selectedDisplay = document.getElementById('selectedEntityId');
+        if (selectedDisplay) {
+            selectedDisplay.textContent = entityId || 'None';
+        }
+        
+        // Update assign button state
+        const assignBtn = document.getElementById('assignToLightBtn');
+        if (assignBtn) {
+            assignBtn.disabled = !entityId;
+        }
+        
         // Broadcast selection event
         window.panelManager?.broadcast('onEntitySelected', { entityId });
     }
@@ -455,31 +478,11 @@ export class EntitiesPanel extends BasePanel {
     }
 
     updateStats() {
-        const statsContainer = document.getElementById('entityStats');
-        if (!statsContainer) return;
+        const countDisplay = document.getElementById('entityCount');
+        if (!countDisplay) return;
         
-        const totalEntities = this.entities.length;
-        const assignedCount = this.entities.filter(e => e.isAssigned).length;
-        const onCount = this.entities.filter(e => e.state === 'on').length;
-        
-        statsContainer.innerHTML = `
-            <div class="stat-item">
-                <span class="stat-value">${totalEntities}</span>
-                <span class="stat-label">Total</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value">${assignedCount}</span>
-                <span class="stat-label">Assigned</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value">${onCount}</span>
-                <span class="stat-label">On</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value">${this.filteredEntities.length}</span>
-                <span class="stat-label">Shown</span>
-            </div>
-        `;
+        const showingCount = this.filteredEntities.length;
+        countDisplay.textContent = `${showingCount} entities`;
     }
 
     showError(message) {
