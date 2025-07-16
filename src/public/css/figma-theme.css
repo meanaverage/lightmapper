@@ -1,0 +1,672 @@
+/* ========================================
+   Figma-Style Minimalist Theme
+   ======================================== */
+
+/* Override root variables for Figma-style theme */
+:root {
+  /* Figma-style Colors */
+  --cad-bg-primary: #2c2c2c;
+  --cad-bg-secondary: #252525;
+  --cad-bg-tertiary: #1e1e1e;
+  --cad-bg-accent: #181818;
+  --cad-bg-canvas: #1a1a1a;
+  
+  /* Subtle Blue Accent */
+  --cad-blue-primary: #18a0fb;
+  --cad-blue-secondary: #0d84d9;
+  --cad-blue-light: #5cb3ff;
+  --cad-blue-dark: #0c5f9f;
+  
+  /* Text Colors - Higher contrast */
+  --cad-text-primary: #ffffff;
+  --cad-text-secondary: #b3b3b3;
+  --cad-text-muted: #8c8c8c;
+  --cad-text-accent: #18a0fb;
+  
+  /* Very subtle borders */
+  --cad-border-primary: #383838;
+  --cad-border-secondary: #404040;
+  --cad-border-accent: #18a0fb;
+  
+  /* Interactive States - Very subtle */
+  --cad-hover: #333333;
+  --cad-active: #18a0fb;
+  --cad-selected: #383838;
+  
+  /* Typography - Smaller, tighter */
+  --cad-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  --cad-font-size-xs: 10px;
+  --cad-font-size-sm: 11px;
+  --cad-font-size-base: 12px;
+  --cad-font-size-md: 13px;
+  --cad-font-size-lg: 14px;
+  
+  /* Tighter spacing */
+  --cad-spacing-xs: 4px;
+  --cad-spacing-sm: 6px;
+  --cad-spacing-base: 8px;
+  --cad-spacing-md: 12px;
+  --cad-spacing-lg: 16px;
+  
+  /* Smaller panel width */
+  --cad-panel-width: 240px;
+  
+  /* Subtle shadows */
+  --cad-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --cad-shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.15);
+  --cad-shadow-heavy: 0 4px 8px rgba(0, 0, 0, 0.2);
+  
+  /* Border radius - minimal */
+  --cad-border-radius: 3px;
+  --cad-border-radius-sm: 2px;
+  --cad-border-radius-lg: 4px;
+}
+
+/* Panel Accordion Headers - Figma Style */
+.panel-accordion-header {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 400;
+  padding: var(--cad-spacing-sm) var(--cad-spacing-base);
+  height: 28px;
+  color: var(--cad-text-secondary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  gap: 6px;
+}
+
+.panel-accordion-header:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+.panel-accordion-header.active {
+  color: var(--cad-text-primary);
+  font-weight: 500;
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+/* Icons - Smaller and more subtle */
+.panel-accordion-header i:first-child {
+  font-size: 12px;
+  width: 14px;
+  opacity: 0.7;
+}
+
+.panel-accordion-header.active i:first-child {
+  opacity: 1;
+}
+
+/* Chevrons - Smaller */
+.accordion-chevron {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* Panel Content - Tighter spacing */
+.panel-accordion-content {
+  background: var(--cad-bg-primary);
+  border-bottom: 1px solid var(--cad-border-primary);
+}
+
+/* Buttons - Figma style */
+.btn {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 400;
+  padding: var(--cad-spacing-xs) var(--cad-spacing-base);
+  height: 24px;
+  border-radius: var(--cad-border-radius-sm);
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--cad-blue-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--cad-blue-secondary);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--cad-text-secondary);
+  border-color: var(--cad-border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--cad-hover);
+  color: var(--cad-text-primary);
+}
+
+/* Input fields - Figma style */
+input[type="text"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+  font-size: var(--cad-font-size-sm);
+  height: 24px;
+  padding: var(--cad-spacing-xs) var(--cad-spacing-sm);
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+  border-radius: var(--cad-border-radius-sm);
+  color: var(--cad-text-primary);
+}
+
+input[type="text"]:focus,
+input[type="search"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--cad-blue-primary);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--cad-blue-primary);
+}
+
+/* Search boxes */
+.search-box {
+  position: relative;
+  margin-bottom: var(--cad-spacing-xs);
+}
+
+.search-box i {
+  position: absolute;
+  left: var(--cad-spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--cad-text-muted);
+  pointer-events: none;
+}
+
+.search-box input,
+.entity-search {
+  padding-left: 22px;
+  width: 100%;
+  height: 22px;
+  font-size: var(--cad-font-size-sm);
+}
+
+/* Entity specific search */
+#entitySearch {
+  background: var(--cad-bg-secondary);
+  border: 1px solid var(--cad-border-primary);
+}
+
+#entitySearch:focus {
+  border-color: var(--cad-blue-primary);
+}
+
+/* Entity cards - More compact */
+.entity-card {
+  font-size: var(--cad-font-size-sm);
+  padding: var(--cad-spacing-sm);
+  margin-bottom: 1px;
+  border: 1px solid transparent;
+  border-radius: var(--cad-border-radius-sm);
+  background: transparent;
+  transition: all 0.1s ease;
+}
+
+.entity-card:hover {
+  background: var(--cad-hover);
+}
+
+.entity-card.selected {
+  background: var(--cad-selected);
+}
+
+.entity-header {
+  display: flex;
+  align-items: center;
+  gap: var(--cad-spacing-sm);
+}
+
+.entity-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.entity-icon i {
+  font-size: 14px;
+}
+
+.entity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-name {
+  font-size: var(--cad-font-size-sm);
+  font-weight: 400;
+  color: var(--cad-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-id {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-state {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.state-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cad-text-muted);
+}
+
+.state-indicator.on {
+  background: var(--cad-success);
+}
+
+.entity-attributes {
+  margin-top: var(--cad-spacing-xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.attr-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--cad-bg-tertiary);
+  border-radius: 2px;
+  color: var(--cad-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.attr-chip i {
+  font-size: 9px;
+}
+
+.entity-actions {
+  margin-top: var(--cad-spacing-sm);
+}
+
+.entity-actions .btn {
+  width: 100%;
+  height: 20px;
+  font-size: 10px;
+  padding: 0 var(--cad-spacing-sm);
+}
+
+/* Entity stats */
+.entity-stats {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  display: flex;
+  justify-content: space-between;
+  padding: var(--cad-spacing-xs) var(--cad-spacing-sm);
+  border-top: 1px solid var(--cad-border-primary);
+}
+
+/* Entities list */
+.entities-list {
+  padding: var(--cad-spacing-xs);
+}
+
+/* Entity filters - Figma checkbox style */
+.entity-filters input[type="checkbox"] {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  margin-right: 4px;
+}
+
+/* Layer items - Figma style */
+.layer-item {
+  font-size: var(--cad-font-size-sm);
+  padding: 3px var(--cad-spacing-sm);
+  min-height: 22px;
+  border-radius: var(--cad-border-radius-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--cad-spacing-xs);
+  margin-bottom: 1px;
+}
+
+.layer-item:hover {
+  background: var(--cad-hover);
+}
+
+.layer-item.selected {
+  background: var(--cad-selected);
+  color: var(--cad-text-primary);
+}
+
+.layer-icon {
+  width: 14px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.layer-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-visibility {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.layer-visibility:hover {
+  opacity: 1;
+}
+
+.layer-visibility i {
+  font-size: 10px;
+}
+
+/* Layers container */
+.layers-container {
+  padding: var(--cad-spacing-xs);
+}
+
+.layers-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbars - Thinner and more subtle */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cad-border-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cad-border-secondary);
+}
+
+/* Panel actions - More compact */
+.panel-actions {
+  padding: var(--cad-spacing-sm);
+  gap: var(--cad-spacing-xs);
+  border-bottom: 1px solid var(--cad-border-primary);
+  background: var(--cad-bg-primary);
+}
+
+.panel-actions .btn {
+  height: 22px;
+  padding: 0 var(--cad-spacing-sm);
+  font-size: var(--cad-font-size-xs);
+}
+
+/* Properties panel - Tighter */
+.property-group {
+  padding: var(--cad-spacing-sm);
+  border-bottom: 1px solid var(--cad-border-primary);
+}
+
+.property-group-title {
+  font-size: var(--cad-font-size-xs);
+  font-weight: 500;
+  color: var(--cad-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--cad-spacing-xs);
+}
+
+.property-item {
+  margin-bottom: var(--cad-spacing-sm);
+}
+
+.property-label {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  margin-bottom: 2px;
+}
+
+/* Status bar - Figma style */
+.status-bar {
+  height: 24px;
+  font-size: var(--cad-font-size-xs);
+  padding: 0 var(--cad-spacing-base);
+  background: var(--cad-bg-secondary);
+  border-top: 1px solid var(--cad-border-primary);
+}
+
+/* Dock panels */
+.dock-left,
+.dock-right,
+.dock-tertiary {
+  --cad-panel-width: 240px;
+  background: var(--cad-bg-primary);
+  border-color: var(--cad-border-primary);
+}
+
+/* Remove heavy shadows and borders */
+.left-panel,
+.right-panel,
+.tertiary-panel {
+  box-shadow: none;
+  border: none;
+}
+
+/* Tertiary collapse button - Smaller */
+.tertiary-collapse-btn {
+  padding: 2px;
+  font-size: 10px;
+}
+
+.tertiary-collapse-btn i {
+  font-size: 10px;
+}
+
+/* Entity filters - More compact */
+.entity-filters {
+  font-size: var(--cad-font-size-xs);
+  gap: var(--cad-spacing-sm);
+}
+
+.entity-filters label {
+  display: flex;
+  align-items: center;
+  gap: var(--cad-spacing-xs);
+  color: var(--cad-text-secondary);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--cad-blue-primary);
+}
+
+/* Dividers - Very subtle */
+.vertical-divider {
+  width: 1px;
+  background: var(--cad-border-primary);
+  cursor: ew-resize;
+}
+
+.vertical-divider:hover {
+  background: var(--cad-border-secondary);
+}
+
+/* Remove panel header backgrounds */
+.left-panel,
+.right-panel,
+.tertiary-panel {
+  background: var(--cad-bg-primary);
+}
+
+/* Lights panel - Figma style */
+.lights-panel-wrapper {
+  padding: var(--cad-spacing-xs);
+}
+
+.light-entity-item {
+  font-size: var(--cad-font-size-sm);
+  padding: var(--cad-spacing-xs) var(--cad-spacing-sm);
+  margin-bottom: 1px;
+  border-radius: var(--cad-border-radius-sm);
+  background: transparent;
+  cursor: move;
+  transition: all 0.1s ease;
+}
+
+.light-entity-item:hover {
+  background: var(--cad-hover);
+}
+
+.light-entity-name {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-primary);
+}
+
+.light-entity-id {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+.light-brightness-display {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+}
+
+/* Properties panel - Figma style */
+.properties-content {
+  padding: var(--cad-spacing-sm);
+}
+
+.property-field {
+  margin-bottom: var(--cad-spacing-sm);
+}
+
+.property-field label {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  margin-bottom: 2px;
+  display: block;
+}
+
+.form-range {
+  height: 4px;
+  background: var(--cad-bg-tertiary);
+  border-radius: 2px;
+}
+
+.form-range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--cad-blue-primary);
+  border: none;
+  border-radius: 50%;
+}
+
+/* Debug panel */
+.debug-panel-wrapper {
+  padding: var(--cad-spacing-sm);
+}
+
+.debug-info {
+  font-size: var(--cad-font-size-xs);
+  color: var(--cad-text-muted);
+  font-family: monospace;
+}
+
+.debug-section {
+  margin-bottom: var(--cad-spacing-md);
+}
+
+.debug-section h4 {
+  font-size: var(--cad-font-size-sm);
+  color: var(--cad-text-secondary);
+  margin-bottom: var(--cad-spacing-xs);
+  font-weight: 500;
+}
+
+/* Header - Slimmer */
+.cad-header {
+  height: 32px;
+  padding: 0 var(--cad-spacing-md);
+  background: var(--cad-bg-secondary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  box-shadow: none;
+}
+
+.app-title {
+  font-size: var(--cad-font-size-md);
+  font-weight: 500;
+}
+
+.header-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+/* Ribbon - More compact */
+.ribbon-container {
+  background: var(--cad-bg-secondary);
+  border-bottom: 1px solid var(--cad-border-primary);
+  box-shadow: none;
+}
+
+.ribbon-tabs {
+  height: 28px;
+  background: var(--cad-bg-primary);
+}
+
+.ribbon-tab {
+  font-size: var(--cad-font-size-sm);
+  padding: 0 var(--cad-spacing-md);
+  height: 28px;
+}
+
+.ribbon-content {
+  padding: var(--cad-spacing-sm);
+}
+
+.ribbon-group {
+  padding: var(--cad-spacing-sm);
+}
+
+.ribbon-group-title {
+  font-size: var(--cad-font-size-xs);
+  margin-bottom: var(--cad-spacing-xs);
+}
+
+.ribbon-tool {
+  width: 48px;
+  height: 40px;
+  font-size: var(--cad-font-size-xs);
+}
+
+.ribbon-tool i {
+  font-size: 16px;
+}

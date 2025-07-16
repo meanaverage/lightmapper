@@ -343,12 +343,14 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    background: transparent;
 }
 
 .entities-header-fixed {
     flex-shrink: 0;
-    background: var(--cad-bg-secondary, #2d2d2d);
-    border-bottom: 1px solid var(--cad-border-primary, #3a3a3a);
+    background: transparent;
+    border-bottom: 1px solid var(--cad-border-primary, #383838);
+    padding: var(--cad-spacing-sm, 6px);
 }
 
 
@@ -359,9 +361,12 @@
 }
 
 .entities-controls {
-    padding: 8px 12px;
-    background: var(--cad-bg-secondary, #2d2d2d);
+    padding: var(--cad-spacing-sm, 6px);
+    background: transparent;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cad-spacing-sm, 6px);
 }
 
 .search-box {
