@@ -4800,8 +4800,7 @@ class FloorplanEditor {
                 if (this.roomName !== undefined) obj.roomName = this.roomName;
                 return obj;
             };
-            console.log('✅ Custom properties serialization enabled' 
-            });
+            console.log('✅ Custom properties serialization enabled');
             
             // 🔧 FIX: Additional context menu prevention for better browser compatibility
             this.canvas.getElement().addEventListener('contextmenu', (e) => {

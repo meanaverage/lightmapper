@@ -6,6 +6,27 @@ export class PropertiesPanel extends BasePanel {
         this.selectedObject = null;
         this.propertyGroups = [];
     }
+    
+    /**
+     * Convert rgba color to hex
+     */
+    rgbaToHex(rgba) {
+        // Extract rgba values
+        const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+        if (!match) return '#cccccc'; // Default fallback
+        
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        
+        // Convert to hex
+        const toHex = (n) => {
+            const hex = n.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        };
+        
+        return '#' + toHex(r) + toHex(g) + toHex(b);
+    }
 
     render() {
         this.container.innerHTML = `
@@ -167,11 +188,16 @@ export class PropertiesPanel extends BasePanel {
             placeholder: 'Enter room name...'
         });
         
-        // Fill color
+        // Fill color - convert rgba to hex for color input
+        let fillColor = obj.fill || '#cccccc';
+        if (fillColor.startsWith('rgba')) {
+            fillColor = this.rgbaToHex(fillColor);
+        }
+        
         group.properties.push({
             name: 'Fill Color',
             key: 'fill',
-            value: obj.fill || '#cccccc',
+            value: fillColor,
             type: 'color'
         });
         
