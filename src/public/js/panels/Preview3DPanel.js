@@ -6,9 +6,11 @@ import { BasePanel } from './BasePanel.js';
  * @class Preview3DPanel
  * @extends BasePanel
  */
-export class Preview3DPanel extends BasePanel {
+class Preview3DPanel extends BasePanel {
     constructor() {
         super('preview3d', '3D Preview', 'fa-cube');
+        
+        console.log('🎬 Preview3DPanel: Constructor called');
         
         this.blueprint3d = null;
         this.isVisible = false;
@@ -20,6 +22,13 @@ export class Preview3DPanel extends BasePanel {
     }
     
     render() {
+        console.log('🎨 Preview3DPanel: Render called, container:', this.container);
+        
+        if (!this.container) {
+            console.error('❌ Preview3DPanel: No container provided to render!');
+            return;
+        }
+        
         this.container.innerHTML = `
             <div class="preview-3d-panel">
                 <div class="preview-3d-header">
@@ -143,6 +152,14 @@ export class Preview3DPanel extends BasePanel {
         }
         
         console.log('📦 Preview3DPanel: Container found:', container);
+        console.log('📐 Container dimensions:', container.offsetWidth, 'x', container.offsetHeight);
+        
+        // Check if container has proper dimensions
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+            console.warn('⚠️ Container has zero dimensions, waiting for layout...');
+            setTimeout(() => this.initializeBlueprint3D(), 500);
+            return;
+        }
         
         try {
             // Wait for Blueprint3DAdapter to be available
@@ -352,3 +369,6 @@ export class Preview3DPanel extends BasePanel {
         }
     }
 }
+
+// Export for ES6 modules
+export { Preview3DPanel };

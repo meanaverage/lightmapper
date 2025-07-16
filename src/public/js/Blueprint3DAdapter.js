@@ -106,6 +106,25 @@ class Blueprint3DAdapter {
         directionalLight.shadow.mapSize.height = 2048;
         this.scene.add(directionalLight);
         
+        // Add a test cube to verify rendering
+        const geometry = new THREE.BoxGeometry(5, 5, 5);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.y = 2.5;
+        cube.castShadow = true;
+        cube.receiveShadow = true;
+        this.scene.add(cube);
+        console.log('🟩 Test cube added to scene');
+        
+        // Add a ground plane
+        const planeGeometry = new THREE.PlaneGeometry(50, 50);
+        const planeMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        this.scene.add(plane);
+        console.log('⬜ Ground plane added to scene');
+        
         // Setup resize handler
         window.addEventListener('resize', () => this.onWindowResize(container));
         

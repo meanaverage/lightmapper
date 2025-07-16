@@ -5171,6 +5171,11 @@ class FloorplanEditor {
             themeToggleBtn.addEventListener('click', () => this.toggleTheme());
         }
         
+        const preview3dToggleBtn = document.getElementById('preview3d-toggle-btn');
+        if (preview3dToggleBtn) {
+            preview3dToggleBtn.addEventListener('click', () => this.toggle3DPreview());
+        }
+        
         const unitsToggleBtn = document.getElementById('units-toggle-btn');
         if (unitsToggleBtn) {
             unitsToggleBtn.addEventListener('click', () => this.toggleUnits());
@@ -6995,6 +7000,35 @@ class FloorplanEditor {
         }
         
         window.sceneManager?.showStatus(`Light style set to: ${this.lightIconStyle}`, 'info');
+    }
+    
+    toggle3DPreview() {
+        const accordion = document.querySelector('.panel-accordion-header[data-panel="preview3d"]');
+        const content = document.getElementById('preview3dPanel');
+        const btn = document.getElementById('preview3d-toggle-btn');
+        
+        if (accordion && content) {
+            const isExpanded = content.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Collapse
+                accordion.classList.remove('active');
+                content.classList.remove('expanded');
+                accordion.querySelector('.accordion-chevron').classList.remove('fa-chevron-up');
+                accordion.querySelector('.accordion-chevron').classList.add('fa-chevron-down');
+                if (btn) btn.classList.remove('active');
+            } else {
+                // Expand
+                accordion.classList.add('active');
+                content.classList.add('expanded');
+                accordion.querySelector('.accordion-chevron').classList.add('fa-chevron-up');
+                accordion.querySelector('.accordion-chevron').classList.remove('fa-chevron-down');
+                if (btn) btn.classList.add('active');
+                
+                // Trigger panel refresh when opened
+                window.panelManager?.getPanel('preview3d')?.refresh();
+            }
+        }
     }
     
     toggleTheme() {
