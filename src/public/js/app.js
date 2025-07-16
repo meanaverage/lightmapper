@@ -6104,13 +6104,44 @@ class FloorplanEditor {
         }
     }
     
-    snapToGrid(point) {
-        if (!this.snapEnabled) return point;
+    snapToGrid(point, forceOrtho = false) {
+        if (!this.snapEnabled && !forceOrtho) return point;
         
+        // Check if SHIFT is held for orthogonal (90-degree) constraints
+        if (forceOrtho || this.shiftPressed) {
+            // For orthogonal constraint, we need a reference point (last placed point)
+            if (this.isDrawing && this.currentTool === 'line' && this.lineStartPoint) {
+                return this.constrainToOrtho(point, this.lineStartPoint);
+            } else if (this.isDrawing && this.currentTool === 'room' && this.drawingPoints.length > 0) {
+                const lastPoint = this.drawingPoints[this.drawingPoints.length - 1];
+                return this.constrainToOrtho(point, lastPoint);
+            }
+        }
+        
+        // Regular grid snapping
         return {
             x: Math.round(point.x / this.gridSize) * this.gridSize,
             y: Math.round(point.y / this.gridSize) * this.gridSize
         };
+    }
+    
+    constrainToOrtho(point, referencePoint) {
+        const deltaX = Math.abs(point.x - referencePoint.x);
+        const deltaY = Math.abs(point.y - referencePoint.y);
+        
+        if (deltaX > deltaY) {
+            // Horizontal constraint
+            return {
+                x: Math.round(point.x / this.gridSize) * this.gridSize,
+                y: referencePoint.y
+            };
+        } else {
+            // Vertical constraint
+            return {
+                x: referencePoint.x,
+                y: Math.round(point.y / this.gridSize) * this.gridSize
+            };
+        }
     }
     
     // Enhanced snapping to objects with visual feedback
@@ -6465,11 +6496,13 @@ class FloorplanEditor {
         
         if (this.currentTool === 'line' && this.isDrawing) {
             const pointer = this.canvas.getPointer(e.e);
-            const snappedPoint = this.snapToObjects(null, pointer);
+            // Apply orthogonal constraint if SHIFT is held
+            const gridSnapped = this.snapToGrid(pointer, this.shiftPressed);
+            const snappedPoint = this.snapToObjects(null, gridSnapped);
             this.handleLineDrawing(snappedPoint, 'move');
         } else if (this.currentTool === 'room' && this.isDrawing) {
             const pointer = this.canvas.getPointer(e.e);
-            const snappedPoint = this.snapToGrid(pointer);
+            const snappedPoint = this.snapToGrid(pointer, this.shiftPressed);
             if (this.roomDrawingMode === 'rectangle') {
                 this.handleRectangleDrawing(snappedPoint, 'move');
             } else {
@@ -6477,7 +6510,7 @@ class FloorplanEditor {
             }
         } else if (this.currentTool === 'rectangle' && this.isDrawing) {
             const pointer = this.canvas.getPointer(e.e);
-            const snappedPoint = this.snapToGrid(pointer);
+            const snappedPoint = this.snapToGrid(pointer, this.shiftPressed);
             this.handleRectangleDrawing(snappedPoint, 'move');
         }
     }
@@ -7375,9 +7408,11 @@ class FloorplanEditor {
     handleRoomDrawing(point, action) {
         if (action === 'down') {
             if (!this.isDrawing) {
-                // Start drawing
+                // Start drawing polygon
                 this.isDrawing = true;
                 this.drawingPoints = [point];
+                this.polygonPreview = null;
+                window.sceneManager?.showStatus('Polygon tool: click to place points, click near start to close, ESC to cancel', 'info');
             } else {
                 // Add point or close room
                 const firstPoint = this.drawingPoints[0];
@@ -7386,7 +7421,7 @@ class FloorplanEditor {
                     Math.pow(point.y - firstPoint.y, 2)
                 );
                 
-                if (distance < this.gridSize && this.drawingPoints.length > 2) {
+                if (distance < this.snapTolerance && this.drawingPoints.length > 2) {
                     // Close the room
                     this.completeRoom();
                 } else {
@@ -7394,44 +7429,89 @@ class FloorplanEditor {
                     this.drawingPoints.push(point);
                 }
             }
+        } else if (action === 'move' && this.isDrawing) {
+            // Update preview with current mouse position
+            this.updateRoomPreview(point);
         }
-        
-        this.updateRoomPreview();
     }
     
-    updateRoomPreview() {
+    updateRoomPreview(currentPoint) {
         // Remove existing preview
         this.canvas.getObjects().forEach(obj => {
-            if (obj.roomPreview) {
+            if (obj.roomPreview || obj.polygonPreview) {
                 this.canvas.remove(obj);
             }
         });
         
-        if (this.drawingPoints.length < 2) return;
+        if (this.drawingPoints.length < 1) return;
         
         // Theme-aware room preview colors
-        const strokeColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+        const strokeColor = this.isDarkTheme ? '#00ff00' : '#0066cc';
+        const placedColor = this.isDarkTheme ? '#ffffff' : '#000000';
         
-        // Draw preview lines and show measurements for the last segment
+        // Draw placed segments
         for (let i = 0; i < this.drawingPoints.length - 1; i++) {
             const p1 = this.drawingPoints[i];
             const p2 = this.drawingPoints[i + 1];
             
             const line = new fabric.Line([p1.x, p1.y, p2.x, p2.y], {
-                stroke: strokeColor,
+                stroke: placedColor,
                 strokeWidth: 2,
-                strokeDashArray: [5, 5],
                 selectable: false,
                 evented: false,
                 roomPreview: true
             });
             
             this.canvas.add(line);
+        }
+        
+        // Draw preview segment from last point to current mouse position
+        if (currentPoint && this.drawingPoints.length > 0) {
+            const lastPoint = this.drawingPoints[this.drawingPoints.length - 1];
             
-            // Show measurement for the most recent segment being drawn
-            if (i === this.drawingPoints.length - 2) {
-                this.createMeasurementDisplay(p1, p2, false); // Only show total distance for polygons
+            // Preview line to current position
+            const previewLine = new fabric.Line([
+                lastPoint.x, lastPoint.y,
+                currentPoint.x, currentPoint.y
+            ], {
+                stroke: strokeColor,
+                strokeWidth: 2,
+                strokeDashArray: [5, 5],
+                selectable: false,
+                evented: false,
+                polygonPreview: true
+            });
+            
+            this.canvas.add(previewLine);
+            
+            // If we have more than 2 points, also show closing line preview
+            if (this.drawingPoints.length > 2) {
+                const firstPoint = this.drawingPoints[0];
+                const closeDistance = Math.sqrt(
+                    Math.pow(currentPoint.x - firstPoint.x, 2) + 
+                    Math.pow(currentPoint.y - firstPoint.y, 2)
+                );
+                
+                // Show closing preview if close to start
+                if (closeDistance < this.snapTolerance * 2) {
+                    const closingLine = new fabric.Line([
+                        currentPoint.x, currentPoint.y,
+                        firstPoint.x, firstPoint.y
+                    ], {
+                        stroke: '#ff0000',
+                        strokeWidth: 2,
+                        strokeDashArray: [5, 5],
+                        selectable: false,
+                        evented: false,
+                        polygonPreview: true
+                    });
+                    
+                    this.canvas.add(closingLine);
+                }
             }
+            
+            // Show measurement display for current segment
+            this.createMeasurementDisplay(lastPoint, currentPoint, true);
         }
         
         this.canvas.renderAll();
@@ -7440,7 +7520,7 @@ class FloorplanEditor {
     completeRoom() {
         // Remove preview lines and measurements
         this.canvas.getObjects().forEach(obj => {
-            if (obj.roomPreview) {
+            if (obj.roomPreview || obj.polygonPreview) {
                 this.canvas.remove(obj);
             }
         });
@@ -7468,17 +7548,24 @@ class FloorplanEditor {
         const fillColor = this.getCurrentRoomFill();
         const strokeColor = this.isDarkTheme ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)';
         
-        this.roomOutline = new fabric.Polygon(points, {
+        const polygon = new fabric.Polygon(points, {
             fill: fillColor,
             stroke: strokeColor,
             strokeWidth: 2,
-            strokeDashArray: [5, 5],
             selectable: true,
-            roomOutline: true
+            evented: true,
+            roomObject: true,
+            perPixelTargetFind: true,
+            hasControls: true,
+            hasBorders: true,
+            objectCaching: false
         });
         
-        this.canvas.add(this.roomOutline);
-        this.canvas.sendObjectToBack(this.roomOutline);
+        // Enable polygon editing
+        this.makePolygonEditable(polygon);
+        
+        this.canvas.add(polygon);
+        this.canvas.sendObjectToBack(polygon);
         
         window.sceneManager?.showStatus(`Room added: ${points.length} points, ${this.formatDistance(perimeter)} perimeter`, 'success');
         
@@ -7486,6 +7573,178 @@ class FloorplanEditor {
         this.isDrawing = false;
         this.drawingPoints = [];
         
+        this.canvas.renderAll();
+    }
+    
+    makePolygonEditable(polygon) {
+        // Add custom controls for each point of the polygon
+        const points = polygon.points;
+        
+        polygon.controls = {};
+        
+        // Create a control for each polygon point
+        points.forEach((point, index) => {
+            polygon.controls[`p${index}`] = new fabric.Control({
+                x: 0,
+                y: 0,
+                offsetX: 0,
+                offsetY: 0,
+                cursorStyle: 'pointer',
+                mouseUpHandler: () => {},
+                render: function(ctx, left, top, styleOverride, fabricObject) {
+                    const size = 8;
+                    ctx.save();
+                    ctx.fillStyle = styleOverride.cornerColor;
+                    ctx.strokeStyle = styleOverride.cornerStrokeColor;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(left, top, size / 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                },
+                positionHandler: function(dim, finalMatrix, fabricObject) {
+                    const points = fabricObject.points;
+                    const point = points[index];
+                    
+                    return fabric.util.transformPoint(
+                        { x: point.x - fabricObject.pathOffset.x, y: point.y - fabricObject.pathOffset.y },
+                        finalMatrix
+                    );
+                },
+                actionHandler: function(eventData, transformData, x, y) {
+                    const polygon = transformData.target;
+                    const currentControl = polygon.controls[transformData.corner];
+                    const mouseLocalPosition = polygon.toLocalPoint(new fabric.Point(x, y), 'center', 'center');
+                    const size = polygon._getTransformedDimensions();
+                    const finalPointPosition = {
+                        x: (mouseLocalPosition.x / size.x + 0.5) * polygon.width,
+                        y: (mouseLocalPosition.y / size.y + 0.5) * polygon.height
+                    };
+                    
+                    polygon.points[index] = finalPointPosition;
+                    polygon.setCoords();
+                    
+                    return true;
+                },
+                actionName: 'modifyPolygon'
+            });
+        });
+        
+        // Override the object's render method to ensure proper updates
+        const originalRender = polygon._render;
+        polygon._render = function(ctx) {
+            // Update dimensions based on current points
+            const bounds = this._calcDimensions();
+            this.width = bounds.width;
+            this.height = bounds.height;
+            this.pathOffset = new fabric.Point(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+            
+            originalRender.call(this, ctx);
+        };
+        
+        // Add double-click handler to add/remove points
+        polygon.on('mousedblclick', (options) => {
+            if (!options.e.shiftKey) return;
+            
+            const pointer = this.canvas.getPointer(options.e);
+            const localPoint = polygon.toLocalPoint(pointer, 'center', 'center');
+            
+            // Find the closest edge to insert a new point
+            let minDistance = Infinity;
+            let insertIndex = -1;
+            
+            for (let i = 0; i < polygon.points.length; i++) {
+                const p1 = polygon.points[i];
+                const p2 = polygon.points[(i + 1) % polygon.points.length];
+                
+                // Calculate distance from point to line segment
+                const dist = this.pointToLineDistance(localPoint, p1, p2);
+                
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    insertIndex = i + 1;
+                }
+            }
+            
+            if (minDistance < 20) { // Within 20 pixels of an edge
+                // Insert new point
+                const newPoint = {
+                    x: localPoint.x + polygon.width / 2,
+                    y: localPoint.y + polygon.height / 2
+                };
+                
+                polygon.points.splice(insertIndex, 0, newPoint);
+                
+                // Recreate the polygon with new points
+                this.recreatePolygon(polygon);
+            }
+        });
+    }
+    
+    pointToLineDistance(point, lineStart, lineEnd) {
+        const A = point.x - lineStart.x;
+        const B = point.y - lineStart.y;
+        const C = lineEnd.x - lineStart.x;
+        const D = lineEnd.y - lineStart.y;
+        
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+        
+        let xx, yy;
+        
+        if (param < 0) {
+            xx = lineStart.x;
+            yy = lineStart.y;
+        } else if (param > 1) {
+            xx = lineEnd.x;
+            yy = lineEnd.y;
+        } else {
+            xx = lineStart.x + param * C;
+            yy = lineStart.y + param * D;
+        }
+        
+        const dx = point.x - xx;
+        const dy = point.y - yy;
+        
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    recreatePolygon(oldPolygon) {
+        const points = oldPolygon.points.slice();
+        const options = {
+            fill: oldPolygon.fill,
+            stroke: oldPolygon.stroke,
+            strokeWidth: oldPolygon.strokeWidth,
+            selectable: oldPolygon.selectable,
+            evented: oldPolygon.evented,
+            roomObject: oldPolygon.roomObject,
+            perPixelTargetFind: oldPolygon.perPixelTargetFind,
+            hasControls: oldPolygon.hasControls,
+            hasBorders: oldPolygon.hasBorders,
+            objectCaching: false,
+            left: oldPolygon.left,
+            top: oldPolygon.top,
+            scaleX: oldPolygon.scaleX,
+            scaleY: oldPolygon.scaleY,
+            angle: oldPolygon.angle
+        };
+        
+        const newPolygon = new fabric.Polygon(points, options);
+        
+        // Remove old polygon
+        this.canvas.remove(oldPolygon);
+        
+        // Add new polygon with editing enabled
+        this.makePolygonEditable(newPolygon);
+        this.canvas.add(newPolygon);
+        this.canvas.sendObjectToBack(newPolygon);
+        this.canvas.setActiveObject(newPolygon);
         this.canvas.renderAll();
     }
     
@@ -9311,6 +9570,11 @@ class FloorplanEditor {
         // - Constrained movement (hold SHIFT while moving - locks to horizontal/vertical)
         // - Uniform scaling (prevents aspect ratio distortion)
         
+        // Track shift key state for orthogonal constraints
+        if (e.key === 'Shift') {
+            this.shiftPressed = true;
+        }
+        
         switch(e.key) {
             case ' ': // Spacebar for pan mode
                 if (!this.spacebarPressed) {
@@ -9332,6 +9596,17 @@ class FloorplanEditor {
                     } else {
                         this.cancelRoomDrawing();
                     }
+                }
+                break;
+            case 's':
+            case 'S':
+                // Toggle snap on/off during operations
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    this.snapEnabled = !this.snapEnabled;
+                    const status = this.snapEnabled ? 'enabled' : 'disabled';
+                    window.sceneManager?.showStatus(`Snap ${status}`, 'info');
+                    console.log(`📐 Snap toggled ${status}`);
                 }
                 break;
             case '+':
@@ -9364,6 +9639,9 @@ class FloorplanEditor {
                 this.spacebarPressed = false;
                 document.body.style.cursor = 'default';
                 console.log('🖱️ Spacebar released - pan mode disabled');
+                break;
+            case 'Shift':
+                this.shiftPressed = false;
                 break;
         }
     }
@@ -11102,10 +11380,12 @@ class FloorplanEditor {
                 let dimensions = '';
                 
                 if (obj.type === 'rect' || obj.type === 'Rect') {
-                    const width = Math.round(obj.width || 0);
-                    const height = Math.round(obj.height || 0);
+                    // Convert pixels to feet for display
+                    const gridSize = this.gridSize || 8;
+                    const widthFt = ((obj.width || 0) / gridSize).toFixed(1);
+                    const heightFt = ((obj.height || 0) / gridSize).toFixed(1);
                     const wallHeight = obj.wallHeight || 10;
-                    dimensions = `${width}px × ${height}px × ${wallHeight}ft`;
+                    dimensions = `${widthFt}ft × ${heightFt}ft × ${wallHeight}ft`;
                 } else if (obj.points && obj.points.length > 0) {
                     // Calculate polygon area approximately
                     const area = this.calculatePolygonArea(obj.points);

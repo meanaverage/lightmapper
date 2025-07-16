@@ -214,23 +214,66 @@ export class PropertiesPanel extends BasePanel {
         
         // Room dimensions (for rectangles)
         if (obj.type === 'rect' || obj.type === 'Rect') {
-            group.properties.push({
-                name: 'Width',
-                key: 'width',
-                value: Math.round(obj.width || 100),
-                type: 'number',
-                min: 10,
-                unit: 'px'
-            });
+            // Convert pixels to feet (8 pixels = 1 foot)
+            const gridSize = window.floorplanEditor?.gridSize || 8;
+            const useMetric = window.floorplanEditor?.options?.use_metric || false;
             
-            group.properties.push({
-                name: 'Height',
-                key: 'height',
-                value: Math.round(obj.height || 100),
-                type: 'number',
-                min: 10,
-                unit: 'px'
-            });
+            const widthInFeet = (obj.width || 100) / gridSize;
+            const heightInFeet = (obj.height || 100) / gridSize;
+            
+            if (useMetric) {
+                // Convert feet to meters
+                const widthInMeters = widthInFeet * 0.3048;
+                const heightInMeters = heightInFeet * 0.3048;
+                
+                group.properties.push({
+                    name: 'Width',
+                    key: 'width',
+                    value: widthInMeters.toFixed(2),
+                    type: 'number',
+                    min: 0.5,
+                    step: 0.1,
+                    unit: 'm',
+                    convertToPixels: true,
+                    gridSize: gridSize
+                });
+                
+                group.properties.push({
+                    name: 'Height',
+                    key: 'height',
+                    value: heightInMeters.toFixed(2),
+                    type: 'number',
+                    min: 0.5,
+                    step: 0.1,
+                    unit: 'm',
+                    convertToPixels: true,
+                    gridSize: gridSize
+                });
+            } else {
+                group.properties.push({
+                    name: 'Width',
+                    key: 'width',
+                    value: widthInFeet.toFixed(1),
+                    type: 'number',
+                    min: 1,
+                    step: 0.5,
+                    unit: 'ft',
+                    convertToPixels: true,
+                    gridSize: gridSize
+                });
+                
+                group.properties.push({
+                    name: 'Height',
+                    key: 'height',
+                    value: heightInFeet.toFixed(1),
+                    type: 'number',
+                    min: 1,
+                    step: 0.5,
+                    unit: 'ft',
+                    convertToPixels: true,
+                    gridSize: gridSize
+                });
+            }
         }
         
         // Wall height (store in custom property)
@@ -430,14 +473,8 @@ export class PropertiesPanel extends BasePanel {
 
     renderPropertyGroup(group) {
         return `
-            <div class="property-group">
-                <div class="property-group-header">
-                    <i class="fas ${group.icon}"></i>
-                    <span>${group.title}</span>
-                </div>
-                <div class="property-group-content">
-                    ${group.properties.map(prop => this.renderProperty(prop)).join('')}
-                </div>
+            <div class="compact-property-group">
+                ${group.properties.map(prop => this.renderProperty(prop)).join('')}
             </div>
         `;
     }
@@ -449,15 +486,13 @@ export class PropertiesPanel extends BasePanel {
         
         switch (prop.type) {
             case 'text':
-                inputHtml = `<input type="text" id="${inputId}" value="${prop.value}" placeholder="${prop.placeholder || ''}" ${prop.readonly ? 'readonly' : ''}>`;
+                inputHtml = `<input type="text" class="inline-input" id="${inputId}" value="${prop.value}" placeholder="${prop.placeholder || ''}" ${prop.readonly ? 'readonly' : ''}>`;
                 break;
                 
             case 'number':
                 inputHtml = `
-                    <div class="number-input">
-                        <input type="number" id="${inputId}" value="${prop.value}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} ${prop.readonly ? 'readonly' : ''}>
-                        ${prop.unit ? `<span class="unit">${prop.unit}</span>` : ''}
-                    </div>
+                    <input type="number" class="inline-input" id="${inputId}" value="${prop.value}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} ${prop.readonly ? 'readonly' : ''}>
+                    ${prop.unit ? `<span class="inline-label">${prop.unit}</span>` : ''}
                 `;
                 break;
                 
@@ -490,7 +525,7 @@ export class PropertiesPanel extends BasePanel {
                 
             case 'select':
                 inputHtml = `
-                    <select id="${inputId}">
+                    <select class="inline-select" id="${inputId}">
                         ${prop.options.map(opt => `
                             <option value="${opt.value}" ${opt.value === prop.value ? 'selected' : ''}>
                                 ${opt.label}
@@ -516,9 +551,9 @@ export class PropertiesPanel extends BasePanel {
         }
         
         return `
-            <div class="property-item" data-property="${prop.key}">
-                <label for="${inputId}">${prop.name}:</label>
-                <div class="property-control">
+            <div class="compact-property-row" data-property="${prop.key}">
+                <label class="compact-property-label" for="${inputId}">${prop.name}:</label>
+                <div class="compact-property-value">
                     ${inputHtml}
                 </div>
             </div>
@@ -568,10 +603,32 @@ export class PropertiesPanel extends BasePanel {
     updateObjectProperty(key, value) {
         if (!this.selectedObject) return;
         
+        // Find the property definition to check if it needs conversion
+        const prop = this.findProperty(key);
+        
+        // Handle unit conversions for room dimensions
+        if (prop && prop.convertToPixels) {
+            const gridSize = prop.gridSize || 8;
+            
+            if (key === 'width' || key === 'height') {
+                // Convert from feet/meters to pixels
+                let pixelValue;
+                if (prop.unit === 'm') {
+                    // Convert meters to feet, then to pixels
+                    const feet = parseFloat(value) / 0.3048;
+                    pixelValue = Math.round(feet * gridSize);
+                } else {
+                    // Convert feet to pixels
+                    pixelValue = Math.round(parseFloat(value) * gridSize);
+                }
+                value = pixelValue;
+            }
+        }
+        
         // Convert value types as needed
         if (key === 'left' || key === 'top' || key === 'fontSize' || key === 'strokeWidth' || key === 'radius') {
             value = parseInt(value);
-        } else if (key === 'opacity' || key === 'scaleX') {
+        } else if (key === 'opacity' || key === 'scaleX' || key === 'wallHeight') {
             value = parseFloat(value);
         } else if (key === 'angle') {
             value = parseInt(value);
