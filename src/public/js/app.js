@@ -9738,6 +9738,11 @@ class FloorplanEditor {
             this.updateSelectionRingPosition(obj);
         }
         
+        // ✅ Update brightness effect (glow circle) position when light is moving
+        if (obj.lightObject && obj.glowCircle) {
+            this.updateGlowCirclePosition(obj);
+        }
+        
         // Don't update controls during movement - preserve scene colors
     }
     
@@ -9755,6 +9760,11 @@ class FloorplanEditor {
         // ✅ Update selection ring position after light is moved (final position)
         if (obj.lightObject && this.selectedLight === obj && obj._selectionRing) {
             this.updateSelectionRingPosition(obj);
+        }
+        
+        // ✅ Update brightness effect (glow circle) position after light is moved
+        if (obj.lightObject && obj.glowCircle) {
+            this.updateGlowCirclePosition(obj);
         }
         
         // Update controls if this is the selected light
@@ -10167,6 +10177,29 @@ class FloorplanEditor {
             left: centerX,
             top: centerY
         });
+        
+        this.canvas.renderAll();
+    }
+    
+    updateGlowCirclePosition(light) {
+        if (!light.glowCircle) return;
+        
+        console.log('🌟 Updating glow circle position for light:', light.entityId);
+        
+        // The glow circle needs to be positioned based on the light's position and radius
+        const glowRadius = light.glowCircle.radius;
+        const lightRadius = light.radius || 10; // Default radius if not set
+        
+        // Calculate the correct position for the glow circle
+        // The glow circle is larger than the light, so we need to offset it
+        light.glowCircle.set({
+            left: light.left + lightRadius - glowRadius,
+            top: light.top + lightRadius - glowRadius
+        });
+        
+        // Make sure glow stays behind the light
+        this.canvas.sendObjectToBack(light.glowCircle);
+        this.canvas.bringObjectToFront(light);
         
         this.canvas.renderAll();
     }
