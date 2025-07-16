@@ -5050,6 +5050,9 @@ class FloorplanEditor {
             }
         });
         
+        // Setup advanced canvas navigation
+        this.setupCanvasNavigation();
+        
         console.log('✅ CAD interface event listeners setup complete');
     }
     
@@ -8209,6 +8212,210 @@ class FloorplanEditor {
         this.updateZoomDisplay();
         this.drawGrid(); // Redraw grid after zoom
         this.canvas.renderAll();
+    }
+    
+    setupCanvasNavigation() {
+        console.log('🎮 Setting up advanced canvas navigation...');
+        
+        const canvasElement = this.canvas.upperCanvasEl;
+        const drawingArea = document.querySelector('.drawing-area');
+        
+        // Track touch/gesture state
+        let isPanning = false;
+        let lastPosX = 0;
+        let lastPosY = 0;
+        let lastTouchDistance = 0;
+        let isGesturing = false;
+        
+        // Mouse wheel zoom
+        const handleWheel = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const delta = e.deltaY;
+            let zoom = this.canvas.getZoom();
+            zoom *= 0.999 ** delta;
+            
+            // Limit zoom
+            if (zoom > 5) zoom = 5;
+            if (zoom < 0.1) zoom = 0.1;
+            
+            // Zoom to mouse pointer
+            this.canvas.zoomToPoint(new fabric.Point(e.offsetX, e.offsetY), zoom);
+            this.zoomLevel = zoom;
+            this.updateZoomDisplay();
+            this.drawGrid();
+            this.canvas.renderAll();
+        };
+        
+        // Trackpad two-finger pan
+        const handleMouseDown = (e) => {
+            // Middle mouse button or left mouse with space key for panning
+            if (e.button === 1 || (e.button === 0 && this.isSpacePressed)) {
+                isPanning = true;
+                lastPosX = e.clientX;
+                lastPosY = e.clientY;
+                canvasElement.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        };
+        
+        const handleMouseMove = (e) => {
+            if (isPanning) {
+                const deltaX = e.clientX - lastPosX;
+                const deltaY = e.clientY - lastPosY;
+                
+                const vpt = this.canvas.viewportTransform;
+                vpt[4] += deltaX;
+                vpt[5] += deltaY;
+                
+                this.canvas.requestRenderAll();
+                this.drawGrid();
+                
+                lastPosX = e.clientX;
+                lastPosY = e.clientY;
+            }
+        };
+        
+        const handleMouseUp = (e) => {
+            if (isPanning) {
+                isPanning = false;
+                canvasElement.style.cursor = 'default';
+            }
+        };
+        
+        // Touch events for pinch zoom and pan
+        const getTouchDistance = (touches) => {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        };
+        
+        const getTouchCenter = (touches) => {
+            const x = (touches[0].clientX + touches[1].clientX) / 2;
+            const y = (touches[0].clientY + touches[1].clientY) / 2;
+            return { x, y };
+        };
+        
+        const handleTouchStart = (e) => {
+            if (e.touches.length === 2) {
+                isGesturing = true;
+                lastTouchDistance = getTouchDistance(e.touches);
+                const center = getTouchCenter(e.touches);
+                lastPosX = center.x;
+                lastPosY = center.y;
+                e.preventDefault();
+            }
+        };
+        
+        const handleTouchMove = (e) => {
+            if (e.touches.length === 2 && isGesturing) {
+                e.preventDefault();
+                
+                const center = getTouchCenter(e.touches);
+                const currentDistance = getTouchDistance(e.touches);
+                
+                // Calculate zoom
+                const scale = currentDistance / lastTouchDistance;
+                let zoom = this.canvas.getZoom() * scale;
+                if (zoom > 5) zoom = 5;
+                if (zoom < 0.1) zoom = 0.1;
+                
+                // Calculate pan
+                const deltaX = center.x - lastPosX;
+                const deltaY = center.y - lastPosY;
+                
+                // Apply zoom to center point
+                const rect = canvasElement.getBoundingClientRect();
+                const centerPoint = new fabric.Point(
+                    center.x - rect.left,
+                    center.y - rect.top
+                );
+                this.canvas.zoomToPoint(centerPoint, zoom);
+                
+                // Apply pan
+                const vpt = this.canvas.viewportTransform;
+                vpt[4] += deltaX;
+                vpt[5] += deltaY;
+                
+                this.zoomLevel = zoom;
+                this.updateZoomDisplay();
+                this.drawGrid();
+                this.canvas.requestRenderAll();
+                
+                lastTouchDistance = currentDistance;
+                lastPosX = center.x;
+                lastPosY = center.y;
+            }
+        };
+        
+        const handleTouchEnd = (e) => {
+            if (e.touches.length < 2) {
+                isGesturing = false;
+            }
+        };
+        
+        // Space key for pan mode
+        this.isSpacePressed = false;
+        const handleSpaceKey = (e) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                this.isSpacePressed = true;
+                canvasElement.style.cursor = 'grab';
+            }
+        };
+        
+        const handleSpaceKeyUp = (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                this.isSpacePressed = false;
+                canvasElement.style.cursor = 'default';
+                isPanning = false;
+            }
+        };
+        
+        // Add zoom percentage click handler
+        const zoomDisplay = document.querySelector('.zoom-display');
+        if (zoomDisplay) {
+            zoomDisplay.style.cursor = 'pointer';
+            zoomDisplay.addEventListener('click', () => this.showZoomDialog());
+        }
+        
+        // Attach event listeners
+        canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+        canvasElement.addEventListener('mousedown', handleMouseDown);
+        canvasElement.addEventListener('mousemove', handleMouseMove);
+        canvasElement.addEventListener('mouseup', handleMouseUp);
+        canvasElement.addEventListener('mouseleave', handleMouseUp);
+        
+        // Touch events
+        canvasElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvasElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvasElement.addEventListener('touchend', handleTouchEnd);
+        
+        // Keyboard events
+        document.addEventListener('keydown', handleSpaceKey);
+        document.addEventListener('keyup', handleSpaceKeyUp);
+        
+        console.log('✅ Canvas navigation setup complete');
+    }
+    
+    showZoomDialog() {
+        const currentZoom = Math.round(this.zoomLevel * 100);
+        const input = prompt('Enter zoom percentage (10-500%):', currentZoom);
+        
+        if (input !== null) {
+            const zoomPercent = parseInt(input);
+            if (!isNaN(zoomPercent) && zoomPercent >= 10 && zoomPercent <= 500) {
+                this.zoomLevel = zoomPercent / 100;
+                this.canvas.setZoom(this.zoomLevel);
+                this.updateZoomDisplay();
+                this.drawGrid();
+                this.canvas.renderAll();
+            } else {
+                window.sceneManager?.showStatus('Please enter a value between 10 and 500', 'warning');
+            }
+        }
     }
     
     rotateSelected() {
