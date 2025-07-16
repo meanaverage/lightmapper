@@ -394,6 +394,7 @@ body {
   flex-direction: column;
   order: 2;
   min-width: 0; /* Allow shrinking */
+  position: relative;
 }
 
 /* Canvas automatically takes available space when tertiary collapses */
@@ -401,6 +402,11 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+/* When tertiary is collapsed, dock-center extends to full width */
+.main-interface:has(.dock-tertiary.collapsed) .dock-center {
+  margin-right: 0;
 }
 
 .dock-tertiary {
@@ -413,10 +419,15 @@ body {
 }
 
 .dock-tertiary.collapsed {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   width: 20px;
   min-width: 20px;
   overflow: hidden;
   cursor: pointer;
+  z-index: 100;
 }
 
 .dock-right {

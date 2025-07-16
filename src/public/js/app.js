@@ -10474,6 +10474,19 @@ function setupTertiaryPanelCollapse() {
     const wasCollapsed = localStorage.getItem('tertiaryPanelCollapsed') === 'true';
     if (wasCollapsed) {
         tertiaryDock.classList.add('collapsed');
+        // Trigger canvas resize after restoring collapsed state
+        // Try multiple times to ensure the editor is ready
+        const tryResize = () => {
+            if (window.floorplanEditor && window.floorplanEditor.resizeCanvas) {
+                window.floorplanEditor.resizeCanvas();
+                console.log('✅ Canvas resized after restoring collapsed state');
+            } else {
+                // If editor not ready, try again
+                setTimeout(tryResize, 200);
+            }
+        };
+        // Initial attempt after a short delay
+        setTimeout(tryResize, 100);
     }
 }
 
