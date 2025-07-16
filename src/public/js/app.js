@@ -11582,15 +11582,31 @@ class FloorplanEditor {
                 
                 if (obj.type === 'rect' || obj.type === 'Rect') {
                     // Convert pixels to feet for display
-                    const gridSize = this.gridSize || 8;
-                    const widthFt = ((obj.width || 0) / gridSize).toFixed(1);
-                    const heightFt = ((obj.height || 0) / gridSize).toFixed(1);
+                    const pixelsPerFoot = this.pixelsPerFoot || 48;
+                    const widthFt = ((obj.width || 0) / pixelsPerFoot).toFixed(1);
+                    const heightFt = ((obj.height || 0) / pixelsPerFoot).toFixed(1);
                     const wallHeight = obj.wallHeight || 10;
-                    dimensions = `${widthFt}ft × ${heightFt}ft × ${wallHeight}ft`;
+                    
+                    if (this.useMetric) {
+                        const widthM = (widthFt * 0.3048).toFixed(1);
+                        const heightM = (heightFt * 0.3048).toFixed(1);
+                        const wallHeightM = (wallHeight * 0.3048).toFixed(1);
+                        dimensions = `${widthM}m × ${heightM}m × ${wallHeightM}m`;
+                    } else {
+                        dimensions = `${widthFt}ft × ${heightFt}ft × ${wallHeight}ft`;
+                    }
                 } else if (obj.points && obj.points.length > 0) {
-                    // Calculate polygon area approximately
-                    const area = this.calculatePolygonArea(obj.points);
-                    dimensions = `~${Math.round(area)}px²`;
+                    // Calculate polygon area in proper units
+                    const areaInPixels = this.calculatePolygonArea(obj.points);
+                    const pixelsPerFoot = this.pixelsPerFoot || 48;
+                    const areaInFeet = areaInPixels / (pixelsPerFoot * pixelsPerFoot);
+                    
+                    if (this.useMetric) {
+                        const areaInMeters = areaInFeet * 0.092903; // 1 sq ft = 0.092903 sq m
+                        dimensions = `~${areaInMeters.toFixed(1)}m²`;
+                    } else {
+                        dimensions = `~${areaInFeet.toFixed(1)}ft²`;
+                    }
                 }
                 
                 displayText = `${roomName}: ${dimensions}`;
