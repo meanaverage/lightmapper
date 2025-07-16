@@ -10495,11 +10495,98 @@ function setupTertiaryPanelCollapse() {
     }
 }
 
-// Initialize tertiary panel on DOM ready
+// Setup panel resize functionality
+function setupPanelResize() {
+    const panels = [
+        { divider: 'leftDivider', panel: 'dockLeft', side: 'left', storageKey: 'leftPanelWidth' },
+        { divider: 'tertiaryDivider', panel: 'dockTertiary', side: 'right', storageKey: 'tertiaryPanelWidth' },
+        { divider: 'rightDivider', panel: 'dockRight', side: 'right', storageKey: 'rightPanelWidth' }
+    ];
+    
+    panels.forEach(({ divider, panel, side, storageKey }) => {
+        const dividerEl = document.getElementById(divider);
+        const panelEl = document.getElementById(panel);
+        
+        if (!dividerEl || !panelEl) return;
+        
+        // Restore saved width
+        const savedWidth = localStorage.getItem(storageKey);
+        if (savedWidth && !panelEl.classList.contains('collapsed')) {
+            panelEl.style.width = savedWidth + 'px';
+        }
+        
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        
+        dividerEl.addEventListener('mousedown', (e) => {
+            // Don't resize if tertiary panel is collapsed
+            if (panel === 'dockTertiary' && panelEl.classList.contains('collapsed')) {
+                return;
+            }
+            
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = panelEl.offsetWidth;
+            dividerEl.classList.add('dragging');
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const diff = e.clientX - startX;
+            let newWidth;
+            
+            if (side === 'left') {
+                // Left panel grows when dragging right
+                newWidth = startWidth + diff;
+            } else {
+                // Right panels grow when dragging left
+                newWidth = startWidth - diff;
+            }
+            
+            // Get constraints from CSS
+            const styles = getComputedStyle(document.documentElement);
+            const minWidth = parseInt(styles.getPropertyValue('--cad-panel-min-width')) || 240;
+            const maxWidth = parseInt(styles.getPropertyValue('--cad-panel-max-width')) || 500;
+            
+            // Clamp to min/max
+            newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+            
+            panelEl.style.width = newWidth + 'px';
+            
+            // Save to localStorage
+            localStorage.setItem(storageKey, newWidth);
+            
+            // Trigger canvas resize
+            if (window.floorplanEditor && window.floorplanEditor.resizeCanvas) {
+                window.floorplanEditor.resizeCanvas();
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                dividerEl.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    });
+}
+
+// Initialize tertiary panel and resize on DOM ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupTertiaryPanelCollapse);
+    document.addEventListener('DOMContentLoaded', () => {
+        setupTertiaryPanelCollapse();
+        setupPanelResize();
+    });
 } else {
     setupTertiaryPanelCollapse();
+    setupPanelResize();
 }
 
 console.log('✅ LightMapper CAD Interface modules loaded successfully'); 

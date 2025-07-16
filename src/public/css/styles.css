@@ -58,7 +58,9 @@
   --cad-ribbon-height: 80px;
   --cad-status-height: 24px;
   --cad-command-height: 28px;
-  --cad-panel-width: 280px;
+  --cad-panel-width: 320px;
+  --cad-panel-min-width: 240px;
+  --cad-panel-max-width: 500px;
   --cad-border-radius: 2px;
   --cad-border-radius-sm: 1px;
   
@@ -384,29 +386,27 @@ body {
 
 .dock-left {
   width: var(--cad-panel-width);
+  min-width: var(--cad-panel-min-width);
+  max-width: var(--cad-panel-max-width);
   flex-shrink: 0;
-  order: 1;
+  position: relative;
 }
 
 .dock-center {
   flex: 1;
   display: flex;
   flex-direction: column;
-  order: 2;
   min-width: 0; /* Allow shrinking */
   position: relative;
 }
 
-
-/* Dock center takes remaining space */
-
 .dock-tertiary {
   width: var(--cad-panel-width);
-  min-width: var(--cad-panel-width);
+  min-width: var(--cad-panel-min-width);
+  max-width: var(--cad-panel-max-width);
   flex-shrink: 0;
-  order: 3;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -415,6 +415,7 @@ body {
 .dock-tertiary.collapsed {
   width: 20px;
   min-width: 20px;
+  max-width: 20px;
   overflow: hidden;
   cursor: pointer;
   flex-shrink: 0;
@@ -422,8 +423,10 @@ body {
 
 .dock-right {
   width: var(--cad-panel-width);
+  min-width: var(--cad-panel-min-width);
+  max-width: var(--cad-panel-max-width);
   flex-shrink: 0;
-  order: 4;
+  position: relative;
 }
 
 /* Tertiary Panel Header - Removed (collapse button now integrated into panel header) */
@@ -1812,7 +1815,8 @@ body {
   .dock-left,
   .dock-right,
   .dock-tertiary {
-    --cad-panel-width: 240px;
+    --cad-panel-width: 280px;
+    --cad-panel-min-width: 200px;
   }
   
   .ribbon-group {
@@ -2493,30 +2497,19 @@ body {
 
 /* Draggable Vertical Divider */
 .vertical-divider {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
+  width: 4px;
   background: transparent;
   cursor: ew-resize;
+  flex-shrink: 0;
+  position: relative;
   z-index: 10;
   transition: background 0.2s;
 }
+
 .vertical-divider:hover {
-  background: var(--cad-hover);
+  background: var(--cad-blue-primary);
 }
 
-/* Positioning for dividers (to be set by JS) */
-#leftDivider {
-  left: 0;
-}
-#rightDivider {
-  right: 0;
-}
-
-/* Resizable Panels */
-.left-panel, .right-panel {
-  min-width: 120px;
-  max-width: 600px;
-  transition: width 0.2s;
+.vertical-divider.dragging {
+  background: var(--cad-blue-primary);
 }
