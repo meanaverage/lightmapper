@@ -35,7 +35,9 @@ class Blueprint3DAdapter {
         this.lightObjects = new Map(); // entityId -> THREE.Light mapping
         this.wallMeshes = [];
         this.floorMeshes = [];
+        this.dimensionLabels = [];
         
+        this.showDimensions = true; // Toggle for dimension display
         this.isInitialized = false;
     }
     
@@ -286,14 +288,21 @@ class Blueprint3DAdapter {
     buildScene() {
         if (!this.isInitialized) return;
         
-        // Create floor for each room
-        this.model.rooms.forEach(room => {
+        // Create floor for each room with dimension labels
+        this.model.rooms.forEach((room, roomIndex) => {
             const shape = new THREE.Shape();
+            let minX = Infinity, maxX = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
             
             room.corners.forEach((cornerId, index) => {
                 const corner = this.model.corners[cornerId];
                 const x = this.convertUnits(corner.x);
                 const z = this.convertUnits(corner.z);
+                
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
                 
                 if (index === 0) {
                     shape.moveTo(x, z);
@@ -316,6 +325,18 @@ class Blueprint3DAdapter {
             floor.receiveShadow = true;
             this.scene.add(floor);
             this.floorMeshes.push(floor);
+            
+            // Add dimension text
+            const width = Math.abs(maxX - minX);
+            const depth = Math.abs(maxZ - minZ);
+            const height = room.wallHeight || this.options.wallHeight;
+            
+            // Convert back to feet for display
+            const widthFt = this.options.units === 'metric' ? width / 0.3048 : width;
+            const depthFt = this.options.units === 'metric' ? depth / 0.3048 : depth;
+            
+            const dimensionText = `${widthFt.toFixed(1)}' × ${depthFt.toFixed(1)}' × ${height}'`;
+            this.createDimensionLabel(dimensionText, (minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
         });
         
         // Create walls
@@ -347,6 +368,53 @@ class Blueprint3DAdapter {
     }
     
     /**
+     * Create dimension label text
+     */
+    createDimensionLabel(text, x, y, z) {
+        if (!this.showDimensions) return;
+        
+        // Create a canvas to render text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 64;
+        
+        // Setup text style
+        context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#000000';
+        context.font = 'bold 20px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Add background stroke for better visibility
+        context.strokeStyle = 'white';
+        context.lineWidth = 3;
+        context.strokeText(text, canvas.width / 2, canvas.height / 2);
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        // Create sprite material
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: texture,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.95
+        });
+        
+        // Create sprite
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(3, 0.75, 1); // Adjust scale as needed
+        
+        this.scene.add(sprite);
+        this.dimensionLabels.push(sprite);
+    }
+    
+    /**
      * Create a wall mesh between two points
      */
     createWall(start, end, wallHeight) {
@@ -354,12 +422,16 @@ class Blueprint3DAdapter {
         const length = direction.length();
         direction.normalize();
         
-        const heightInUnits = this.convertUnits(wallHeight);
+        // Wall height is already in feet, don't convert from pixels
+        let heightInUnits = wallHeight;
+        if (this.options.units === 'metric') {
+            heightInUnits = wallHeight * 0.3048; // Convert feet to meters
+        }
         
         const geometry = new THREE.BoxGeometry(
             length,
             heightInUnits,
-            this.convertUnits(this.options.wallThickness)
+            this.convertUnits(this.options.wallThickness * 8) // Convert thickness from feet to pixels first
         );
         
         const material = new THREE.MeshStandardMaterial({ 
@@ -563,6 +635,16 @@ class Blueprint3DAdapter {
      * Clear the 3D scene
      */
     clearScene() {
+        // Remove dimension labels
+        this.dimensionLabels.forEach(label => {
+            this.scene.remove(label);
+            if (label.material.map) {
+                label.material.map.dispose();
+            }
+            label.material.dispose();
+        });
+        this.dimensionLabels = [];
+        
         // Remove walls
         this.wallMeshes.forEach(mesh => {
             this.scene.remove(mesh);
@@ -751,6 +833,20 @@ class Blueprint3DAdapter {
     getScreenshot() {
         if (!this.renderer) return null;
         return this.renderer.domElement.toDataURL('image/png');
+    }
+    
+    /**
+     * Toggle dimension label visibility
+     */
+    toggleDimensions() {
+        this.showDimensions = !this.showDimensions;
+        this.dimensionLabels.forEach(label => {
+            label.visible = this.showDimensions;
+        });
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
+        return this.showDimensions;
     }
 }
 
