@@ -314,8 +314,47 @@ class Blueprint3DAdapter {
             
             // Create floor
             const geometry = new THREE.ShapeGeometry(shape);
+            
+            // Parse room fill color
+            let floorColor = 0xf0f0f0; // Default gray
+            let opacity = 1.0;
+            
+            if (room.fillColor) {
+                // Handle rgba() format
+                if (room.fillColor.startsWith('rgba')) {
+                    const rgba = room.fillColor.match(/[\d.]+/g);
+                    if (rgba && rgba.length >= 3) {
+                        const r = parseInt(rgba[0]);
+                        const g = parseInt(rgba[1]);
+                        const b = parseInt(rgba[2]);
+                        floorColor = (r << 16) + (g << 8) + b;
+                        
+                        // Get opacity if provided
+                        if (rgba.length >= 4) {
+                            opacity = parseFloat(rgba[3]);
+                        }
+                    }
+                } 
+                // Handle hex format
+                else if (room.fillColor.startsWith('#')) {
+                    floorColor = parseInt(room.fillColor.replace('#', '0x'));
+                }
+                // Handle rgb() format
+                else if (room.fillColor.startsWith('rgb(')) {
+                    const rgb = room.fillColor.match(/\d+/g);
+                    if (rgb && rgb.length >= 3) {
+                        const r = parseInt(rgb[0]);
+                        const g = parseInt(rgb[1]);
+                        const b = parseInt(rgb[2]);
+                        floorColor = (r << 16) + (g << 8) + b;
+                    }
+                }
+            }
+            
             const material = new THREE.MeshStandardMaterial({ 
-                color: 0xf0f0f0,
+                color: floorColor,
+                opacity: opacity,
+                transparent: opacity < 1.0,
                 roughness: 0.8,
                 metalness: 0.1,
                 side: THREE.DoubleSide
