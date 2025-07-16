@@ -314,3 +314,8 @@
 .panel-section {
     max-height: calc(100vh - 100px);
 }
+
+/* Hide old status bar */
+.status-bar {
+    display: none !important;
+}

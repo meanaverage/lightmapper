@@ -2,6 +2,8 @@
  * Footer Component - Similar to Lucidchart
  * Provides zoom controls, page tabs, selection counter, and quick toggles
  */
+import { FloatingLayersPanel } from './FloatingLayersPanel.js';
+
 export class FooterComponent {
     constructor() {
         this.container = null;
@@ -9,6 +11,7 @@ export class FooterComponent {
         this.selectedCount = 0;
         this.pages = [{ id: 'page1', name: 'Page 1', active: true }];
         this.currentPageId = 'page1';
+        this.floatingLayersPanel = null;
         
         this.init();
     }
@@ -64,17 +67,24 @@ export class FooterComponent {
             
             <!-- Right Section -->
             <div class="footer-section right">
+                <!-- Grid Toggle -->
+                <button class="footer-btn active" id="gridToggleBtn" title="Toggle Grid">
+                    <i class="fas fa-th"></i>
+                </button>
+                
+                <!-- Snap Toggle -->
+                <button class="footer-btn active" id="snapToggleBtn" title="Toggle Snap">
+                    <i class="fas fa-magnet"></i>
+                </button>
+                
+                <div class="footer-divider"></div>
+                
                 <!-- Layers Toggle -->
                 <button class="footer-btn" id="layersToggleBtn" title="Layers">
                     <i class="fas fa-layer-group"></i>
                 </button>
                 
                 <div class="footer-divider"></div>
-                
-                <!-- Mini Map Toggle -->
-                <button class="footer-btn" id="minimapToggleBtn" title="Mini Map">
-                    <i class="fas fa-map"></i>
-                </button>
                 
                 <!-- Zoom Controls -->
                 <div class="zoom-controls">
@@ -150,11 +160,14 @@ export class FooterComponent {
         selectionCounter?.addEventListener('click', () => this.showSelectionDetails());
         
         // Toggle buttons
+        const gridToggle = document.getElementById('gridToggleBtn');
+        gridToggle?.addEventListener('click', () => this.toggleGrid());
+        
+        const snapToggle = document.getElementById('snapToggleBtn');
+        snapToggle?.addEventListener('click', () => this.toggleSnap());
+        
         const layersToggle = document.getElementById('layersToggleBtn');
         layersToggle?.addEventListener('click', () => this.toggleLayers());
-        
-        const minimapToggle = document.getElementById('minimapToggleBtn');
-        minimapToggle?.addEventListener('click', () => this.toggleMinimap());
         
         const fitToScreen = document.getElementById('fitToScreenBtn');
         fitToScreen?.addEventListener('click', () => this.fitToScreen());
@@ -360,24 +373,38 @@ export class FooterComponent {
     }
     
     // Toggle Methods
-    toggleLayers() {
-        const btn = document.getElementById('layersToggleBtn');
-        btn?.classList.toggle('active');
+    toggleGrid() {
+        const btn = document.getElementById('gridToggleBtn');
+        const isActive = btn?.classList.contains('active');
         
-        // Toggle layers panel
-        const layersPanel = window.panelManager?.getPanel('layers');
-        if (layersPanel) {
-            const isVisible = btn?.classList.contains('active');
-            window.panelManager.togglePanel('layers', isVisible);
+        if (window.floorplanEditor) {
+            window.floorplanEditor.toggleGrid();
+            btn?.classList.toggle('active');
         }
     }
     
-    toggleMinimap() {
-        const btn = document.getElementById('minimapToggleBtn');
-        btn?.classList.toggle('active');
+    toggleSnap() {
+        const btn = document.getElementById('snapToggleBtn');
+        const isActive = btn?.classList.contains('active');
         
-        // Future: implement minimap
-        console.log('Minimap toggle:', btn?.classList.contains('active'));
+        if (window.floorplanEditor) {
+            window.floorplanEditor.toggleSnap();
+            btn?.classList.toggle('active');
+        }
+    }
+    
+    toggleLayers() {
+        // Show floating layers panel
+        if (!this.floatingLayersPanel) {
+            this.createFloatingLayersPanel();
+        } else {
+            this.floatingLayersPanel.toggle();
+        }
+    }
+    
+    createFloatingLayersPanel() {
+        this.floatingLayersPanel = new FloatingLayersPanel();
+        this.floatingLayersPanel.show();
     }
     
     // Utility Methods
