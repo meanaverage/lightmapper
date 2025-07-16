@@ -356,6 +356,8 @@ class LayerManager {
                 layerName = `Text ${this.layerCounters.text}`;
             } else if (obj.labelObject) {
                 layerName = 'Label';
+            } else if (obj.backgroundImage) {
+                layerName = 'Background Image';
             } else {
                 this.layerCounters.object++;
                 layerName = `Object ${this.layerCounters.object}`;
@@ -4659,7 +4661,7 @@ class FloorplanEditor {
             }
             
             // Create layer for content objects (but not labels - they're part of lights)
-            if (obj.lightObject || obj.roomObject || obj.textObject || (obj.labelObject && !obj.lightRef)) {
+            if (obj.lightObject || obj.roomObject || obj.textObject || obj.backgroundImage || (obj.labelObject && !obj.lightRef)) {
                 this.layerManager.createLayerForObject(obj);
                 
                 // Notify LayersPanel to refresh
@@ -8135,7 +8137,11 @@ class FloorplanEditor {
                         
                         // Ensure the background is on the correct layer
                         if (this.layerManager) {
-                            this.layerManager.createLayerForObject(fabricImg);
+                            console.log('📋 Creating layer for background image');
+                            const layerId = this.layerManager.createLayerForObject(fabricImg);
+                            console.log('✅ Background layer created:', layerId);
+                        } else {
+                            console.warn('⚠️ LayerManager not available for background image');
                         }
                         
                         // Broadcast the addition to panels

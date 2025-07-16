@@ -149,7 +149,7 @@ export class EntitiesPanel extends BasePanel {
                     supported_features: this.inferSupportedFeatures(light),
                     icon: useEnhanced ? light.attributes?.icon : null // Get icon from enhanced endpoint
                 },
-                area: light.area,
+                area: light.area?.name || light.area || null,
                 device: useEnhanced ? light.device : null,
                 platform: useEnhanced ? light.platform : null
             }));
@@ -243,7 +243,7 @@ export class EntitiesPanel extends BasePanel {
         const state = entity.state;
         const isUnavailable = state === 'unavailable';
         const isOn = state === 'on';
-        const area = entity.area || '';
+        const area = entity.area;
         
         // Determine state badge
         let stateBadge = '';
@@ -273,7 +273,7 @@ export class EntitiesPanel extends BasePanel {
                 </div>
                 <div class="entity-right">
                     <div class="entity-state-badge ${stateBadgeClass}">${stateBadge}</div>
-                    ${area ? `<div class="entity-area">${area}</div>` : ''}
+                    ${area && area !== '' ? `<div class="entity-area">${area}</div>` : ''}
                 </div>
             </div>
         `;
