@@ -476,19 +476,23 @@ export class LayersPanel extends BasePanel {
 
         // Delete the canvas object
         const canvasPanel = window.panelManager?.getPanel('canvas');
-        if (canvasPanel) {
-            const object = canvasPanel.findObjectById(layer.objectId);
+        if (canvasPanel && canvasPanel.floorplanEditor?.canvas) {
+            // Find the object by its customLayer property
+            const object = canvasPanel.floorplanEditor.canvas.getObjects().find(obj => obj.customLayer === this.selectedLayerId);
             if (object) {
                 canvasPanel.deleteObject(object);
             }
         }
 
+        // Store the layer ID before removing
+        const deletedLayerId = this.selectedLayerId;
+        
         // Remove the layer
         this.layerManager.removeLayer(this.selectedLayerId);
         this.selectedLayerId = null;
         this.refresh();
         
-        window.panelManager?.broadcast('onLayerDeleted', { layerId: this.selectedLayerId });
+        window.panelManager?.broadcast('onLayerDeleted', { layerId: deletedLayerId });
     }
 
     /**

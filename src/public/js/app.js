@@ -5150,6 +5150,11 @@ class FloorplanEditor {
             deleteBtn.addEventListener('click', () => this.deleteSelected());
         }
         
+        const clearCanvasBtn = document.getElementById('clear-canvas-btn');
+        if (clearCanvasBtn) {
+            clearCanvasBtn.addEventListener('click', () => this.clearCanvas());
+        }
+        
         // View controls
         const gridToggleBtn = document.getElementById('grid-toggle-btn');
         if (gridToggleBtn) {
@@ -8678,6 +8683,57 @@ class FloorplanEditor {
         this.triggerAutoSave();
     }
 
+    clearCanvas() {
+        // Confirm with user before clearing everything
+        if (!confirm('Are you sure you want to clear the entire canvas? This will remove all objects and layers.')) {
+            return;
+        }
+        
+        // Clear all objects from canvas (except grid lines)
+        const objectsToRemove = this.canvas.getObjects().filter(obj => !obj.gridLine);
+        objectsToRemove.forEach(obj => this.canvas.remove(obj));
+        
+        // Clear all internal arrays
+        this.lights = [];
+        this.texts = [];
+        this.labels = [];
+        this.roomOutline = null;
+        this.backgroundImage = null;
+        
+        // Clear layer manager
+        if (this.layerManager) {
+            this.layerManager.layers = {};
+            this.layerManager.layerOrder = [];
+            this.layerManager.layerCounters = {
+                room: 0,
+                light: 0,
+                text: 0,
+                object: 0
+            };
+            
+            // Refresh layers panel
+            const layersPanel = window.panelManager?.getPanel('layers');
+            if (layersPanel) {
+                layersPanel.refresh();
+            }
+        }
+        
+        // Clear canvas selection
+        this.canvas.discardActiveObject();
+        this.canvas.renderAll();
+        
+        // Broadcast clear event to all panels
+        window.panelManager?.broadcast('onCanvasCleared', {});
+        
+        // Show success message
+        window.sceneManager?.showStatus('Canvas cleared successfully', 'success');
+        
+        // Trigger auto-save to update localStorage
+        this.triggerAutoSave();
+        
+        console.log('🧹 Canvas cleared successfully');
+    }
+
     bringToFront() {
         const activeObjects = this.canvas.getActiveObjects();
         if (activeObjects.length > 0) {
@@ -9293,7 +9349,8 @@ class FloorplanEditor {
                 'left', 'top', 'width', 'height', 'angle', 'scaleX', 'scaleY', 'skewX', 'skewY', 'flipX', 'flipY',
                 'fill', 'stroke', 'strokeWidth', 'opacity', 'visible', 'selectable', 'evented',
                 'text', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textAlign', 'underline',
-                'x1', 'y1', 'x2', 'y2', 'radius', 'points', 'rx', 'ry'
+                'x1', 'y1', 'x2', 'y2', 'radius', 'points', 'rx', 'ry',
+                'customLayer'
             ]);
             
             // Add custom properties
@@ -9350,6 +9407,13 @@ class FloorplanEditor {
         
         data.backgroundImage = this.backgroundImage ? this.backgroundImage.toObject() : null;
         
+        // Save layer information
+        data.layers = this.layerManager ? {
+            layers: this.layerManager.layers,
+            layerOrder: this.layerManager.layerOrder,
+            layerCounters: this.layerManager.layerCounters
+        } : null;
+        
         return data;
     }
     
@@ -9396,6 +9460,20 @@ class FloorplanEditor {
         }
         
         this.drawGrid();
+        
+        // Restore layer information
+        if (data.layers && this.layerManager) {
+            console.log('🗂️ Restoring layer information...');
+            this.layerManager.layers = data.layers.layers || {};
+            this.layerManager.layerOrder = data.layers.layerOrder || [];
+            this.layerManager.layerCounters = data.layers.layerCounters || {
+                room: 0,
+                light: 0,
+                text: 0,
+                object: 0
+            };
+            console.log(`✅ Restored ${Object.keys(this.layerManager.layers).length} layers`);
+        }
         
         // Load all objects from the comprehensive objects array (new format)
         if (data.objects && data.objects.length > 0) {
@@ -9822,14 +9900,16 @@ class FloorplanEditor {
                     radius: light.radius,
                     fontSize: light.fontSize,
                     fill: light.fill,
-                    stroke: light.stroke
+                    stroke: light.stroke,
+                    customLayer: light.customLayer
                 })),
                 texts: this.texts.map(text => ({
                     left: text.left,
                     top: text.top,
                     text: text.text,
                     fontSize: text.fontSize,
-                    fill: text.fill
+                    fill: text.fill,
+                    customLayer: text.customLayer
                 })),
                 backgroundImage: this.backgroundImage ? {
                     src: this.backgroundImage.getSrc(),
@@ -9847,7 +9927,8 @@ class FloorplanEditor {
                     points: room.points,
                     stroke: room.stroke,
                     fill: room.fill,
-                    type: room.type
+                    type: room.type,
+                    customLayer: room.customLayer
                 })),
                 lines: this.canvas.getObjects().filter(obj => obj.type === 'line' && !obj.gridLine && !obj.snapGuide).map(line => ({
                     x1: line.x1,
@@ -9857,8 +9938,15 @@ class FloorplanEditor {
                     left: line.left,
                     top: line.top,
                     stroke: line.stroke,
-                    strokeWidth: line.strokeWidth
-                }))
+                    strokeWidth: line.strokeWidth,
+                    customLayer: line.customLayer
+                })),
+                // Save layer information
+                layers: this.layerManager ? {
+                    layers: this.layerManager.layers,
+                    layerOrder: this.layerManager.layerOrder,
+                    layerCounters: this.layerManager.layerCounters
+                } : null
             };
             
             localStorage.setItem('floorplan_layout', JSON.stringify(data));
@@ -9914,6 +10002,20 @@ class FloorplanEditor {
                 this.showLabels = data.settings.showLabels || false;
                 this.useFriendlyNames = data.settings.useFriendlyNames !== false;
                 this.lightIconStyle = data.settings.lightIconStyle || 'circle';
+            }
+            
+            // Restore layer information
+            if (data.layers && this.layerManager) {
+                console.log('🗂️ Restoring layer information from autosave...');
+                this.layerManager.layers = data.layers.layers || {};
+                this.layerManager.layerOrder = data.layers.layerOrder || [];
+                this.layerManager.layerCounters = data.layers.layerCounters || {
+                    room: 0,
+                    light: 0,
+                    text: 0,
+                    object: 0
+                };
+                console.log(`✅ Restored ${Object.keys(this.layerManager.layers).length} layers from autosave`);
             }
             
             // Restore canvas settings
