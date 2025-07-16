@@ -30,6 +30,7 @@ export class PanelManager {
             'properties': 'right',
             'scenes': 'right',
             'sceneEditor': 'right',
+            'preview3d': 'right',
             'entities': 'right',
             
             // Main area
@@ -110,6 +111,7 @@ export class PanelManager {
         this.panelContainers.set('sceneEditor', document.getElementById('sceneEditorPanel'));
         this.panelContainers.set('layers', document.getElementById('layersPanel'));
         this.panelContainers.set('debug', document.getElementById('debugPanel'));
+        this.panelContainers.set('preview3d', document.getElementById('preview3dPanel'));
     }
 
     /**
