@@ -214,12 +214,12 @@ export class PropertiesPanel extends BasePanel {
         
         // Room dimensions (for rectangles)
         if (obj.type === 'rect' || obj.type === 'Rect') {
-            // Convert pixels to feet (8 pixels = 1 foot)
-            const gridSize = window.floorplanEditor?.gridSize || 8;
-            const useMetric = window.floorplanEditor?.options?.use_metric || false;
+            // Convert pixels to feet (48 pixels = 1 foot)
+            const pixelsPerFoot = window.floorplanEditor?.pixelsPerFoot || 48;
+            const useMetric = window.floorplanEditor?.useMetric || false;
             
-            const widthInFeet = (obj.width || 100) / gridSize;
-            const heightInFeet = (obj.height || 100) / gridSize;
+            const widthInFeet = (obj.width || 100) / pixelsPerFoot;
+            const heightInFeet = (obj.height || 100) / pixelsPerFoot;
             
             if (useMetric) {
                 // Convert feet to meters
@@ -235,7 +235,7 @@ export class PropertiesPanel extends BasePanel {
                     step: 0.1,
                     unit: 'm',
                     convertToPixels: true,
-                    gridSize: gridSize
+                    pixelsPerFoot: pixelsPerFoot
                 });
                 
                 group.properties.push({
@@ -247,7 +247,7 @@ export class PropertiesPanel extends BasePanel {
                     step: 0.1,
                     unit: 'm',
                     convertToPixels: true,
-                    gridSize: gridSize
+                    pixelsPerFoot: pixelsPerFoot
                 });
             } else {
                 group.properties.push({
@@ -259,7 +259,7 @@ export class PropertiesPanel extends BasePanel {
                     step: 0.5,
                     unit: 'ft',
                     convertToPixels: true,
-                    gridSize: gridSize
+                    pixelsPerFoot: pixelsPerFoot
                 });
                 
                 group.properties.push({
@@ -271,7 +271,7 @@ export class PropertiesPanel extends BasePanel {
                     step: 0.5,
                     unit: 'ft',
                     convertToPixels: true,
-                    gridSize: gridSize
+                    pixelsPerFoot: pixelsPerFoot
                 });
             }
         }
@@ -608,7 +608,7 @@ export class PropertiesPanel extends BasePanel {
         
         // Handle unit conversions for room dimensions
         if (prop && prop.convertToPixels) {
-            const gridSize = prop.gridSize || 8;
+            const pixelsPerFoot = window.floorplanEditor?.pixelsPerFoot || 48;
             
             if (key === 'width' || key === 'height') {
                 // Convert from feet/meters to pixels
@@ -616,10 +616,10 @@ export class PropertiesPanel extends BasePanel {
                 if (prop.unit === 'm') {
                     // Convert meters to feet, then to pixels
                     const feet = parseFloat(value) / 0.3048;
-                    pixelValue = Math.round(feet * gridSize);
+                    pixelValue = Math.round(feet * pixelsPerFoot);
                 } else {
                     // Convert feet to pixels
-                    pixelValue = Math.round(parseFloat(value) * gridSize);
+                    pixelValue = Math.round(parseFloat(value) * pixelsPerFoot);
                 }
                 value = pixelValue;
             }

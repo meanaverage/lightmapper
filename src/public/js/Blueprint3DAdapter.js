@@ -370,9 +370,18 @@ class Blueprint3DAdapter {
             const depth = Math.abs(maxZ - minZ);
             const height = room.wallHeight || this.options.wallHeight;
             
-            // Convert back to feet for display
-            const widthFt = this.options.units === 'metric' ? width / 0.3048 : width;
-            const depthFt = this.options.units === 'metric' ? depth / 0.3048 : depth;
+            console.log('🏠 Room dimensions:', {
+                width: width,
+                depth: depth,
+                height: height,
+                units: this.options.units,
+                corners: room.corners.length
+            });
+            
+            // Width and depth are already in the correct units from convertUnits
+            // No need to convert again - just display
+            const widthFt = width;
+            const depthFt = depth;
             
             const dimensionText = `${widthFt.toFixed(1)}' × ${depthFt.toFixed(1)}' × ${height}'`;
             this.createDimensionLabel(dimensionText, (minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
@@ -667,6 +676,13 @@ class Blueprint3DAdapter {
         }
         
         const feet = value / pixelsPerFoot;
+        
+        console.log('🔢 convertUnits:', {
+            input: value,
+            pixelsPerFoot: pixelsPerFoot,
+            feet: feet,
+            units: this.options.units
+        });
         
         if (this.options.units === 'metric') {
             // Convert feet to meters
