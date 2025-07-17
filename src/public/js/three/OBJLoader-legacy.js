@@ -325,7 +325,10 @@
                     // group
                 } else if ( /^usemtl/.test( line ) ) {
                     // material
-                    state.object.currentMaterial().name = line.substring( 7 ).trim();
+                    const material = state.object.currentMaterial();
+                    if (material) {
+                        material.name = line.substring( 7 ).trim();
+                    }
                 } else if ( /^mtllib/.test( line ) ) {
                     // mtl file
                 } else if ( /^s/.test( line ) ) {

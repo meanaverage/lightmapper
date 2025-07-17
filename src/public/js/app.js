@@ -11834,8 +11834,20 @@ class FloorplanEditor {
     }
     
     addSVGBackground(svgContent) {
-        // Use parseSVGDocument for Fabric.js v6
-        fabric.parseSVGDocument(svgContent, (results, options, elements, allElements) => {
+        // Parse the SVG content to create a DOM element
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+        const svgElement = svgDoc.documentElement;
+        
+        // Check for parsing errors
+        if (svgElement.nodeName === 'parsererror') {
+            console.error('❌ Invalid SVG content');
+            window.sceneManager?.showStatus('Invalid SVG file', 'error');
+            return;
+        }
+        
+        // Use Fabric.js v6 parseSVGDocument with the SVG element
+        fabric.parseSVGDocument(svgElement, (results, options, elements, allElements) => {
             // Handle empty or invalid SVG
             if (!results || results.length === 0) {
                 console.warn('⚠️ No valid elements found in SVG');
@@ -11843,14 +11855,14 @@ class FloorplanEditor {
                 return;
             }
             
+            console.log('🎨 Parsed SVG results:', results);
+            
             // Create a group from the SVG elements
             let svgGroup;
             if (results.length === 1) {
                 svgGroup = results[0];
             } else {
-                svgGroup = new fabric.Group(results, {
-                    ...options
-                });
+                svgGroup = new fabric.Group(results);
             }
             
             // Scale to fit canvas
@@ -11883,9 +11895,6 @@ class FloorplanEditor {
             console.log('✅ SVG background added:', svgGroup);
             window.sceneManager?.showStatus('SVG background imported', 'success');
             this.triggerAutoSave();
-        }, function(error) {
-            console.error('❌ SVG parsing error:', error);
-            window.sceneManager?.showStatus('Failed to parse SVG', 'error');
         });
     }
     
