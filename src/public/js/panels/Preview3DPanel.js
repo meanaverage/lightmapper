@@ -142,9 +142,18 @@ class Preview3DPanel extends BasePanel {
         // Toggle labels
         const labelsBtn = document.getElementById('preview3d-labels');
         if (labelsBtn) {
-            labelsBtn.addEventListener('click', () => {
+            // Remove any existing listeners first
+            const newLabelsBtn = labelsBtn.cloneNode(true);
+            labelsBtn.parentNode.replaceChild(newLabelsBtn, labelsBtn);
+            
+            newLabelsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🔘 Labels button clicked, current state:', this.showLabels);
+                
                 this.showLabels = !this.showLabels;
-                labelsBtn.querySelector('i').classList.toggle('active');
+                newLabelsBtn.querySelector('i').classList.toggle('active');
                 
                 if (this.blueprint3d) {
                     this.blueprint3d.setShowRoomLabels(this.showLabels);
@@ -599,12 +608,16 @@ class Preview3DPanel extends BasePanel {
     onLayerVisibilityChanged(data) {
         if (!this.blueprint3d || !data.layerId) return;
         
-        // Map layer IDs to 3D elements
+        console.log(`🔄 3D Preview: Layer visibility changed - ${data.layerId}: ${data.visible}`);
+        
+        // When the main lights layer visibility changes, hide/show everything
+        if (data.layerId === 'lights') {
+            this.blueprint3d.setLightVisibility(data.visible, data.visible);
+            console.log(`🔄 3D Preview: Set all light elements to ${data.visible}`);
+        }
+        
+        // Handle other layers
         const layerMappings = {
-            'lights': {
-                showBulbs: data.visible,
-                showLights: data.visible
-            },
             'light-labels': {
                 showLabels: data.visible
             },
@@ -616,11 +629,6 @@ class Preview3DPanel extends BasePanel {
         const mapping = layerMappings[data.layerId];
         if (!mapping) return;
         
-        // Apply visibility changes
-        if (mapping.showBulbs !== undefined || mapping.showLights !== undefined) {
-            this.blueprint3d.setLightVisibility(mapping.showBulbs, mapping.showLights);
-        }
-        
         if (mapping.showLabels !== undefined) {
             this.blueprint3d.setShowLightLabels(mapping.showLabels);
         }
@@ -628,8 +636,39 @@ class Preview3DPanel extends BasePanel {
         if (mapping.showBrightnessEffects !== undefined) {
             this.blueprint3d.setShowBrightnessEffects(mapping.showBrightnessEffects);
         }
+    }
+    
+    onLayerOptionChanged(data) {
+        if (!this.blueprint3d || !data.layerId || data.layerId !== 'lights') return;
         
-        console.log(`🔄 3D Preview: Updated visibility for layer ${data.layerId} to ${data.visible}`);
+        console.log(`🔄 3D Preview: Layer option changed - ${data.optionId}: ${data.value}`);
+        
+        // Get the light control app instance
+        const lightApp = window.lightControllerApp;
+        if (!lightApp || !lightApp.layers) return;
+        
+        // Find any light layer to get the current state
+        const lightLayers = Object.values(lightApp.layers).filter(layer => layer.objectType === 'light');
+        if (lightLayers.length === 0) return;
+        
+        // Use the first light layer as reference (they should all have the same visibility settings)
+        const lightLayer = lightLayers[0];
+        
+        // Determine what should be visible based on the layer options
+        const showBulbs = lightLayer.circleVisible !== false;
+        const showBrightnessEffects = lightLayer.brightnessVisible !== false;
+        const showLabels = lightLayer.labelVisible !== false;
+        
+        // Apply the visibility settings based on what changed
+        if (data.optionId === 'bulbs' || data.optionId === 'brightness') {
+            this.blueprint3d.setLightVisibility(showBulbs, showBrightnessEffects);
+            console.log(`🔄 3D Preview: Updated light visibility - bulbs: ${showBulbs}, effects: ${showBrightnessEffects}`);
+        }
+        
+        if (data.optionId === 'labels') {
+            this.blueprint3d.setShowLightLabels(showLabels);
+            console.log(`🔄 3D Preview: Updated light labels visibility: ${showLabels}`);
+        }
     }
 }
 

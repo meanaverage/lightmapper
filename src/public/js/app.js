@@ -539,6 +539,13 @@ class LayerManager {
             this.floorplanEditor.canvas.renderAll();
             console.log('💡 Light circle visibility set to:', layer.circleVisible);
         }
+        
+        // Broadcast to other panels
+        window.panelManager?.broadcast('onLayerOptionChanged', { 
+            layerId: 'lights',
+            optionId: 'bulbs',
+            value: layer.circleVisible
+        });
     }
     
     toggleLightBrightness(layerId) {
@@ -607,6 +614,13 @@ class LayerManager {
         }
         
         this.floorplanEditor.canvas.renderAll();
+        
+        // Broadcast to other panels
+        window.panelManager?.broadcast('onLayerOptionChanged', { 
+            layerId: 'lights',
+            optionId: 'brightness',
+            value: layer.brightnessVisible
+        });
     }
     
     toggleLightLabel(layerId) {
@@ -624,6 +638,13 @@ class LayerManager {
             label.visible = layer.labelVisible;
             this.floorplanEditor.canvas.renderAll();
         }
+        
+        // Broadcast to other panels
+        window.panelManager?.broadcast('onLayerOptionChanged', { 
+            layerId: 'lights',
+            optionId: 'labels',
+            value: layer.labelVisible
+        });
     }
 }
 
