@@ -11834,15 +11834,32 @@ class FloorplanEditor {
     }
     
     addSVGBackground(svgContent) {
-        fabric.loadSVGFromString(svgContent, (objects, options) => {
-            const svgGroup = fabric.util.groupSVGElements(objects, options);
+        // Use parseSVGDocument for Fabric.js v6
+        fabric.parseSVGDocument(svgContent, (results, options, elements, allElements) => {
+            // Handle empty or invalid SVG
+            if (!results || results.length === 0) {
+                console.warn('⚠️ No valid elements found in SVG');
+                window.sceneManager?.showStatus('No valid shapes found in SVG', 'warning');
+                return;
+            }
+            
+            // Create a group from the SVG elements
+            let svgGroup;
+            if (results.length === 1) {
+                svgGroup = results[0];
+            } else {
+                svgGroup = new fabric.Group(results, {
+                    ...options
+                });
+            }
             
             // Scale to fit canvas
             const canvasWidth = this.canvas.getWidth();
             const canvasHeight = this.canvas.getHeight();
+            const boundingRect = svgGroup.getBoundingRect();
             const scale = Math.min(
-                canvasWidth / svgGroup.width,
-                canvasHeight / svgGroup.height
+                canvasWidth / boundingRect.width,
+                canvasHeight / boundingRect.height
             ) * 0.8;
             
             svgGroup.set({
@@ -11855,15 +11872,20 @@ class FloorplanEditor {
                 selectable: false,
                 evented: false,
                 opacity: 0.3,
-                isBackground: true
+                isBackground: true,
+                excludeFromExport: false
             });
             
             // Add to background layer
             this.canvas.add(svgGroup);
             this.canvas.sendToBack(svgGroup);
             
+            console.log('✅ SVG background added:', svgGroup);
             window.sceneManager?.showStatus('SVG background imported', 'success');
             this.triggerAutoSave();
+        }, function(error) {
+            console.error('❌ SVG parsing error:', error);
+            window.sceneManager?.showStatus('Failed to parse SVG', 'error');
         });
     }
     
@@ -11888,10 +11910,36 @@ class FloorplanEditor {
     }
     
     convertSVGToRooms(svgContent) {
-        fabric.loadSVGFromString(svgContent, (objects, options) => {
+        fabric.loadSVGFromString(svgContent, (objects, options, elements, allElements) => {
             let roomCount = 0;
             
-            objects.forEach(obj => {
+            // In Fabric.js v6, the callback signature might be different
+            // Check if objects is the actual array or if it's wrapped
+            let objectsArray = objects;
+            
+            // Handle different possible return formats
+            if (!objectsArray) {
+                console.warn('⚠️ No objects returned from SVG parsing');
+                window.sceneManager?.showStatus('No shapes found in SVG', 'warning');
+                return;
+            }
+            
+            // If objects is not an array, try to extract the array
+            if (!Array.isArray(objectsArray)) {
+                // Check if it's a single object
+                if (objectsArray.type) {
+                    objectsArray = [objectsArray];
+                } else if (objectsArray.objects && Array.isArray(objectsArray.objects)) {
+                    // It might be a group
+                    objectsArray = objectsArray.objects;
+                } else {
+                    console.error('❌ Unexpected SVG parsing result:', objectsArray);
+                    window.sceneManager?.showStatus('Failed to parse SVG', 'error');
+                    return;
+                }
+            }
+            
+            objectsArray.forEach(obj => {
                 if (obj.type === 'path' || obj.type === 'polygon' || obj.type === 'rect') {
                     let points = [];
                     

@@ -4,15 +4,13 @@
 (function() {
     'use strict';
 
-    const OBJLoader = function ( manager ) {
-        THREE.Loader.call( this, manager );
-        this.materials = null;
-    };
+    class OBJLoader extends THREE.Loader {
+        constructor( manager ) {
+            super( manager );
+            this.materials = null;
+        }
 
-    OBJLoader.prototype = Object.assign( Object.create( THREE.Loader.prototype ), {
-        constructor: OBJLoader,
-
-        load: function ( url, onLoad, onProgress, onError ) {
+        load( url, onLoad, onProgress, onError ) {
             const scope = this;
             const loader = new THREE.FileLoader( this.manager );
             loader.setPath( this.path );
@@ -30,14 +28,14 @@
                     scope.manager.itemError( url );
                 }
             }, onProgress, onError );
-        },
+        }
 
-        setMaterials: function ( materials ) {
+        setMaterials( materials ) {
             this.materials = materials;
             return this;
-        },
+        }
 
-        parse: function ( text ) {
+        parse( text ) {
             const state = {
                 objects: [],
                 object: {},
@@ -378,7 +376,7 @@
             }
             return container;
         }
-    } );
+    }
 
     // Make OBJLoader available globally
     window.OBJLoader = OBJLoader;
