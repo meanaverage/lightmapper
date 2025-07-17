@@ -473,6 +473,87 @@ class Preview3DPanel extends BasePanel {
             console.error('Failed to load 3D preview settings:', e);
         }
     }
+    
+    importOBJModel(objContent, filename) {
+        if (!this.blueprint3d) {
+            console.error('❌ 3D viewer not initialized');
+            return;
+        }
+        
+        // Check if OBJLoader is available
+        if (typeof OBJLoader === 'undefined') {
+            console.error('❌ OBJLoader not available. Loading from CDN...');
+            this.loadOBJLoader().then(() => {
+                this.processOBJImport(objContent, filename);
+            });
+            return;
+        }
+        
+        this.processOBJImport(objContent, filename);
+    }
+    
+    loadOBJLoader() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/three@0.148.0/examples/js/loaders/OBJLoader.js';
+            script.onload = () => {
+                console.log('✅ OBJLoader loaded');
+                resolve();
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+    
+    processOBJImport(objContent, filename) {
+        const loader = new OBJLoader();
+        const object = loader.parse(objContent);
+        
+        // Calculate bounding box for scaling
+        const box = new THREE.Box3().setFromObject(object);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        
+        // Scale to reasonable size (max 10 units)
+        const maxDimension = Math.max(size.x, size.y, size.z);
+        const scale = 10 / maxDimension;
+        
+        object.scale.multiplyScalar(scale);
+        
+        // Center the object
+        object.position.sub(center.multiplyScalar(scale));
+        object.position.y = 0; // Place on floor
+        
+        // Add materials if missing
+        object.traverse((child) => {
+            if (child.isMesh) {
+                if (!child.material) {
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0x808080,
+                        roughness: 0.5,
+                        metalness: 0.5
+                    });
+                }
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        
+        // Add to scene
+        this.blueprint3d.scene.add(object);
+        
+        // Store reference for later manipulation
+        if (!this.importedModels) {
+            this.importedModels = [];
+        }
+        this.importedModels.push({
+            name: filename,
+            object: object
+        });
+        
+        console.log(`✅ Imported OBJ model: ${filename}`);
+        window.sceneManager?.showStatus(`Imported 3D model: ${filename}`, 'success');
+    }
 }
 
 // Export for ES6 modules
