@@ -61,6 +61,15 @@
     font-size: 11px;
     color: rgb(40, 44, 51);
     white-space: nowrap;
+    margin: 0;
+    border: none;
+    overflow: visible;
+    box-sizing: content-box;
+    opacity: 1;
+    visibility: visible;
+    z-index: auto;
+    filter: none;
+    transform: none;
 }
 
 .plugin-settings.active .content {
