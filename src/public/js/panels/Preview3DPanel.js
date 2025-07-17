@@ -16,6 +16,7 @@ class Preview3DPanel extends BasePanel {
         this.isVisible = false;
         this.syncWithCanvas = true;
         this.autoRotate = false;
+        this.showLabels = true;
         
         // Debounce timer for canvas updates
         this.updateTimer = null;
@@ -47,6 +48,9 @@ class Preview3DPanel extends BasePanel {
                         </button>
                         <button class="btn btn-icon-only" id="preview3d-rotate" title="Auto Rotate">
                             <i class="fas fa-sync-alt ${this.autoRotate ? 'active' : ''}"></i>
+                        </button>
+                        <button class="btn btn-icon-only" id="preview3d-labels" title="Toggle Room Labels">
+                            <i class="fas fa-tag ${this.showLabels !== false ? 'active' : ''}"></i>
                         </button>
                         <button class="btn btn-icon-only" id="preview3d-screenshot" title="Take Screenshot">
                             <i class="fas fa-camera"></i>
@@ -129,6 +133,22 @@ class Preview3DPanel extends BasePanel {
                     console.log('📐 Controls autoRotate is now:', this.blueprint3d.controls.autoRotate);
                 } else {
                     console.warn('⚠️ Cannot toggle auto-rotate: controls not available');
+                }
+                
+                this.saveSettings();
+            });
+        }
+        
+        // Toggle labels
+        const labelsBtn = document.getElementById('preview3d-labels');
+        if (labelsBtn) {
+            labelsBtn.addEventListener('click', () => {
+                this.showLabels = !this.showLabels;
+                labelsBtn.querySelector('i').classList.toggle('active');
+                
+                if (this.blueprint3d) {
+                    this.blueprint3d.setShowRoomLabels(this.showLabels);
+                    console.log(`🏷️ Room labels ${this.showLabels ? 'shown' : 'hidden'}`);
                 }
                 
                 this.saveSettings();
@@ -226,7 +246,8 @@ class Preview3DPanel extends BasePanel {
                 wallThickness: 0.5,
                 ambientLight: 0.4,
                 enableShadows: true,
-                physicallyCorrectLights: true
+                physicallyCorrectLights: true,
+                showRoomLabels: this.showLabels
             });
             
             // Clear loading message
@@ -460,7 +481,8 @@ class Preview3DPanel extends BasePanel {
     saveSettings() {
         localStorage.setItem('preview3d_settings', JSON.stringify({
             syncWithCanvas: this.syncWithCanvas,
-            autoRotate: this.autoRotate
+            autoRotate: this.autoRotate,
+            showLabels: this.showLabels
         }));
     }
     
@@ -469,8 +491,27 @@ class Preview3DPanel extends BasePanel {
             const settings = JSON.parse(localStorage.getItem('preview3d_settings') || '{}');
             this.syncWithCanvas = settings.syncWithCanvas !== false;
             this.autoRotate = settings.autoRotate || false;
+            this.showLabels = settings.showLabels !== false;
         } catch (e) {
             console.error('Failed to load 3D preview settings:', e);
+        }
+    }
+    
+    onLoaded() {
+        // Load saved settings
+        this.loadSettings();
+        
+        // Update UI to reflect loaded settings
+        const labelsBtn = document.getElementById('preview3d-labels');
+        if (labelsBtn) {
+            const icon = labelsBtn.querySelector('i');
+            if (icon) {
+                if (this.showLabels) {
+                    icon.classList.add('active');
+                } else {
+                    icon.classList.remove('active');
+                }
+            }
         }
     }
     
@@ -553,6 +594,42 @@ class Preview3DPanel extends BasePanel {
         
         console.log(`✅ Imported OBJ model: ${filename}`);
         window.sceneManager?.showStatus(`Imported 3D model: ${filename}`, 'success');
+    }
+    
+    onLayerVisibilityChanged(data) {
+        if (!this.blueprint3d || !data.layerId) return;
+        
+        // Map layer IDs to 3D elements
+        const layerMappings = {
+            'lights': {
+                showBulbs: data.visible,
+                showLights: data.visible
+            },
+            'light-labels': {
+                showLabels: data.visible
+            },
+            'brightness-effects': {
+                showBrightnessEffects: data.visible
+            }
+        };
+        
+        const mapping = layerMappings[data.layerId];
+        if (!mapping) return;
+        
+        // Apply visibility changes
+        if (mapping.showBulbs !== undefined || mapping.showLights !== undefined) {
+            this.blueprint3d.setLightVisibility(mapping.showBulbs, mapping.showLights);
+        }
+        
+        if (mapping.showLabels !== undefined) {
+            this.blueprint3d.setShowLightLabels(mapping.showLabels);
+        }
+        
+        if (mapping.showBrightnessEffects !== undefined) {
+            this.blueprint3d.setShowBrightnessEffects(mapping.showBrightnessEffects);
+        }
+        
+        console.log(`🔄 3D Preview: Updated visibility for layer ${data.layerId} to ${data.visible}`);
     }
 }
 

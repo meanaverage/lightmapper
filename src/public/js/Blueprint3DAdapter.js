@@ -38,6 +38,8 @@ class Blueprint3DAdapter {
         this.dimensionLabels = [];
         
         this.showDimensions = true; // Toggle for dimension display
+        this.showRoomLabels = options.showRoomLabels !== false; // Toggle for room labels
+        this.roomLabelSprites = []; // Store room label sprites
         this.isInitialized = false;
     }
     
@@ -376,6 +378,11 @@ class Blueprint3DAdapter {
             
             const dimensionText = `${widthFt.toFixed(1)}' × ${depthFt.toFixed(1)}' × ${height}'`;
             this.createDimensionLabel(dimensionText, (minX + maxX) / 2, height / 2, (minZ + maxZ) / 2);
+            
+            // Add room name label
+            if (room.name) {
+                this.createRoomLabel(room.name, (minX + maxX) / 2, 0.1, (minZ + maxZ) / 2);
+            }
         });
         
         // Create walls
@@ -451,6 +458,49 @@ class Blueprint3DAdapter {
         
         this.scene.add(sprite);
         this.dimensionLabels.push(sprite);
+    }
+    
+    /**
+     * Create room name label
+     */
+    createRoomLabel(text, x, y, z) {
+        // Create a canvas to render text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 128;
+        
+        // Setup text style
+        context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#000000';
+        context.font = 'bold 36px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Add background stroke for better visibility
+        context.strokeStyle = 'white';
+        context.lineWidth = 4;
+        context.strokeText(text, canvas.width / 2, canvas.height / 2);
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        // Create sprite
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            opacity: 0.9
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(2, 0.5, 1);
+        sprite.visible = this.showRoomLabels;
+        
+        // Add sprite to scene
+        this.scene.add(sprite);
+        this.roomLabelSprites.push(sprite);
     }
     
     /**
@@ -691,6 +741,16 @@ class Blueprint3DAdapter {
         });
         this.dimensionLabels = [];
         
+        // Remove room labels
+        this.roomLabelSprites.forEach(sprite => {
+            this.scene.remove(sprite);
+            if (sprite.material.map) {
+                sprite.material.map.dispose();
+            }
+            sprite.material.dispose();
+        });
+        this.roomLabelSprites = [];
+        
         // Remove walls
         this.wallMeshes.forEach(mesh => {
             this.scene.remove(mesh);
@@ -893,6 +953,66 @@ class Blueprint3DAdapter {
             this.renderer.render(this.scene, this.camera);
         }
         return this.showDimensions;
+    }
+    
+    /**
+     * Set room label visibility
+     * @param {boolean} show - Whether to show room labels
+     */
+    setShowRoomLabels(show) {
+        this.showRoomLabels = show;
+        this.roomLabelSprites.forEach(sprite => {
+            sprite.visible = this.showRoomLabels;
+        });
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
+    
+    /**
+     * Set light visibility (bulbs and light effects)
+     * @param {boolean} showBulbs - Whether to show light bulbs
+     * @param {boolean} showLights - Whether to show light effects
+     */
+    setLightVisibility(showBulbs, showLights) {
+        this.lightObjects.forEach((lightData, entityId) => {
+            if (lightData.bulb) {
+                lightData.bulb.visible = showBulbs;
+            }
+            if (lightData.light) {
+                lightData.light.visible = showLights;
+            }
+        });
+        
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
+    
+    /**
+     * Set light label visibility
+     * @param {boolean} show - Whether to show light labels
+     */
+    setShowLightLabels(show) {
+        // TODO: Implement light labels in 3D
+        console.log('🏷️ Light labels in 3D not yet implemented');
+    }
+    
+    /**
+     * Set brightness effect visibility
+     * @param {boolean} show - Whether to show brightness effects
+     */
+    setShowBrightnessEffects(show) {
+        // In 3D, brightness effects are the actual lights
+        this.lightObjects.forEach((lightData, entityId) => {
+            if (lightData.light) {
+                lightData.light.visible = show;
+            }
+        });
+        
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 }
 

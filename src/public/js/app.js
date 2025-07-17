@@ -11919,83 +11919,116 @@ class FloorplanEditor {
     }
     
     convertSVGToRooms(svgContent) {
-        fabric.loadSVGFromString(svgContent, (objects, options, elements, allElements) => {
-            let roomCount = 0;
+        // For SVG to rooms, we need to use a different approach that avoids the parsing errors
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+        const svgElement = svgDoc.documentElement;
+        
+        // Check for parsing errors
+        if (svgElement.nodeName === 'parsererror') {
+            console.error('❌ Invalid SVG content');
+            window.sceneManager?.showStatus('Invalid SVG file', 'error');
+            return;
+        }
+        
+        let roomCount = 0;
+        
+        // Process SVG elements directly without using fabric.parseSVGDocument
+        const paths = svgElement.querySelectorAll('path');
+        const rects = svgElement.querySelectorAll('rect');
+        const polygons = svgElement.querySelectorAll('polygon');
+        
+        // Process rectangles
+        rects.forEach(rect => {
+            const x = parseFloat(rect.getAttribute('x') || 0);
+            const y = parseFloat(rect.getAttribute('y') || 0);
+            const width = parseFloat(rect.getAttribute('width') || 0);
+            const height = parseFloat(rect.getAttribute('height') || 0);
             
-            // In Fabric.js v6, the callback signature might be different
-            // Check if objects is the actual array or if it's wrapped
-            let objectsArray = objects;
-            
-            // Handle different possible return formats
-            if (!objectsArray) {
-                console.warn('⚠️ No objects returned from SVG parsing');
-                window.sceneManager?.showStatus('No shapes found in SVG', 'warning');
-                return;
+            if (width > 0 && height > 0) {
+                const points = [
+                    { x: x, y: y },
+                    { x: x + width, y: y },
+                    { x: x + width, y: y + height },
+                    { x: x, y: y + height }
+                ];
+                
+                const room = new fabric.Polygon(points, {
+                    fill: 'rgba(200, 200, 200, 0.3)',
+                    stroke: 'black',
+                    strokeWidth: 2,
+                    selectable: true,
+                    roomObject: true,
+                    roomName: `Room ${this.roomCounter++}`,
+                    wallHeight: 10
+                });
+                
+                this.canvas.add(room);
+                roomCount++;
             }
-            
-            // If objects is not an array, try to extract the array
-            if (!Array.isArray(objectsArray)) {
-                // Check if it's a single object
-                if (objectsArray.type) {
-                    objectsArray = [objectsArray];
-                } else if (objectsArray.objects && Array.isArray(objectsArray.objects)) {
-                    // It might be a group
-                    objectsArray = objectsArray.objects;
-                } else {
-                    console.error('❌ Unexpected SVG parsing result:', objectsArray);
-                    window.sceneManager?.showStatus('Failed to parse SVG', 'error');
-                    return;
-                }
-            }
-            
-            objectsArray.forEach(obj => {
-                if (obj.type === 'path' || obj.type === 'polygon' || obj.type === 'rect') {
-                    let points = [];
-                    
-                    if (obj.type === 'rect') {
-                        // Convert rectangle to points
-                        points = [
-                            { x: obj.left, y: obj.top },
-                            { x: obj.left + obj.width, y: obj.top },
-                            { x: obj.left + obj.width, y: obj.top + obj.height },
-                            { x: obj.left, y: obj.top + obj.height }
-                        ];
-                    } else if (obj.type === 'polygon') {
-                        points = obj.points;
-                    } else if (obj.type === 'path' && obj.path) {
-                        // Convert path to points (simplified)
-                        points = this.pathToPoints(obj.path);
-                    }
-                    
-                    if (points.length >= 3) {
-                        const room = new fabric.Polygon(points, {
-                            fill: 'rgba(200, 200, 200, 0.3)',
-                            stroke: this.isDarkTheme ? '#ffffff' : '#000000',
-                            strokeWidth: 2,
-                            selectable: true,
-                            hasControls: true,
-                            roomObject: true,
-                            roomName: `Imported Room ${++roomCount}`,
-                            wallHeight: 10
+        });
+        
+        // Process polygons
+        polygons.forEach(polygon => {
+            const pointsAttr = polygon.getAttribute('points');
+            if (pointsAttr) {
+                const coords = pointsAttr.trim().split(/\s+/);
+                const points = [];
+                
+                for (let i = 0; i < coords.length; i += 2) {
+                    if (i + 1 < coords.length) {
+                        points.push({
+                            x: parseFloat(coords[i]),
+                            y: parseFloat(coords[i + 1])
                         });
-                        
-                        // Scale and position
-                        const scale = 48; // 48 pixels per foot
-                        room.set({
-                            scaleX: obj.scaleX || 1,
-                            scaleY: obj.scaleY || 1,
-                            left: obj.left,
-                            top: obj.top
-                        });
-                        
-                        this.canvas.add(room);
                     }
                 }
-            });
-            
+                
+                if (points.length >= 3) {
+                    const room = new fabric.Polygon(points, {
+                        fill: 'rgba(200, 200, 200, 0.3)',
+                        stroke: 'black',
+                        strokeWidth: 2,
+                        selectable: true,
+                        roomObject: true,
+                        roomName: `Room ${this.roomCounter++}`,
+                        wallHeight: 10
+                    });
+                    
+                    this.canvas.add(room);
+                    roomCount++;
+                }
+            }
+        });
+        
+        // Process paths (simplified)
+        paths.forEach(path => {
+            const d = path.getAttribute('d');
+            if (d) {
+                const points = this.pathToPoints(d);
+                if (points.length >= 3) {
+                    const room = new fabric.Polygon(points, {
+                        fill: 'rgba(200, 200, 200, 0.3)',
+                        stroke: 'black',
+                        strokeWidth: 2,
+                        selectable: true,
+                        roomObject: true,
+                        roomName: `Room ${this.roomCounter++}`,
+                        wallHeight: 10
+                    });
+                    
+                    this.canvas.add(room);
+                    roomCount++;
+                }
+            }
+        });
+        
+        if (roomCount > 0) {
             window.sceneManager?.showStatus(`Imported ${roomCount} rooms from SVG`, 'success');
             this.triggerAutoSave();
-        });
+        } else {
+            window.sceneManager?.showStatus('No convertible shapes found in SVG', 'warning');
+        }
     }
     
     pathToPoints(pathData) {
