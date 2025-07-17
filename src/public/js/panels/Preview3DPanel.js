@@ -116,6 +116,9 @@ class Preview3DPanel extends BasePanel {
                 if (this.blueprint3d && this.blueprint3d.controls) {
                     this.blueprint3d.controls.autoRotate = this.autoRotate;
                     this.blueprint3d.controls.autoRotateSpeed = 2.0;
+                    console.log(`🔄 Auto-rotate ${this.autoRotate ? 'enabled' : 'disabled'}`);
+                } else {
+                    console.warn('⚠️ Cannot toggle auto-rotate: controls not available');
                 }
                 
                 this.saveSettings();
@@ -222,6 +225,13 @@ class Preview3DPanel extends BasePanel {
             // Initialize 3D viewer
             this.blueprint3d.init3DViewer(container);
             
+            // Setup auto-rotate if enabled (after controls are created)
+            if (this.autoRotate && this.blueprint3d.controls) {
+                this.blueprint3d.controls.autoRotate = true;
+                this.blueprint3d.controls.autoRotateSpeed = 2.0;
+                console.log('🔄 Auto-rotate enabled on initialization');
+            }
+            
             // Initial sync if enabled
             if (this.syncWithCanvas) {
                 console.log('🔄 Initial sync on panel load');
@@ -229,12 +239,6 @@ class Preview3DPanel extends BasePanel {
                 setTimeout(() => {
                     this.updateFromCanvas();
                 }, 1000);
-            }
-            
-            // Setup auto-rotate if enabled
-            if (this.autoRotate && this.blueprint3d.controls) {
-                this.blueprint3d.controls.autoRotate = true;
-                this.blueprint3d.controls.autoRotateSpeed = 2.0;
             }
             
             console.log('✅ 3D Preview initialized');
