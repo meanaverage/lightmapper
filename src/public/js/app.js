@@ -628,207 +628,6 @@ class LayerManager {
 }
 
 // ========================================
-// FloorplanEditor class - Adding import methods
-// ========================================
-
-// Adding import methods to FloorplanEditor prototype
-FloorplanEditor.prototype.importSVGBackground = function() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.svg,image/svg+xml';
-        
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const svgContent = event.target.result;
-                this.addSVGBackground(svgContent);
-            };
-            reader.readAsText(file);
-        });
-        
-        input.click();
-};
-
-FloorplanEditor.prototype.addSVGBackground = function(svgContent) {
-        fabric.loadSVGFromString(svgContent, (objects, options) => {
-            const svgGroup = fabric.util.groupSVGElements(objects, options);
-            
-            // Scale to fit canvas
-            const canvasWidth = this.canvas.getWidth();
-            const canvasHeight = this.canvas.getHeight();
-            const scale = Math.min(
-                canvasWidth / svgGroup.width,
-                canvasHeight / svgGroup.height
-            ) * 0.8;
-            
-            svgGroup.set({
-                left: canvasWidth / 2,
-                top: canvasHeight / 2,
-                originX: 'center',
-                originY: 'center',
-                scaleX: scale,
-                scaleY: scale,
-                selectable: false,
-                evented: false,
-                opacity: 0.3,
-                isBackground: true
-            });
-            
-            // Add to background layer
-            this.canvas.add(svgGroup);
-            this.canvas.sendToBack(svgGroup);
-            
-            window.sceneManager?.showStatus('SVG background imported', 'success');
-            this.triggerAutoSave();
-        });
-};
-
-FloorplanEditor.prototype.importSVGAsRooms = function() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.svg,image/svg+xml';
-        
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const svgContent = event.target.result;
-                this.convertSVGToRooms(svgContent);
-            };
-            reader.readAsText(file);
-        });
-        
-        input.click();
-};
-
-FloorplanEditor.prototype.convertSVGToRooms = function(svgContent) {
-        fabric.loadSVGFromString(svgContent, (objects, options) => {
-            let roomCount = 0;
-            
-            objects.forEach(obj => {
-                if (obj.type === 'path' || obj.type === 'polygon' || obj.type === 'rect') {
-                    let points = [];
-                    
-                    if (obj.type === 'rect') {
-                        // Convert rectangle to points
-                        points = [
-                            { x: obj.left, y: obj.top },
-                            { x: obj.left + obj.width, y: obj.top },
-                            { x: obj.left + obj.width, y: obj.top + obj.height },
-                            { x: obj.left, y: obj.top + obj.height }
-                        ];
-                    } else if (obj.type === 'polygon') {
-                        points = obj.points;
-                    } else if (obj.type === 'path' && obj.path) {
-                        // Convert path to points (simplified)
-                        points = this.pathToPoints(obj.path);
-                    }
-                    
-                    if (points.length >= 3) {
-                        const room = new fabric.Polygon(points, {
-                            fill: 'rgba(200, 200, 200, 0.3)',
-                            stroke: this.isDarkTheme ? '#ffffff' : '#000000',
-                            strokeWidth: 2,
-                            selectable: true,
-                            hasControls: true,
-                            roomObject: true,
-                            roomName: `Imported Room ${++roomCount}`,
-                            wallHeight: 10
-                        });
-                        
-                        // Scale and position
-                        const scale = 48; // 48 pixels per foot
-                        room.set({
-                            scaleX: obj.scaleX || 1,
-                            scaleY: obj.scaleY || 1,
-                            left: obj.left,
-                            top: obj.top
-                        });
-                        
-                        this.canvas.add(room);
-                    }
-                }
-            });
-            
-            window.sceneManager?.showStatus(`Imported ${roomCount} rooms from SVG`, 'success');
-            this.triggerAutoSave();
-        });
-};
-
-FloorplanEditor.prototype.pathToPoints = function(pathData) {
-        // Simplified path to points conversion
-        // This is a basic implementation - could be enhanced
-        const points = [];
-        const commands = pathData.match(/[MLHVCSQTAZmlhvcsqtaz][^MLHVCSQTAZmlhvcsqtaz]*/g);
-        let currentX = 0, currentY = 0;
-        
-        commands?.forEach(cmd => {
-            const type = cmd[0];
-            const coords = cmd.slice(1).trim().split(/[\s,]+/).map(parseFloat);
-            
-            switch(type.toUpperCase()) {
-                case 'M':
-                    currentX = coords[0];
-                    currentY = coords[1];
-                    points.push({ x: currentX, y: currentY });
-                    break;
-                case 'L':
-                    currentX = coords[0];
-                    currentY = coords[1];
-                    points.push({ x: currentX, y: currentY });
-                    break;
-                case 'H':
-                    currentX = coords[0];
-                    points.push({ x: currentX, y: currentY });
-                    break;
-                case 'V':
-                    currentY = coords[0];
-                    points.push({ x: currentX, y: currentY });
-                    break;
-                case 'Z':
-                    // Close path - no new point needed
-                    break;
-            }
-        });
-        
-        return points;
-};
-
-FloorplanEditor.prototype.importOBJ3DModel = function() {
-        window.sceneManager?.showStatus('OBJ import requires 3D preview panel to be open', 'info');
-        
-        // Check if 3D preview panel is available
-        const preview3DPanel = window.panelManager?.getPanel('preview3d');
-        if (!preview3DPanel) {
-            window.sceneManager?.showStatus('Please open 3D Preview panel first', 'warning');
-            return;
-        }
-        
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.obj';
-        
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const objContent = event.target.result;
-                preview3DPanel.importOBJModel(objContent, file.name);
-            };
-            reader.readAsText(file);
-        });
-        
-        input.click();
-};
-
-// ========================================
 // CAD Interface Manager
 // ========================================
 class CADInterfaceManager {
@@ -12011,6 +11810,203 @@ class FloorplanEditor {
             cancelAnimationFrame(this.spinnerAnimationId);
             this.spinnerAnimationId = null;
         }
+    }
+    
+    // Import functionality methods
+    importSVGBackground() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.svg,image/svg+xml';
+        
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const svgContent = event.target.result;
+                this.addSVGBackground(svgContent);
+            };
+            reader.readAsText(file);
+        });
+        
+        input.click();
+    }
+    
+    addSVGBackground(svgContent) {
+        fabric.loadSVGFromString(svgContent, (objects, options) => {
+            const svgGroup = fabric.util.groupSVGElements(objects, options);
+            
+            // Scale to fit canvas
+            const canvasWidth = this.canvas.getWidth();
+            const canvasHeight = this.canvas.getHeight();
+            const scale = Math.min(
+                canvasWidth / svgGroup.width,
+                canvasHeight / svgGroup.height
+            ) * 0.8;
+            
+            svgGroup.set({
+                left: canvasWidth / 2,
+                top: canvasHeight / 2,
+                originX: 'center',
+                originY: 'center',
+                scaleX: scale,
+                scaleY: scale,
+                selectable: false,
+                evented: false,
+                opacity: 0.3,
+                isBackground: true
+            });
+            
+            // Add to background layer
+            this.canvas.add(svgGroup);
+            this.canvas.sendToBack(svgGroup);
+            
+            window.sceneManager?.showStatus('SVG background imported', 'success');
+            this.triggerAutoSave();
+        });
+    }
+    
+    importSVGAsRooms() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.svg,image/svg+xml';
+        
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const svgContent = event.target.result;
+                this.convertSVGToRooms(svgContent);
+            };
+            reader.readAsText(file);
+        });
+        
+        input.click();
+    }
+    
+    convertSVGToRooms(svgContent) {
+        fabric.loadSVGFromString(svgContent, (objects, options) => {
+            let roomCount = 0;
+            
+            objects.forEach(obj => {
+                if (obj.type === 'path' || obj.type === 'polygon' || obj.type === 'rect') {
+                    let points = [];
+                    
+                    if (obj.type === 'rect') {
+                        // Convert rectangle to points
+                        points = [
+                            { x: obj.left, y: obj.top },
+                            { x: obj.left + obj.width, y: obj.top },
+                            { x: obj.left + obj.width, y: obj.top + obj.height },
+                            { x: obj.left, y: obj.top + obj.height }
+                        ];
+                    } else if (obj.type === 'polygon') {
+                        points = obj.points;
+                    } else if (obj.type === 'path' && obj.path) {
+                        // Convert path to points (simplified)
+                        points = this.pathToPoints(obj.path);
+                    }
+                    
+                    if (points.length >= 3) {
+                        const room = new fabric.Polygon(points, {
+                            fill: 'rgba(200, 200, 200, 0.3)',
+                            stroke: this.isDarkTheme ? '#ffffff' : '#000000',
+                            strokeWidth: 2,
+                            selectable: true,
+                            hasControls: true,
+                            roomObject: true,
+                            roomName: `Imported Room ${++roomCount}`,
+                            wallHeight: 10
+                        });
+                        
+                        // Scale and position
+                        const scale = 48; // 48 pixels per foot
+                        room.set({
+                            scaleX: obj.scaleX || 1,
+                            scaleY: obj.scaleY || 1,
+                            left: obj.left,
+                            top: obj.top
+                        });
+                        
+                        this.canvas.add(room);
+                    }
+                }
+            });
+            
+            window.sceneManager?.showStatus(`Imported ${roomCount} rooms from SVG`, 'success');
+            this.triggerAutoSave();
+        });
+    }
+    
+    pathToPoints(pathData) {
+        // Simplified path to points conversion
+        // This is a basic implementation - could be enhanced
+        const points = [];
+        const commands = pathData.match(/[MLHVCSQTAZmlhvcsqtaz][^MLHVCSQTAZmlhvcsqtaz]*/g);
+        let currentX = 0, currentY = 0;
+        
+        commands?.forEach(cmd => {
+            const type = cmd[0];
+            const coords = cmd.slice(1).trim().split(/[\s,]+/).map(parseFloat);
+            
+            switch(type.toUpperCase()) {
+                case 'M':
+                    currentX = coords[0];
+                    currentY = coords[1];
+                    points.push({ x: currentX, y: currentY });
+                    break;
+                case 'L':
+                    currentX = coords[0];
+                    currentY = coords[1];
+                    points.push({ x: currentX, y: currentY });
+                    break;
+                case 'H':
+                    currentX = coords[0];
+                    points.push({ x: currentX, y: currentY });
+                    break;
+                case 'V':
+                    currentY = coords[0];
+                    points.push({ x: currentX, y: currentY });
+                    break;
+                case 'Z':
+                    // Close path - no new point needed
+                    break;
+            }
+        });
+        
+        return points;
+    }
+    
+    importOBJ3DModel() {
+        window.sceneManager?.showStatus('OBJ import requires 3D preview panel to be open', 'info');
+        
+        // Check if 3D preview panel is available
+        const preview3DPanel = window.panelManager?.getPanel('preview3d');
+        if (!preview3DPanel) {
+            window.sceneManager?.showStatus('Please open 3D Preview panel first', 'warning');
+            return;
+        }
+        
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.obj';
+        
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const objContent = event.target.result;
+                preview3DPanel.importOBJModel(objContent, file.name);
+            };
+            reader.readAsText(file);
+        });
+        
+        input.click();
     }
 }
 
