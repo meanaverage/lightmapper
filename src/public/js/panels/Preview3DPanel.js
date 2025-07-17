@@ -109,14 +109,24 @@ class Preview3DPanel extends BasePanel {
         // Auto rotate toggle
         const rotateBtn = document.getElementById('preview3d-rotate');
         if (rotateBtn) {
-            rotateBtn.addEventListener('click', () => {
+            // Remove any existing listeners first
+            const newRotateBtn = rotateBtn.cloneNode(true);
+            rotateBtn.parentNode.replaceChild(newRotateBtn, rotateBtn);
+            
+            newRotateBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🔘 Rotate button clicked, current state:', this.autoRotate);
+                
                 this.autoRotate = !this.autoRotate;
-                rotateBtn.querySelector('i').classList.toggle('active');
+                newRotateBtn.querySelector('i').classList.toggle('active');
                 
                 if (this.blueprint3d && this.blueprint3d.controls) {
                     this.blueprint3d.controls.autoRotate = this.autoRotate;
                     this.blueprint3d.controls.autoRotateSpeed = 2.0;
                     console.log(`🔄 Auto-rotate ${this.autoRotate ? 'enabled' : 'disabled'}`);
+                    console.log('📐 Controls autoRotate is now:', this.blueprint3d.controls.autoRotate);
                 } else {
                     console.warn('⚠️ Cannot toggle auto-rotate: controls not available');
                 }
