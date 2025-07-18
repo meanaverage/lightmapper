@@ -43,33 +43,24 @@ class DrawingTool {
     }
     
     getMousePosition(event) {
+        if (!this.pixiApp || !this.pixiApp.renderer) return { x: 0, y: 0 };
+        
         const rect = this.canvas.getBoundingClientRect();
         
-        // Get the position relative to the canvas
-        let x = event.clientX - rect.left;
-        let y = event.clientY - rect.top;
+        // Get mouse position relative to canvas
+        const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
+        const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
         
-        // Account for canvas scaling
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
+        // Create a point and transform it using the stage's transform
+        const globalPoint = new PIXI.Point(x, y);
         
-        x *= scaleX;
-        y *= scaleY;
+        // In PixiJS v7, we need to account for the stage's transform (position, scale, etc.)
+        const localPoint = this.pixiApp.stage.toLocal(globalPoint);
         
-        // If we have a PixiJS app, we need to account for stage transforms
-        if (this.pixiApp && this.pixiApp.stage) {
-            // Convert screen coordinates to world coordinates
-            const globalPos = new PIXI.Point(x, y);
-            const worldPos = this.pixiApp.stage.toLocal(globalPos);
-            
-            return this.snapPoint({
-                x: worldPos.x,
-                y: worldPos.y
-            });
-        }
-        
-        // Fallback if no PixiJS app
-        return this.snapPoint({ x, y });
+        return this.snapPoint({
+            x: localPoint.x,
+            y: localPoint.y
+        });
     }
 }
 
@@ -168,6 +159,11 @@ class WallDrawingTool extends DrawingTool {
                 }
             }
             this.previewGraphics.clear();
+            
+            // Clear the status message
+            if (window.plannerModal) {
+                window.plannerModal.setStatus('');
+            }
         }
     }
     
@@ -341,6 +337,11 @@ class RoomDrawingTool extends DrawingTool {
                 }
             }
             this.previewGraphics.clear();
+            
+            // Clear the status message
+            if (window.plannerModal) {
+                window.plannerModal.setStatus('');
+            }
         }
     }
     
