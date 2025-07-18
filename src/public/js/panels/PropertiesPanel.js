@@ -90,7 +90,7 @@ export class PropertiesPanel extends BasePanel {
         basicGroup.properties.push({
             name: 'X Position',
             key: 'left',
-            value: Math.round(obj.left),
+            value: Math.round(obj.left || 0),
             type: 'number',
             unit: 'px'
         });
@@ -98,7 +98,7 @@ export class PropertiesPanel extends BasePanel {
         basicGroup.properties.push({
             name: 'Y Position',
             key: 'top',
-            value: Math.round(obj.top),
+            value: Math.round(obj.top || 0),
             type: 'number',
             unit: 'px'
         });
@@ -443,7 +443,7 @@ export class PropertiesPanel extends BasePanel {
             group.properties.push({
                 name: 'Rotation',
                 key: 'angle',
-                value: Math.round(obj.angle),
+                value: Math.round(obj.angle || 0),
                 type: 'range',
                 min: -180,
                 max: 180,
@@ -490,8 +490,10 @@ export class PropertiesPanel extends BasePanel {
                 break;
                 
             case 'number':
+                // Ensure value is a valid number
+                const numValue = isNaN(prop.value) ? 0 : prop.value;
                 inputHtml = `
-                    <input type="number" class="inline-input" id="${inputId}" value="${prop.value}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} ${prop.readonly ? 'readonly' : ''}>
+                    <input type="number" class="inline-input" id="${inputId}" value="${numValue}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} ${prop.readonly ? 'readonly' : ''}>
                     ${prop.unit ? `<span class="inline-label">${prop.unit}</span>` : ''}
                 `;
                 break;
@@ -627,11 +629,11 @@ export class PropertiesPanel extends BasePanel {
         
         // Convert value types as needed
         if (key === 'left' || key === 'top' || key === 'fontSize' || key === 'strokeWidth' || key === 'radius') {
-            value = parseInt(value);
+            value = parseInt(value) || 0;
         } else if (key === 'opacity' || key === 'scaleX' || key === 'wallHeight') {
-            value = parseFloat(value);
+            value = parseFloat(value) || 0;
         } else if (key === 'angle') {
-            value = parseInt(value);
+            value = parseInt(value) || 0;
         }
         
         // Special handling for certain properties
