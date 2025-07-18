@@ -201,11 +201,25 @@ export class SettingsBarComponent {
         // Planner toggle
         const plannerToggle = content.querySelector('#plannerToggle');
         plannerToggle.addEventListener('click', () => {
-            // Get the base path for ingress support
-            const basePath = window.location.pathname.replace(/\/$/, '').replace(/\/index\.html$/, '');
-            const plannerUrl = basePath ? `${basePath}/planner` : '/planner';
+            // Get the base URL for ingress support
+            let plannerUrl = '/planner';
+            
+            // Check if we're in ingress mode by looking at the current URL
+            const currentPath = window.location.pathname;
+            console.log('Current path:', currentPath);
+            
+            // If the path contains /api/hassio_ingress, we're in ingress mode
+            if (currentPath.includes('/api/hassio_ingress/')) {
+                // Extract the ingress base path
+                const match = currentPath.match(/^(\/api\/hassio_ingress\/[^\/]+)/);
+                if (match) {
+                    plannerUrl = match[1] + '/planner';
+                    console.log('Ingress mode detected, using URL:', plannerUrl);
+                }
+            }
             
             // Open planner in new tab
+            console.log('Opening planner at:', plannerUrl);
             window.open(plannerUrl, '_blank');
             // Close settings panel
             this.hide();
