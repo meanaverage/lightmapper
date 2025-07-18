@@ -196,9 +196,7 @@ if (fs.existsSync(staticPath)) {
 app.use(express.static(staticPath));
 console.log('  ✅ Express static middleware configured');
 
-// Serve planner static files  
-app.use('/planner', express.static(path.join(staticPath, 'planner')));
-console.log('  ✅ Planner static files configured');
+// Note: Planner is now served as a modal within the main app, not as a separate page
 
 // Explicitly handle css and js requests for ingress compatibility
 app.get('/css/:filename', (req, res) => {
@@ -1601,38 +1599,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Move planner routes BEFORE the static middleware to handle them properly
-// Planner HTML route
-app.get('/planner', (req, res) => {
-  console.log('📐 Planner page requested');
-  console.log('  Request URL:', req.url);
-  console.log('  Request path:', req.path);
-  console.log('  Ingress mode:', isIngress);
-  console.log('  All headers:', JSON.stringify(req.headers, null, 2));
-  
-  if (req.headers['x-ingress-path']) {
-    console.log('  X-Ingress-Path:', req.headers['x-ingress-path']);
-  }
-  
-  const plannerPath = path.join(__dirname, 'public', 'planner', 'index.html');
-  console.log('  Serving planner from:', plannerPath);
-  console.log('  File exists:', fs.existsSync(plannerPath));
-  
-  res.sendFile(plannerPath);
-});
-
-// Planner static files routes - handle CSS, JS, etc.
-app.get('/planner/css/*', (req, res) => {
-  const filename = req.params[0];
-  console.log('🎨 Planner CSS request:', filename);
-  res.sendFile(path.join(__dirname, 'public', 'planner', 'css', filename));
-});
-
-app.get('/planner/js/*', (req, res) => {
-  const filename = req.params[0];
-  console.log('📜 Planner JS request:', filename);
-  res.sendFile(path.join(__dirname, 'public', 'planner', 'js', filename));
-});
+// Note: Planner routes removed - planner is now served as a modal within the main app
 
 // Catch-all route for ingress support - must be last!
 app.get('*', (req, res) => {
@@ -1642,13 +1609,7 @@ app.get('*', (req, res) => {
     console.log('🔗 Ingress path header:', req.headers['x-ingress-path']);
   }
   
-  // Check if this is a planner request
-  if (req.path === '/planner' || req.path.startsWith('/planner/')) {
-    console.log('📐 Planner detected in catch-all, serving planner index');
-    res.sendFile(path.join(__dirname, 'public', 'planner', 'index.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start server
