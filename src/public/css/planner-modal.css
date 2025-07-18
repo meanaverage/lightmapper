@@ -331,6 +331,35 @@
     color: #0066cc;
 }
 
+/* Cancel button */
+.tool-cancel-container {
+    margin-bottom: 20px;
+}
+
+.tool-cancel-btn {
+    width: 100%;
+    padding: 12px;
+    background: #f44336;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.tool-cancel-btn:hover {
+    background: #d32f2f;
+}
+
+.tool-cancel-btn i {
+    font-size: 16px;
+}
+
 /* Tools list */
 .tools-list {
     display: flex;
@@ -371,6 +400,16 @@
 
 .tool-item.active i {
     color: #0066cc;
+}
+
+.tool-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.tool-item.disabled i {
+    color: #999;
 }
 
 .tool-item.expandable {

@@ -232,9 +232,11 @@ class WallDrawingTool extends DrawingTool {
             }
             this.previewGraphics.clear();
             
-            // Clear the status message
+            // Clear the status message and reset UI
             if (window.plannerModal) {
                 window.plannerModal.setStatus('');
+                window.plannerModal.resetToolUI();
+                window.plannerModal.activeTool = 'select';
             }
         }
     }
@@ -428,9 +430,11 @@ class RoomDrawingTool extends DrawingTool {
             }
             this.previewGraphics.clear();
             
-            // Clear the status message
+            // Clear the status message and reset UI
             if (window.plannerModal) {
                 window.plannerModal.setStatus('');
+                window.plannerModal.resetToolUI();
+                window.plannerModal.activeTool = 'select';
             }
         }
     }

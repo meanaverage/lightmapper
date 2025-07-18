@@ -115,6 +115,12 @@ export class PlannerModal {
                                         </div>
                                     </div>
                                 </div>
+                                <div class="tool-cancel-container" style="display: none;">
+                                    <button class="tool-cancel-btn">
+                                        <i class="fas fa-times"></i>
+                                        <span>Cancel Drawing</span>
+                                    </button>
+                                </div>
                                 <button class="upload-btn">
                                     <span>Upload 2D floorplan</span>
                                 </button>
@@ -256,7 +262,13 @@ export class PlannerModal {
                 const tool = btn.dataset.tool;
                 
                 // Update active state
-                toolItems.forEach(item => item.classList.remove('active'));
+                toolItems.forEach(item => {
+                    item.classList.remove('active');
+                    // Disable other tools when one is active
+                    if (item !== btn) {
+                        item.classList.add('disabled');
+                    }
+                });
                 btn.classList.add('active');
                 
                 // Show wall properties if wall tool is selected
@@ -267,12 +279,42 @@ export class PlannerModal {
                     wallProps.style.display = 'none';
                 }
                 
+                // Disable expandable items
+                const expandableItems = this.container.querySelectorAll('.tool-item.expandable');
+                expandableItems.forEach(item => item.classList.add('disabled'));
+                
+                // Hide upload button when tool is active
+                const uploadBtn = this.container.querySelector('.upload-btn');
+                if (uploadBtn) {
+                    uploadBtn.style.display = 'none';
+                }
+                
+                // Show cancel button
+                const cancelContainer = this.container.querySelector('.tool-cancel-container');
+                if (cancelContainer) {
+                    cancelContainer.style.display = 'block';
+                }
+                
                 this.setActiveTool(tool);
             });
         });
         
         // Wall property controls
         this.setupWallPropertyControls();
+        
+        // Cancel button
+        const cancelBtn = this.container.querySelector('.tool-cancel-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                if (this.currentTool) {
+                    this.currentTool.deactivate();
+                    this.currentTool = null;
+                }
+                this.resetToolUI();
+                this.setActiveTool('select');
+                this.setStatus('');
+            });
+        }
         
         // Zoom controls
         this.setupZoomControls();
@@ -909,6 +951,8 @@ export class PlannerModal {
                     break;
                 default:
                     this.setStatus('');
+                    // Re-enable all tools when no tool is active
+                    this.resetToolUI();
                     break;
             }
         } else {
@@ -917,6 +961,32 @@ export class PlannerModal {
         }
         
         this.activeTool = toolName;
+    }
+    
+    resetToolUI() {
+        // Re-enable all tool items
+        const toolItems = this.container.querySelectorAll('.tool-item');
+        toolItems.forEach(item => {
+            item.classList.remove('disabled', 'active');
+        });
+        
+        // Show upload button
+        const uploadBtn = this.container.querySelector('.upload-btn');
+        if (uploadBtn) {
+            uploadBtn.style.display = 'block';
+        }
+        
+        // Hide wall properties
+        const wallProps = this.container.querySelector('.wall-properties');
+        if (wallProps) {
+            wallProps.style.display = 'none';
+        }
+        
+        // Hide cancel button
+        const cancelContainer = this.container.querySelector('.tool-cancel-container');
+        if (cancelContainer) {
+            cancelContainer.style.display = 'none';
+        }
     }
     
     setStatus(message, duration = 0) {
