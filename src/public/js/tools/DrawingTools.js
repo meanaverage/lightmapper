@@ -271,8 +271,7 @@ class WallDrawingTool extends DrawingTool {
 class RoomDrawingTool extends DrawingTool {
     constructor(canvas, floorPlan, drawnObjectsLayer) {
         super(canvas, floorPlan, drawnObjectsLayer);
-        this.points = [];
-        this.tempRoom = null;
+        this.startPoint = null;
         this.previewGraphics = null;
     }
     
@@ -284,14 +283,12 @@ class RoomDrawingTool extends DrawingTool {
         this.canvas.addEventListener('mousedown', this.handleMouseDown);
         this.canvas.addEventListener('mousemove', this.handleMouseMove);
         this.canvas.addEventListener('keydown', this.handleKeyDown);
-        this.canvas.addEventListener('dblclick', this.handleDoubleClick);
     }
     
     deactivate() {
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
         this.canvas.removeEventListener('keydown', this.handleKeyDown);
-        this.canvas.removeEventListener('dblclick', this.handleDoubleClick);
         
         if (this.previewGraphics) {
             this.pixiApp.stage.removeChild(this.previewGraphics);
@@ -299,8 +296,7 @@ class RoomDrawingTool extends DrawingTool {
             this.previewGraphics = null;
         }
         
-        this.points = [];
-        this.tempRoom = null;
+        this.startPoint = null;
         
         super.deactivate();
     }
@@ -308,45 +304,48 @@ class RoomDrawingTool extends DrawingTool {
     handleMouseDown = (event) => {
         const pos = this.getMousePosition(event);
         
-        // Add point to room
-        this.points.push(pos);
-        
-        if (this.points.length >= 3) {
-            // Check if clicking near first point to close room
-            const dist = Math.sqrt(
-                (pos.x - this.points[0].x) ** 2 + 
-                (pos.y - this.points[0].y) ** 2
-            );
-            
-            if (dist < 20) {
-                this.finishRoom();
+        if (!this.startPoint) {
+            // First click - set start corner
+            this.startPoint = pos;
+        } else {
+            // Second click - create rectangular room
+            this.createRectangularRoom(this.startPoint, pos);
+            this.startPoint = null;
+            // Clear preview graphics properly
+            while (this.previewGraphics.children.length > 0) {
+                const child = this.previewGraphics.children[0];
+                this.previewGraphics.removeChild(child);
+                if (child.destroy) {
+                    child.destroy();
+                }
             }
+            this.previewGraphics.clear();
         }
     }
     
     handleMouseMove = (event) => {
-        if (this.points.length === 0) return;
+        if (!this.startPoint) return;
         
         const pos = this.getMousePosition(event);
-        this.drawPreview([...this.points, pos]);
-    }
-    
-    handleDoubleClick = (event) => {
-        if (this.points.length >= 3) {
-            this.finishRoom();
-        }
+        this.drawRectanglePreview(this.startPoint, pos);
     }
     
     handleKeyDown = (event) => {
         if (event.key === 'Escape') {
-            this.points = [];
+            this.startPoint = null;
+            // Clear preview graphics properly
+            while (this.previewGraphics.children.length > 0) {
+                const child = this.previewGraphics.children[0];
+                this.previewGraphics.removeChild(child);
+                if (child.destroy) {
+                    child.destroy();
+                }
+            }
             this.previewGraphics.clear();
-        } else if (event.key === 'Enter' && this.points.length >= 3) {
-            this.finishRoom();
         }
     }
     
-    drawPreview(points) {
+    drawRectanglePreview(start, end) {
         if (!this.previewGraphics) return;
         
         // Remove all children (text labels) before clearing
@@ -360,7 +359,13 @@ class RoomDrawingTool extends DrawingTool {
         
         this.previewGraphics.clear();
         
-        if (points.length < 2) return;
+        // Create rectangle points
+        const points = [
+            { x: start.x, y: start.y },     // Top-left
+            { x: end.x, y: start.y },       // Top-right
+            { x: end.x, y: end.y },         // Bottom-right
+            { x: start.x, y: end.y }        // Bottom-left
+        ];
         
         // Draw room preview
         this.previewGraphics.beginFill(0x4a90e2, 0.3);
@@ -370,31 +375,31 @@ class RoomDrawingTool extends DrawingTool {
         for (let i = 1; i < points.length; i++) {
             this.previewGraphics.lineTo(points[i].x, points[i].y);
         }
-        
-        if (points.length >= 3) {
-            this.previewGraphics.lineTo(points[0].x, points[0].y);
-        }
-        
+        this.previewGraphics.closePath();
         this.previewGraphics.endFill();
         
-        // Draw dimension labels for each side
-        const numSegments = points.length >= 3 ? points.length : points.length - 1;
+        // Draw dimension labels for all four sides
+        const sides = [
+            { start: points[0], end: points[1] }, // Top
+            { start: points[1], end: points[2] }, // Right
+            { start: points[2], end: points[3] }, // Bottom
+            { start: points[3], end: points[0] }  // Left
+        ];
         
-        for (let i = 0; i < numSegments; i++) {
-            const start = points[i];
-            const end = i === points.length - 1 && points.length >= 3 ? 
-                points[0] : // Close to first point
-                points[i + 1]; // Next point
+        sides.forEach((side, index) => {
+            const length = Math.sqrt(
+                (side.end.x - side.start.x) ** 2 + 
+                (side.end.y - side.start.y) ** 2
+            );
             
-            const length = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
-            if (length < 20) continue; // Skip very short segments
+            if (length < 20) return; // Skip very short segments
             
             // Calculate midpoint
-            const midX = (start.x + end.x) / 2;
-            const midY = (start.y + end.y) / 2;
+            const midX = (side.start.x + side.end.x) / 2;
+            const midY = (side.start.y + side.end.y) / 2;
             
             // Calculate angle for text rotation
-            const angle = Math.atan2(end.y - start.y, end.x - start.x);
+            const angle = Math.atan2(side.end.y - side.start.y, side.end.x - side.start.x);
             
             // Format dimension text
             const inches = length * 0.393701; // Convert to inches
@@ -427,8 +432,8 @@ class RoomDrawingTool extends DrawingTool {
             
             const text = new PIXI.Text(dimensionText, textStyle);
             
-            // Position text offset from the line
-            const offsetDistance = 30;
+            // Position text offset from the line (inside for horizontal, outside for vertical)
+            const offsetDistance = index % 2 === 0 ? -20 : 30; // Negative for top/bottom (inside)
             const perpAngle = angle + Math.PI / 2;
             const offsetX = Math.cos(perpAngle) * offsetDistance;
             const offsetY = Math.sin(perpAngle) * offsetDistance;
@@ -436,24 +441,26 @@ class RoomDrawingTool extends DrawingTool {
             // Draw dimension line
             this.previewGraphics.lineStyle(1, 0x4a90e2, 0.5);
             
-            // Extension lines
-            const extLength = 35;
-            const extX = Math.cos(perpAngle) * extLength;
-            const extY = Math.sin(perpAngle) * extLength;
-            
-            this.previewGraphics.moveTo(start.x, start.y);
-            this.previewGraphics.lineTo(start.x + extX, start.y + extY);
-            
-            this.previewGraphics.moveTo(end.x, end.y);
-            this.previewGraphics.lineTo(end.x + extX, end.y + extY);
-            
-            // Dimension line
-            const dimLineOffset = 30;
-            const dimX = Math.cos(perpAngle) * dimLineOffset;
-            const dimY = Math.sin(perpAngle) * dimLineOffset;
-            
-            this.previewGraphics.moveTo(start.x + dimX, start.y + dimY);
-            this.previewGraphics.lineTo(end.x + dimX, end.y + dimY);
+            // Extension lines (only for outside dimensions)
+            if (index % 2 === 1) {
+                const extLength = 35;
+                const extX = Math.cos(perpAngle) * extLength;
+                const extY = Math.sin(perpAngle) * extLength;
+                
+                this.previewGraphics.moveTo(side.start.x, side.start.y);
+                this.previewGraphics.lineTo(side.start.x + extX, side.start.y + extY);
+                
+                this.previewGraphics.moveTo(side.end.x, side.end.y);
+                this.previewGraphics.lineTo(side.end.x + extX, side.end.y + extY);
+                
+                // Dimension line
+                const dimLineOffset = 30;
+                const dimX = Math.cos(perpAngle) * dimLineOffset;
+                const dimY = Math.sin(perpAngle) * dimLineOffset;
+                
+                this.previewGraphics.moveTo(side.start.x + dimX, side.start.y + dimY);
+                this.previewGraphics.lineTo(side.end.x + dimX, side.end.y + dimY);
+            }
             
             // Create container for background and text
             const labelContainer = new PIXI.Container();
@@ -482,17 +489,17 @@ class RoomDrawingTool extends DrawingTool {
             labelContainer.y = midY + offsetY;
             
             // Rotate text to be readable
-            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+            if (Math.abs(angle) > Math.PI / 2) {
                 labelContainer.rotation = angle + Math.PI;
             } else {
                 labelContainer.rotation = angle;
             }
             
             this.previewGraphics.addChild(labelContainer);
-        }
+        });
         
-        // Draw points
-        points.forEach((point, index) => {
+        // Draw corner points
+        points.forEach(point => {
             this.previewGraphics.beginFill(0xffffff);
             this.previewGraphics.lineStyle(2, 0x4a90e2);
             this.previewGraphics.drawCircle(point.x, point.y, 4);
@@ -519,18 +526,20 @@ class RoomDrawingTool extends DrawingTool {
         return '';
     }
     
-    finishRoom() {
-        if (this.points.length < 3) return;
+    createRectangularRoom(start, end) {
+        // Create rectangle points
+        const points = [
+            { x: start.x, y: start.y },     // Top-left
+            { x: end.x, y: start.y },       // Top-right
+            { x: end.x, y: end.y },         // Bottom-right
+            { x: start.x, y: end.y }        // Bottom-left
+        ];
         
         const room = new window.FloorPlanModels.Room('New Room');
-        this.points.forEach(point => room.addPoint(point));
+        points.forEach(point => room.addPoint(point));
         
         this.floorPlan.addRoom(room);
         this.drawRoom(room);
-        
-        // Reset for next room
-        this.points = [];
-        this.previewGraphics.clear();
         
         // Dispatch event
         window.dispatchEvent(new CustomEvent('roomAdded', { detail: { room } }));

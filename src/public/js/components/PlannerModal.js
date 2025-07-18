@@ -784,7 +784,7 @@ export class PlannerModal {
                             this.drawnObjectsLayer
                         );
                         this.currentTool.activate(this.pixiApp);
-                        this.setStatus('Click to add room corners. Double-click or click near start point to complete. ESC to cancel.');
+                        this.setStatus('Click to set first corner. Move mouse and click again to complete room. ESC to cancel.');
                     } catch (error) {
                         console.error('Error activating room tool:', error);
                         this.setStatus('Error: Could not activate room tool');
