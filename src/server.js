@@ -196,6 +196,10 @@ if (fs.existsSync(staticPath)) {
 app.use(express.static(staticPath));
 console.log('  ✅ Express static middleware configured');
 
+// Serve planner static files  
+app.use('/planner', express.static(path.join(staticPath, 'planner')));
+console.log('  ✅ Planner static files configured');
+
 // Explicitly handle css and js requests for ingress compatibility
 app.get('/css/:filename', (req, res) => {
   console.log('🎨 CSS request:', req.params.filename);
@@ -1600,7 +1604,18 @@ app.get('/', (req, res) => {
 // Planner route
 app.get('/planner', (req, res) => {
   console.log('📐 Planner page requested');
-  res.sendFile(path.join(__dirname, 'public', 'planner', 'index.html'));
+  console.log('  Request URL:', req.url);
+  console.log('  Request path:', req.path);
+  console.log('  Ingress mode:', isIngress);
+  if (req.headers['x-ingress-path']) {
+    console.log('  X-Ingress-Path:', req.headers['x-ingress-path']);
+  }
+  
+  const plannerPath = path.join(__dirname, 'public', 'planner', 'index.html');
+  console.log('  Serving planner from:', plannerPath);
+  console.log('  File exists:', fs.existsSync(plannerPath));
+  
+  res.sendFile(plannerPath);
 });
 
 // Catch-all route for ingress support - must be last!
