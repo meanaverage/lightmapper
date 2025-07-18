@@ -43,7 +43,10 @@ class DrawingTool {
     }
     
     getMousePosition(event) {
-        if (!this.pixiApp || !this.pixiApp.renderer) return { x: 0, y: 0 };
+        if (!this.pixiApp || !this.pixiApp.renderer) {
+            console.warn('No pixiApp or renderer available');
+            return { x: 0, y: 0 };
+        }
         
         const rect = this.canvas.getBoundingClientRect();
         
@@ -56,6 +59,20 @@ class DrawingTool {
         
         // In PixiJS v7, we need to account for the stage's transform (position, scale, etc.)
         const localPoint = this.pixiApp.stage.toLocal(globalPoint);
+        
+        // Debug logging
+        console.log('🎯 getMousePosition debug:', {
+            event: { clientX: event.clientX, clientY: event.clientY },
+            rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+            canvas: { width: this.canvas.width, height: this.canvas.height },
+            calculated: { x, y },
+            globalPoint: { x: globalPoint.x, y: globalPoint.y },
+            localPoint: { x: localPoint.x, y: localPoint.y },
+            stage: {
+                position: this.pixiApp.stage.position,
+                scale: this.pixiApp.stage.scale
+            }
+        });
         
         return this.snapPoint({
             x: localPoint.x,
@@ -90,7 +107,7 @@ class WallDrawingTool extends DrawingTool {
         this.canvas.addEventListener('mousedown', this.handleMouseDown);
         this.canvas.addEventListener('mousemove', this.handleMouseMove);
         this.canvas.addEventListener('mouseup', this.handleMouseUp);
-        this.canvas.addEventListener('keydown', this.handleKeyDown);
+        document.addEventListener('keydown', this.handleKeyDown);
     }
     
     deactivate() {
@@ -98,7 +115,7 @@ class WallDrawingTool extends DrawingTool {
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
         this.canvas.removeEventListener('mouseup', this.handleMouseUp);
-        this.canvas.removeEventListener('keydown', this.handleKeyDown);
+        document.removeEventListener('keydown', this.handleKeyDown);
         
         if (this.previewGraphics) {
             this.pixiApp.stage.removeChild(this.previewGraphics);
@@ -277,13 +294,13 @@ class RoomDrawingTool extends DrawingTool {
         
         this.canvas.addEventListener('mousedown', this.handleMouseDown);
         this.canvas.addEventListener('mousemove', this.handleMouseMove);
-        this.canvas.addEventListener('keydown', this.handleKeyDown);
+        document.addEventListener('keydown', this.handleKeyDown);
     }
     
     deactivate() {
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
-        this.canvas.removeEventListener('keydown', this.handleKeyDown);
+        document.removeEventListener('keydown', this.handleKeyDown);
         
         if (this.previewGraphics) {
             this.pixiApp.stage.removeChild(this.previewGraphics);
@@ -299,11 +316,33 @@ class RoomDrawingTool extends DrawingTool {
     handleMouseDown = (event) => {
         const pos = this.getMousePosition(event);
         
+        // Debug logging
+        console.log('🔴 Room tool mouse down:', {
+            eventX: event.clientX,
+            eventY: event.clientY,
+            calculatedPos: pos,
+            startPoint: this.startPoint,
+            canvas: {
+                width: this.canvas.width,
+                height: this.canvas.height,
+                rect: this.canvas.getBoundingClientRect()
+            }
+        });
+        
         if (!this.startPoint) {
             // First click - set start corner
             this.startPoint = pos;
+            console.log('📍 Room start point set:', this.startPoint);
+            
+            // Draw a debug marker at the click point
+            if (this.previewGraphics) {
+                this.previewGraphics.beginFill(0xff0000);
+                this.previewGraphics.drawCircle(pos.x, pos.y, 5);
+                this.previewGraphics.endFill();
+            }
         } else {
             // Second click - create rectangular room
+            console.log('📦 Creating room from', this.startPoint, 'to', pos);
             this.createRectangularRoom(this.startPoint, pos);
             this.startPoint = null;
             // Clear preview graphics properly

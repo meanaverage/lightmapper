@@ -48,6 +48,7 @@ export class PlannerModal {
                     <div class="planner-canvas-container">
                         <div id="plannerCanvas"></div>
                         <div class="planner-status"></div>
+                        <div class="planner-coords">X: 0, Y: 0</div>
                     </div>
                     <div class="planner-sidebar">
                         <div class="sidebar-header">
@@ -465,6 +466,9 @@ export class PlannerModal {
         
         // Setup panning
         this.setupPanning();
+        
+        // Setup coordinate tracking
+        this.setupCoordinateTracking();
     }
     
     setupPanning() {
@@ -521,6 +525,57 @@ export class PlannerModal {
             if (e.code === 'Space' && this.isSpacePressed) {
                 this.isSpacePressed = false;
                 canvas.style.cursor = 'default';
+            }
+        });
+    }
+    
+    setupCoordinateTracking() {
+        if (!this.container) return;
+        
+        const canvas = this.container.querySelector('#plannerCanvas');
+        const coordsDisplay = this.container.querySelector('.planner-coords');
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!this.pixiApp) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            
+            // Method 1: Basic calculation
+            const basicX = e.clientX - rect.left;
+            const basicY = e.clientY - rect.top;
+            
+            // Method 2: Scaled calculation
+            const scaleX = this.pixiApp.view.width / rect.width;
+            const scaleY = this.pixiApp.view.height / rect.height;
+            const scaledX = basicX * scaleX;
+            const scaledY = basicY * scaleY;
+            
+            // Method 3: Using stage transform
+            const point = new PIXI.Point(scaledX, scaledY);
+            const transformed = this.pixiApp.stage.toLocal(point);
+            
+            // Update display
+            coordsDisplay.innerHTML = `
+                Mouse: ${Math.round(basicX)}, ${Math.round(basicY)}<br>
+                Scaled: ${Math.round(scaledX)}, ${Math.round(scaledY)}<br>
+                World: ${Math.round(transformed.x)}, ${Math.round(transformed.y)}
+            `;
+            
+            // Log for debugging
+            if (e.shiftKey) {
+                console.log('Coordinate Debug:', {
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                    rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+                    basic: { x: basicX, y: basicY },
+                    scaled: { x: scaledX, y: scaledY },
+                    transformed: { x: transformed.x, y: transformed.y },
+                    stage: {
+                        position: this.pixiApp.stage.position,
+                        scale: this.pixiApp.stage.scale,
+                        pivot: this.pixiApp.stage.pivot
+                    }
+                });
             }
         });
     }
