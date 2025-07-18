@@ -148,6 +148,12 @@
     color: #333;
 }
 
+.panel p {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 .tool-section {
     margin-bottom: 24px;
 }

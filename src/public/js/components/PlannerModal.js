@@ -138,6 +138,30 @@ export class PlannerModal {
                                     </button>
                                 </div>
                             </div>
+                            <div class="panel info-panel">
+                                <h2>Info</h2>
+                                <p>Project information will be displayed here.</p>
+                            </div>
+                            <div class="panel objects-panel">
+                                <h2>Objects</h2>
+                                <p>Furniture and object library will be displayed here.</p>
+                            </div>
+                            <div class="panel styleboards-panel">
+                                <h2>Styleboards</h2>
+                                <p>Style and material boards will be displayed here.</p>
+                            </div>
+                            <div class="panel finishes-panel">
+                                <h2>Finishes</h2>
+                                <p>Wall, floor, and ceiling finishes will be displayed here.</p>
+                            </div>
+                            <div class="panel export-panel">
+                                <h2>Export</h2>
+                                <p>Export options will be displayed here.</p>
+                            </div>
+                            <div class="panel help-panel">
+                                <h2>Help</h2>
+                                <p>Help and documentation will be displayed here.</p>
+                            </div>
                         </div>
                     </div>
                     <div class="right-controls">
@@ -187,17 +211,22 @@ export class PlannerModal {
         const sidebarIcons = this.container.querySelectorAll('.sidebar-icon');
         sidebarIcons.forEach(icon => {
             icon.addEventListener('click', () => {
+                const panelName = icon.dataset.panel;
+                console.log('🔧 Sidebar icon clicked:', panelName);
+                
                 // Update active states
                 sidebarIcons.forEach(i => i.classList.remove('active'));
                 icon.classList.add('active');
                 
                 // Show corresponding panel
-                const panelName = icon.dataset.panel;
                 const panels = this.container.querySelectorAll('.panel');
                 panels.forEach(p => p.classList.remove('active'));
                 const targetPanel = this.container.querySelector(`.${panelName}-panel`);
                 if (targetPanel) {
                     targetPanel.classList.add('active');
+                    console.log('✅ Panel found and activated:', panelName);
+                } else {
+                    console.log('❌ Panel not found:', `.${panelName}-panel`);
                 }
             });
         });
