@@ -143,7 +143,11 @@ export class PlannerModal {
         this.drawGrid();
         
         // Initialize floor plan
-        this.floorPlan = new window.FloorPlanModels.FloorPlan('New Floor');
+        if (window.FloorPlanModels) {
+            this.floorPlan = new window.FloorPlanModels.FloorPlan('New Floor');
+        } else {
+            console.error('FloorPlanModels not loaded');
+        }
         
         // Handle resize
         window.addEventListener('resize', () => {
@@ -217,31 +221,57 @@ export class PlannerModal {
         }
         
         // Activate new tool
-        if (this.pixiApp && window.DrawingTools) {
+        if (this.pixiApp) {
             const canvas = this.container.querySelector('canvas');
+            
+            // Check if drawing tools are loaded
+            if (!window.DrawingTools) {
+                console.error('DrawingTools not loaded');
+                this.setStatus('Error: Drawing tools not loaded');
+                return;
+            }
+            
+            if (!this.floorPlan) {
+                console.error('FloorPlan not initialized');
+                this.setStatus('Error: Floor plan not initialized');
+                return;
+            }
             
             switch (toolName) {
                 case 'wall':
-                    this.currentTool = new window.DrawingTools.WallDrawingTool(
-                        canvas,
-                        this.floorPlan
-                    );
-                    this.currentTool.activate(this.pixiApp);
-                    this.setStatus('Click to place wall start point. Click again to complete wall. ESC to cancel.');
+                    try {
+                        this.currentTool = new window.DrawingTools.WallDrawingTool(
+                            canvas,
+                            this.floorPlan
+                        );
+                        this.currentTool.activate(this.pixiApp);
+                        this.setStatus('Click to place wall start point. Click again to complete wall. ESC to cancel.');
+                    } catch (error) {
+                        console.error('Error activating wall tool:', error);
+                        this.setStatus('Error: Could not activate wall tool');
+                    }
                     break;
                 case 'room':
-                    this.currentTool = new window.DrawingTools.RoomDrawingTool(
-                        canvas,
-                        this.floorPlan
-                    );
-                    this.currentTool.activate(this.pixiApp);
-                    this.setStatus('Click to add room corners. Double-click or click near start point to complete. ESC to cancel.');
+                    try {
+                        this.currentTool = new window.DrawingTools.RoomDrawingTool(
+                            canvas,
+                            this.floorPlan
+                        );
+                        this.currentTool.activate(this.pixiApp);
+                        this.setStatus('Click to add room corners. Double-click or click near start point to complete. ESC to cancel.');
+                    } catch (error) {
+                        console.error('Error activating room tool:', error);
+                        this.setStatus('Error: Could not activate room tool');
+                    }
                     break;
                 case 'select':
                 default:
                     this.setStatus('');
                     break;
             }
+        } else {
+            console.error('PixiApp not initialized');
+            this.setStatus('Error: Canvas not initialized');
         }
         
         this.activeTool = toolName;
