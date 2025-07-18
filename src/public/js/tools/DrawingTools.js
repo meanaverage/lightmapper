@@ -120,12 +120,29 @@ class WallDrawingTool extends DrawingTool {
     handleKeyDown = (event) => {
         if (event.key === 'Escape') {
             this.startPoint = null;
+            // Remove all children before clearing
+            while (this.previewGraphics.children.length > 0) {
+                const child = this.previewGraphics.children[0];
+                this.previewGraphics.removeChild(child);
+                if (child.destroy) {
+                    child.destroy();
+                }
+            }
             this.previewGraphics.clear();
         }
     }
     
     drawPreview(start, end) {
         if (!this.previewGraphics) return;
+        
+        // Remove all children (text labels) before clearing
+        while (this.previewGraphics.children.length > 0) {
+            const child = this.previewGraphics.children[0];
+            this.previewGraphics.removeChild(child);
+            if (child.destroy) {
+                child.destroy();
+            }
+        }
         
         this.previewGraphics.clear();
         
@@ -154,14 +171,38 @@ class WallDrawingTool extends DrawingTool {
         };
         
         if (length > 20) {
-            const text = new PIXI.Text(`${Math.round(length)}cm`, {
+            // Create background for text
+            const padding = 4;
+            const textStyle = {
                 fontFamily: 'Arial',
                 fontSize: 12,
                 fill: 0x333333
-            });
-            text.x = midPoint.x - text.width / 2;
-            text.y = midPoint.y - text.height / 2;
-            this.previewGraphics.addChild(text);
+            };
+            
+            const text = new PIXI.Text(`${Math.round(length)}cm`, textStyle);
+            
+            // Create white background
+            const bg = new PIXI.Graphics();
+            bg.beginFill(0xffffff, 0.9);
+            bg.drawRoundedRect(
+                -padding, 
+                -padding, 
+                text.width + padding * 2, 
+                text.height + padding * 2, 
+                3
+            );
+            bg.endFill();
+            
+            // Create container for background and text
+            const labelContainer = new PIXI.Container();
+            labelContainer.addChild(bg);
+            labelContainer.addChild(text);
+            
+            // Position the container
+            labelContainer.x = midPoint.x - text.width / 2;
+            labelContainer.y = midPoint.y - text.height / 2;
+            
+            this.previewGraphics.addChild(labelContainer);
         }
     }
     
