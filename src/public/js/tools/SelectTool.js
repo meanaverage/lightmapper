@@ -14,25 +14,22 @@ class SelectTool {
         this.selectedObject = null;
         this.selectionGraphics = null;
         this.isDragging = false;
+        this.isHandleDragging = false;
         this.dragStart = null;
         this.dragOffset = null;
+        this.dragHandle = null;
         this.hoverObject = null;
         this.handles = [];
+        this.wallHoverType = null; // 'corner' or 'edge'
     }
     
     activate(pixiApp) {
         this.pixiApp = pixiApp;
         this.isActive = true;
         
-        // Get or create graphics for this tool's permanent objects
-        if (!this.graphics) {
-            this.graphics = new PIXI.Graphics();
-            if (this.drawnObjectsLayer) {
-                this.drawnObjectsLayer.addChild(this.graphics);
-            } else {
-                this.pixiApp.stage.addChild(this.graphics);
-            }
-        }
+        // Don't create a new graphics layer - use the existing drawnObjectsLayer
+        // The SelectTool should manipulate objects in the existing layer, not create its own
+        this.graphics = this.drawnObjectsLayer;
         
         // Create selection graphics layer
         this.selectionGraphics = new PIXI.Graphics();
@@ -47,6 +44,9 @@ class SelectTool {
         
         // Make canvas interactive
         this.canvas.style.cursor = 'default';
+        
+        // Initial redraw to ensure all objects are visible
+        this.redrawAll();
     }
     
     deactivate() {
@@ -178,7 +178,55 @@ class SelectTool {
     handleMouseMove = (event) => {
         const pos = this.getMousePosition(event);
         
-        if (this.isDragging && this.selectedObject) {
+        if (this.isHandleDragging && this.selectedObject && this.dragHandle) {
+            // Handle dragging for resizing
+            const dx = pos.x - this.dragStart.x;
+            const dy = pos.y - this.dragStart.y;
+            
+            if (this.selectedObject.type === 'wall') {
+                const wall = this.selectedObject.object;
+                if (this.dragHandle.id === 'wall-start') {
+                    wall.a.x = this.dragOffset.a.x + dx;
+                    wall.a.y = this.dragOffset.a.y + dy;
+                } else if (this.dragHandle.id === 'wall-end') {
+                    wall.b.x = this.dragOffset.b.x + dx;
+                    wall.b.y = this.dragOffset.b.y + dy;
+                }
+            } else if (this.selectedObject.type === 'room') {
+                const room = this.selectedObject.object;
+                const handleIndex = parseInt(this.dragHandle.id.split('-')[2]);
+                
+                if (!isNaN(handleIndex) && handleIndex < room.points.length) {
+                    room.points[handleIndex].x = this.dragOffset[handleIndex].x + dx;
+                    room.points[handleIndex].y = this.dragOffset[handleIndex].y + dy;
+                    
+                    // For rectangular rooms, maintain rectangle shape
+                    if (room.points.length === 4) {
+                        // Adjust adjacent corners to maintain rectangle
+                        if (handleIndex === 0) { // Top-left
+                            room.points[1].y = room.points[0].y;
+                            room.points[3].x = room.points[0].x;
+                        } else if (handleIndex === 1) { // Top-right
+                            room.points[0].y = room.points[1].y;
+                            room.points[2].x = room.points[1].x;
+                        } else if (handleIndex === 2) { // Bottom-right
+                            room.points[3].y = room.points[2].y;
+                            room.points[1].x = room.points[2].x;
+                        } else if (handleIndex === 3) { // Bottom-left
+                            room.points[2].y = room.points[3].y;
+                            room.points[0].x = room.points[3].x;
+                        }
+                    }
+                }
+                
+                // Update room area
+                room.updateArea();
+            }
+            
+            this.redrawAll();
+            this.updateSelection();
+            
+        } else if (this.isDragging && this.selectedObject) {
             // Drag the selected object
             const dx = pos.x - this.dragStart.x;
             const dy = pos.y - this.dragStart.y;
@@ -205,12 +253,18 @@ class SelectTool {
             this.updateSelection();
         } else {
             // Update hover state and cursor
-            const object = this.getObjectAt(pos);
             const handle = this.getHandleAt(pos);
+            const wallHover = this.getWallHoverType(pos);
             
             if (handle) {
                 this.canvas.style.cursor = 'pointer';
-            } else if (object) {
+            } else if (wallHover) {
+                if (wallHover.type === 'corner') {
+                    this.canvas.style.cursor = 'move';
+                } else if (wallHover.type === 'edge') {
+                    this.canvas.style.cursor = wallHover.direction;
+                }
+            } else if (this.getObjectAt(pos)) {
                 this.canvas.style.cursor = 'move';
             } else {
                 this.canvas.style.cursor = 'default';
@@ -220,8 +274,10 @@ class SelectTool {
     
     handleMouseUp = (event) => {
         this.isDragging = false;
+        this.isHandleDragging = false;
         this.dragStart = null;
         this.dragOffset = null;
+        this.dragHandle = null;
     }
     
     handleDoubleClick = (event) => {
@@ -376,6 +432,52 @@ class SelectTool {
         return null;
     }
     
+    getWallHoverType(pos) {
+        if (!this.selectedObject || this.selectedObject.type !== 'wall') return null;
+        
+        const wall = this.selectedObject.object;
+        const cornerRadius = 20;
+        
+        // Check if near corners
+        const distToStart = Math.sqrt((pos.x - wall.a.x) ** 2 + (pos.y - wall.a.y) ** 2);
+        const distToEnd = Math.sqrt((pos.x - wall.b.x) ** 2 + (pos.y - wall.b.y) ** 2);
+        
+        if (distToStart < cornerRadius) {
+            return { type: 'corner', point: 'start' };
+        }
+        if (distToEnd < cornerRadius) {
+            return { type: 'corner', point: 'end' };
+        }
+        
+        // Check if on wall edge
+        const distToWall = this.floorPlan.distanceToLineSegment(pos, wall.a, wall.b);
+        if (distToWall < wall.thickness / 2 + 10) {
+            // Determine cursor direction based on wall angle
+            const angle = wall.getAngle();
+            const isVertical = Math.abs(Math.sin(angle)) > 0.7;
+            const isHorizontal = Math.abs(Math.cos(angle)) > 0.7;
+            
+            let direction = 'move';
+            if (isVertical) {
+                direction = 'ew-resize';
+            } else if (isHorizontal) {
+                direction = 'ns-resize';
+            } else {
+                // Diagonal - determine based on angle
+                const angleDeg = (angle * 180 / Math.PI) % 180;
+                if (angleDeg > -45 && angleDeg < 45) {
+                    direction = 'nesw-resize';
+                } else {
+                    direction = 'nwse-resize';
+                }
+            }
+            
+            return { type: 'edge', direction: direction };
+        }
+        
+        return null;
+    }
+    
     startDrag(pos) {
         this.isDragging = true;
         this.dragStart = pos;
@@ -393,7 +495,21 @@ class SelectTool {
     }
     
     startHandleDrag(handle, pos) {
-        // TODO: Implement handle dragging for resizing
+        this.isHandleDragging = true;
+        this.dragStart = pos;
+        this.dragHandle = handle;
+        
+        // Store original positions based on handle type
+        if (this.selectedObject.type === 'wall') {
+            const wall = this.selectedObject.object;
+            this.dragOffset = {
+                a: { x: wall.a.x, y: wall.a.y },
+                b: { x: wall.b.x, y: wall.b.y }
+            };
+        } else if (this.selectedObject.type === 'room') {
+            const room = this.selectedObject.object;
+            this.dragOffset = room.points.map(p => ({ x: p.x, y: p.y }));
+        }
     }
     
     deleteSelected() {
@@ -420,17 +536,22 @@ class SelectTool {
     redrawAll() {
         console.log('Redrawing all objects');
         
-        // Clear all children (text labels) from graphics first
-        while (this.graphics.children.length > 0) {
-            const child = this.graphics.children[0];
-            this.graphics.removeChild(child);
+        // Since we're using the shared drawnObjectsLayer, we need to clear ALL graphics in it
+        // This includes graphics from other tools
+        
+        // First, clear all children from the layer
+        while (this.drawnObjectsLayer.children.length > 0) {
+            const child = this.drawnObjectsLayer.children[0];
+            this.drawnObjectsLayer.removeChild(child);
             if (child.destroy) {
                 child.destroy();
             }
         }
         
-        // Clear the drawn objects layer
-        this.graphics.clear();
+        // Create a new graphics object for drawing
+        const newGraphics = new PIXI.Graphics();
+        this.drawnObjectsLayer.addChild(newGraphics);
+        this.graphics = newGraphics;
         
         // Redraw all walls
         for (const wall of this.floorPlan.walls) {

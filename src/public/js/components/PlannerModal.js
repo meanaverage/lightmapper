@@ -203,6 +203,9 @@ export class PlannerModal {
         
         // Initialize when first shown
         this.initialized = false;
+        
+        // Initialize the room properties panel
+        this.roomPropertiesPanel = null;
     }
     
     bindEvents() {
@@ -811,6 +814,11 @@ export class PlannerModal {
         });
         
         this.initialized = true;
+        
+        // Initialize the room properties panel
+        if (!this.roomPropertiesPanel && window.RoomPropertiesPanel) {
+            this.roomPropertiesPanel = new window.RoomPropertiesPanel(this.container);
+        }
     }
     
     drawGrid() {

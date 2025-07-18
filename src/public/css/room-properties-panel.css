@@ -1,0 +1,421 @@
+/* Room Properties Panel Styles */
+.room-properties-panel {
+    width: 100%;
+    height: 100%;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.room-panel-header {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 12px;
+    margin: -8px -12px 12px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.back-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.room-header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.room-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.room-name {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0;
+    color: #222;
+}
+
+.room-panel-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.room-preview {
+    height: 200px;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.room-shape {
+    width: 60%;
+    height: 50%;
+    background: #ffdfbf;
+    border-radius: 8px;
+    position: relative;
+}
+
+.room-info {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.room-area {
+    font-size: 24px;
+    font-weight: 600;
+    color: #222;
+}
+
+.property-list {
+    padding: 0;
+}
+
+.property-item {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.property-item:hover {
+    background: #f8f8f8;
+}
+
+.property-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+}
+
+.color-square {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.property-icon i {
+    font-size: 24px;
+    color: #666;
+}
+
+.property-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.property-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.property-value {
+    font-size: 16px;
+    color: #222;
+    font-weight: 500;
+}
+
+.property-item > i {
+    color: #999;
+    font-size: 14px;
+}
+
+/* Sub-panels */
+.room-subpanel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 10;
+}
+
+.subpanel-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.subpanel-back {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.subpanel-back:hover {
+    background: #f0f0f0;
+}
+
+.subpanel-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #222;
+}
+
+.subpanel-content {
+    padding: 20px;
+    overflow-y: auto;
+    height: calc(100% - 80px);
+}
+
+/* Roomtype Panel */
+.roomtype-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.selector-group label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.selector-group select {
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    background: white;
+    cursor: pointer;
+}
+
+.roomtype-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.roomtype-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.roomtype-card:hover {
+    border-color: #4a90e2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.roomtype-card.active {
+    border-color: #4a90e2;
+    background: #f0f7ff;
+}
+
+.card-color {
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #222;
+}
+
+.card-area {
+    font-size: 12px;
+    color: #666;
+}
+
+.card-dots {
+    color: #ddd;
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* Material Panel */
+.material-preview {
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 40px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.material-color {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.material-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.material-code {
+    font-size: 20px;
+    font-weight: 600;
+    color: #222;
+}
+
+.material-name {
+    font-size: 16px;
+    color: #666;
+}
+
+.material-actions {
+    display: flex;
+    flex-direction: column;
+}
+
+.material-action {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.material-action:hover {
+    background: #f8f8f8;
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.material-action i:first-child {
+    width: 24px;
+    color: #666;
+}
+
+.material-action span {
+    flex: 1;
+    font-size: 16px;
+    color: #222;
+}
+
+.material-action i:last-child {
+    color: #999;
+}
+
+/* Settings Panel */
+.settings-group {
+    margin-bottom: 20px;
+}
+
+.settings-group label:not(.checkbox-label) {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.room-name-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.area-display {
+    font-size: 24px;
+    font-weight: 600;
+    color: #222;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #222;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.settings-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 24px 0;
+}
+
+.ceiling-material .property-item {
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
