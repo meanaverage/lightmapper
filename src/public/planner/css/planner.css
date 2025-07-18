@@ -1,0 +1,313 @@
+/* Reset and base styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --dark-darkened: #2c3e50;
+    --text-color: #3d4d59;
+    --light-gray: #f4f4f4;
+    --border-color: #e8e8e8;
+    --sidebar-width: 60px;
+    --tools-width: 300px;
+    --header-height: 60px;
+    --primary-blue: #007bff;
+    --hover-bg: rgba(0, 0, 0, 0.05);
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--text-color);
+    background: #fafafa;
+    overflow: hidden;
+}
+
+/* Main layout container */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background: white;
+}
+
+/* Icon sidebar */
+.icon-sidebar {
+    width: var(--sidebar-width);
+    background: var(--dark-darkened);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12px;
+    z-index: 1000;
+}
+
+.sidebar-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    transition: background-color 0.2s;
+}
+
+.sidebar-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-icon.active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-icon i {
+    font-size: 20px;
+}
+
+/* Tools panel */
+.tools-panel {
+    width: var(--tools-width);
+    background: white;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.tools-header {
+    padding: 18px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tools-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.tools-content {
+    padding: 18px;
+    flex: 1;
+}
+
+/* Main content area */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top toolbar */
+.top-toolbar {
+    height: var(--header-height);
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    gap: 12px;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-right: 1px solid var(--border-color);
+}
+
+.toolbar-group:last-child {
+    border-right: none;
+}
+
+.tool-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 40px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    font-size: 11px;
+    color: var(--text-color);
+}
+
+.tool-button:hover {
+    background: var(--hover-bg);
+}
+
+.tool-button.active {
+    background: var(--light-gray);
+}
+
+.tool-button i {
+    font-size: 18px;
+    margin-bottom: 2px;
+}
+
+/* Canvas area */
+.canvas-container {
+    flex: 1;
+    position: relative;
+    background: #f8f8f8;
+    overflow: hidden;
+}
+
+.pixi-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* View toggle buttons */
+.view-toggle {
+    display: flex;
+    margin-left: auto;
+    background: var(--light-gray);
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.view-button {
+    padding: 6px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: 500;
+    transition: all 0.2s;
+    color: var(--text-color);
+}
+
+.view-button.active {
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Tool categories */
+.tool-category {
+    margin-bottom: 24px;
+}
+
+.tool-category-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #777;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tool-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: 1px solid transparent;
+}
+
+.tool-item:hover {
+    background: var(--hover-bg);
+}
+
+.tool-item.active {
+    background: var(--light-gray);
+    border-color: var(--border-color);
+}
+
+.tool-item i {
+    width: 24px;
+    font-size: 16px;
+    margin-right: 12px;
+    color: #666;
+}
+
+.tool-item span {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Zoom controls */
+.zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+}
+
+.zoom-button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.zoom-button:hover {
+    background: var(--hover-bg);
+}
+
+/* Grid toggle */
+.grid-toggle {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.grid-toggle input {
+    cursor: pointer;
+}
+
+/* Status bar */
+.status-bar {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    display: none;
+}
+
+.status-bar.visible {
+    display: block;
+}

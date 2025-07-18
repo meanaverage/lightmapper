@@ -1597,6 +1597,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Planner route
+app.get('/planner', (req, res) => {
+  console.log('📐 Planner page requested');
+  res.sendFile(path.join(__dirname, 'public', 'planner', 'index.html'));
+});
+
 // Catch-all route for ingress support - must be last!
 app.get('*', (req, res) => {
   console.log('🔗 Catch-all route triggered for path:', req.path);

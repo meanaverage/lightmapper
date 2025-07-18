@@ -107,6 +107,20 @@ export class SettingsBarComponent {
                 </button>
             </div>
             
+            <div class="settings-spacer"></div>
+            
+            <div class="plugin-settings-item">
+                <button class="settings-button" id="plannerToggle">
+                    <svg width="12" height="12" viewBox="0 0 16 16">
+                        <path d="M2 2L2 14L14 14L14 2L2 2ZM3 3L13 3L13 13L3 13L3 3Z" fill="currentColor"/>
+                        <path d="M5 5L11 5L11 6L5 6L5 5Z" fill="currentColor"/>
+                        <path d="M5 8L11 8L11 9L5 9L5 8Z" fill="currentColor"/>
+                        <path d="M5 11L8 11L8 12L5 12L5 11Z" fill="currentColor"/>
+                    </svg>
+                    <span>Open Floor Planner</span>
+                </button>
+            </div>
+            
             <button class="settings-close"></button>
         `;
     }
@@ -182,6 +196,15 @@ export class SettingsBarComponent {
                     measuringToggle.style.color = '';
                 }
             }
+        });
+        
+        // Planner toggle
+        const plannerToggle = content.querySelector('#plannerToggle');
+        plannerToggle.addEventListener('click', () => {
+            // Open planner in new tab
+            window.open('/planner', '_blank');
+            // Close settings panel
+            this.hide();
         });
         
         // Close button
