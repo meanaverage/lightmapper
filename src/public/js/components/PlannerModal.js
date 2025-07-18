@@ -45,8 +45,16 @@ export class PlannerModal {
                     </button>
                 </div>
                 <div class="planner-body">
+                    <div class="planner-canvas-container">
+                        <div id="plannerCanvas"></div>
+                        <div class="planner-status"></div>
+                    </div>
                     <div class="planner-layout">
-                        <div class="icon-sidebar">
+                        <div class="panel-header">
+                            <div class="project-name">Project</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="icon-sidebar">
                             <div class="sidebar-icon active" data-panel="build" title="Build">
                                 <i class="fas fa-hammer"></i>
                                 <span>Build</span>
@@ -162,6 +170,7 @@ export class PlannerModal {
                                 <h2>Help</h2>
                                 <p>Help and documentation will be displayed here.</p>
                             </div>
+                            </div>
                         </div>
                     </div>
                     <div class="right-controls">
@@ -180,10 +189,6 @@ export class PlannerModal {
                             <button class="view-btn active">2D</button>
                             <button class="view-btn">3D</button>
                         </div>
-                    </div>
-                    <div class="planner-canvas-container">
-                        <div id="plannerCanvas"></div>
-                        <div class="planner-status"></div>
                     </div>
                 </div>
             </div>

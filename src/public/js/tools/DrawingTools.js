@@ -377,42 +377,30 @@ class RoomDrawingTool extends DrawingTool {
         this.previewGraphics.closePath();
         this.previewGraphics.endFill();
         
-        // Draw black walls around the room
-        const wallThickness = 15; // Standard wall thickness
+        // Draw black walls as a frame (simple approach for rectangles)
+        const wallThickness = 15;
+        const halfThickness = wallThickness / 2;
         
-        // Draw each wall as a thick black rectangle
-        for (let i = 0; i < points.length; i++) {
-            const start = points[i];
-            const end = points[(i + 1) % points.length];
-            
-            const angle = Math.atan2(end.y - start.y, end.x - start.x);
-            const perpAngle = angle + Math.PI / 2;
-            const halfThickness = wallThickness / 2;
-            
-            const dx = Math.cos(perpAngle) * halfThickness;
-            const dy = Math.sin(perpAngle) * halfThickness;
-            
-            // Draw wall as filled rectangle
-            this.previewGraphics.beginFill(0x000000); // Black
-            this.previewGraphics.lineStyle(0);
-            
-            this.previewGraphics.moveTo(start.x - dx, start.y - dy);
-            this.previewGraphics.lineTo(end.x - dx, end.y - dy);
-            this.previewGraphics.lineTo(end.x + dx, end.y + dy);
-            this.previewGraphics.lineTo(start.x + dx, start.y + dy);
-            this.previewGraphics.closePath();
-            this.previewGraphics.endFill();
-        }
+        // Calculate the bounds
+        const minX = Math.min(start.x, end.x);
+        const maxX = Math.max(start.x, end.x);
+        const minY = Math.min(start.y, end.y);
+        const maxY = Math.max(start.y, end.y);
         
-        // Draw corner joints to close gaps
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-            
-            this.previewGraphics.beginFill(0x000000);
-            this.previewGraphics.lineStyle(0);
-            this.previewGraphics.drawCircle(point.x, point.y, wallThickness / 2);
-            this.previewGraphics.endFill();
-        }
+        // Draw walls as a black frame
+        this.previewGraphics.beginFill(0x000000);
+        this.previewGraphics.lineStyle(0);
+        
+        // Top wall
+        this.previewGraphics.drawRect(minX - halfThickness, minY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Bottom wall
+        this.previewGraphics.drawRect(minX - halfThickness, maxY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Left wall
+        this.previewGraphics.drawRect(minX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        // Right wall
+        this.previewGraphics.drawRect(maxX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        
+        this.previewGraphics.endFill();
         
         // Draw dimension labels for all four sides
         const sides = [
@@ -589,42 +577,30 @@ class RoomDrawingTool extends DrawingTool {
         this.graphics.closePath();
         this.graphics.endFill();
         
-        // Draw black walls around the room
+        // Draw black walls as a frame for rectangular rooms
         const wallThickness = 15;
+        const halfThickness = wallThickness / 2;
         
-        // For a rectangular room, we need to draw each wall and handle corners properly
-        for (let i = 0; i < room.points.length; i++) {
-            const start = room.points[i];
-            const end = room.points[(i + 1) % room.points.length];
-            
-            const angle = Math.atan2(end.y - start.y, end.x - start.x);
-            const perpAngle = angle + Math.PI / 2;
-            const halfThickness = wallThickness / 2;
-            
-            const dx = Math.cos(perpAngle) * halfThickness;
-            const dy = Math.sin(perpAngle) * halfThickness;
-            
-            // Draw wall as filled rectangle
-            this.graphics.beginFill(0x000000);
-            this.graphics.lineStyle(0);
-            
-            this.graphics.moveTo(start.x - dx, start.y - dy);
-            this.graphics.lineTo(end.x - dx, end.y - dy);
-            this.graphics.lineTo(end.x + dx, end.y + dy);
-            this.graphics.lineTo(start.x + dx, start.y + dy);
-            this.graphics.closePath();
-            this.graphics.endFill();
-        }
+        // For rectangular rooms, find the bounds
+        const minX = Math.min(...room.points.map(p => p.x));
+        const maxX = Math.max(...room.points.map(p => p.x));
+        const minY = Math.min(...room.points.map(p => p.y));
+        const maxY = Math.max(...room.points.map(p => p.y));
         
-        // Draw corner joints to close gaps
-        for (let i = 0; i < room.points.length; i++) {
-            const point = room.points[i];
-            
-            this.graphics.beginFill(0x000000);
-            this.graphics.lineStyle(0);
-            this.graphics.drawCircle(point.x, point.y, wallThickness / 2);
-            this.graphics.endFill();
-        }
+        // Draw walls as a black frame
+        this.graphics.beginFill(0x000000);
+        this.graphics.lineStyle(0);
+        
+        // Top wall
+        this.graphics.drawRect(minX - halfThickness, minY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Bottom wall
+        this.graphics.drawRect(minX - halfThickness, maxY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Left wall
+        this.graphics.drawRect(minX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        // Right wall
+        this.graphics.drawRect(maxX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        
+        this.graphics.endFill();
         
         // Draw room label
         const centroid = this.calculateCentroid(room.points);
