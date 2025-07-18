@@ -49,12 +49,11 @@ export class PlannerModal {
                         <div id="plannerCanvas"></div>
                         <div class="planner-status"></div>
                     </div>
-                    <div class="planner-layout">
-                        <div class="panel-header">
+                    <div class="planner-sidebar">
+                        <div class="sidebar-header">
                             <div class="project-name">Project</div>
                         </div>
-                        <div class="panel-body">
-                            <div class="icon-sidebar">
+                        <div class="icon-sidebar">
                             <div class="sidebar-icon active" data-panel="build" title="Build">
                                 <i class="fas fa-hammer"></i>
                                 <span>Build</span>
@@ -84,6 +83,8 @@ export class PlannerModal {
                                 <span>Help</span>
                             </div>
                         </div>
+                    </div>
+                    <div class="planner-panels">
                         <div class="panel-content">
                             <div class="panel build-panel active">
                                 <h2>Build</h2>
@@ -169,7 +170,6 @@ export class PlannerModal {
                             <div class="panel help-panel">
                                 <h2>Help</h2>
                                 <p>Help and documentation will be displayed here.</p>
-                            </div>
                             </div>
                         </div>
                     </div>
