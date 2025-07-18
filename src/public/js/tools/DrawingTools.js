@@ -404,6 +404,16 @@ class RoomDrawingTool extends DrawingTool {
             this.previewGraphics.endFill();
         }
         
+        // Draw corner joints to close gaps
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            
+            this.previewGraphics.beginFill(0x000000);
+            this.previewGraphics.lineStyle(0);
+            this.previewGraphics.drawCircle(point.x, point.y, wallThickness / 2);
+            this.previewGraphics.endFill();
+        }
+        
         // Draw dimension labels for all four sides
         const sides = [
             { start: points[0], end: points[1] }, // Top
@@ -568,8 +578,9 @@ class RoomDrawingTool extends DrawingTool {
     drawRoom(room) {
         if (!this.graphics || room.points.length < 3) return;
         
+        // First draw the room interior (light fill)
         this.graphics.beginFill(0xf0f0f0, 0.5);
-        this.graphics.lineStyle(1, 0x999999);
+        this.graphics.lineStyle(0);
         
         this.graphics.moveTo(room.points[0].x, room.points[0].y);
         for (let i = 1; i < room.points.length; i++) {
@@ -577,6 +588,43 @@ class RoomDrawingTool extends DrawingTool {
         }
         this.graphics.closePath();
         this.graphics.endFill();
+        
+        // Draw black walls around the room
+        const wallThickness = 15;
+        
+        // For a rectangular room, we need to draw each wall and handle corners properly
+        for (let i = 0; i < room.points.length; i++) {
+            const start = room.points[i];
+            const end = room.points[(i + 1) % room.points.length];
+            
+            const angle = Math.atan2(end.y - start.y, end.x - start.x);
+            const perpAngle = angle + Math.PI / 2;
+            const halfThickness = wallThickness / 2;
+            
+            const dx = Math.cos(perpAngle) * halfThickness;
+            const dy = Math.sin(perpAngle) * halfThickness;
+            
+            // Draw wall as filled rectangle
+            this.graphics.beginFill(0x000000);
+            this.graphics.lineStyle(0);
+            
+            this.graphics.moveTo(start.x - dx, start.y - dy);
+            this.graphics.lineTo(end.x - dx, end.y - dy);
+            this.graphics.lineTo(end.x + dx, end.y + dy);
+            this.graphics.lineTo(start.x + dx, start.y + dy);
+            this.graphics.closePath();
+            this.graphics.endFill();
+        }
+        
+        // Draw corner joints to close gaps
+        for (let i = 0; i < room.points.length; i++) {
+            const point = room.points[i];
+            
+            this.graphics.beginFill(0x000000);
+            this.graphics.lineStyle(0);
+            this.graphics.drawCircle(point.x, point.y, wallThickness / 2);
+            this.graphics.endFill();
+        }
         
         // Draw room label
         const centroid = this.calculateCentroid(room.points);
