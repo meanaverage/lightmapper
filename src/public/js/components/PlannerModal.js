@@ -104,12 +104,19 @@ export class PlannerModal {
             }
         });
         
-        // ESC key to close
-        document.addEventListener('keydown', (e) => {
+        // ESC key to close - but only if no tool is active
+        this.escapeHandler = (e) => {
             if (e.key === 'Escape' && this.isVisible) {
+                // If a tool is active, let it handle ESC first
+                if (this.currentTool && this.activeTool !== 'select') {
+                    // Tool will handle it
+                    return;
+                }
+                // Otherwise close the modal
                 this.hide();
             }
-        });
+        };
+        document.addEventListener('keydown', this.escapeHandler);
     }
     
     initializePixi() {
@@ -134,9 +141,11 @@ export class PlannerModal {
         
         // Create layers
         this.gridGraphics = new PIXI.Graphics();
-        this.toolsLayer = new PIXI.Container();
+        this.drawnObjectsLayer = new PIXI.Container(); // Persistent layer for drawn walls/rooms
+        this.toolsLayer = new PIXI.Container(); // Temporary layer for tool previews
         
         this.pixiApp.stage.addChild(this.gridGraphics);
+        this.pixiApp.stage.addChild(this.drawnObjectsLayer);
         this.pixiApp.stage.addChild(this.toolsLayer);
         
         // Draw grid
@@ -242,7 +251,8 @@ export class PlannerModal {
                     try {
                         this.currentTool = new window.DrawingTools.WallDrawingTool(
                             canvas,
-                            this.floorPlan
+                            this.floorPlan,
+                            this.drawnObjectsLayer
                         );
                         this.currentTool.activate(this.pixiApp);
                         this.setStatus('Click to place wall start point. Click again to complete wall. ESC to cancel.');
@@ -255,7 +265,8 @@ export class PlannerModal {
                     try {
                         this.currentTool = new window.DrawingTools.RoomDrawingTool(
                             canvas,
-                            this.floorPlan
+                            this.floorPlan,
+                            this.drawnObjectsLayer
                         );
                         this.currentTool.activate(this.pixiApp);
                         this.setStatus('Click to add room corners. Double-click or click near start point to complete. ESC to cancel.');

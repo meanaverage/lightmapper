@@ -1,11 +1,12 @@
 // Drawing tools for the floor planner
 
 class DrawingTool {
-    constructor(canvas, floorPlan) {
+    constructor(canvas, floorPlan, drawnObjectsLayer) {
         this.canvas = canvas;
         this.floorPlan = floorPlan;
+        this.drawnObjectsLayer = drawnObjectsLayer; // Layer for permanent objects
         this.pixiApp = null;
-        this.graphics = null;
+        this.graphics = null; // For permanent drawn objects
         this.isActive = false;
         this.snapToGrid = true;
         this.gridSize = 20;
@@ -14,17 +15,22 @@ class DrawingTool {
     activate(pixiApp) {
         this.pixiApp = pixiApp;
         this.isActive = true;
-        this.graphics = new PIXI.Graphics();
-        this.pixiApp.stage.addChild(this.graphics);
+        // Get or create graphics for this tool's permanent objects
+        if (!this.graphics) {
+            this.graphics = new PIXI.Graphics();
+            if (this.drawnObjectsLayer) {
+                this.drawnObjectsLayer.addChild(this.graphics);
+            } else {
+                // Fallback to stage if no layer provided
+                this.pixiApp.stage.addChild(this.graphics);
+            }
+        }
     }
     
     deactivate() {
         this.isActive = false;
-        if (this.graphics) {
-            this.pixiApp.stage.removeChild(this.graphics);
-            this.graphics.destroy();
-            this.graphics = null;
-        }
+        // Keep the graphics layer - it contains our drawn walls/rooms
+        // Only preview graphics should be cleared in subclasses
     }
     
     snapPoint(point) {
@@ -47,8 +53,8 @@ class DrawingTool {
 }
 
 class WallDrawingTool extends DrawingTool {
-    constructor(canvas, floorPlan) {
-        super(canvas, floorPlan);
+    constructor(canvas, floorPlan, drawnObjectsLayer) {
+        super(canvas, floorPlan, drawnObjectsLayer);
         this.startPoint = null;
         this.tempWall = null;
         this.wallThickness = 15;
@@ -229,8 +235,8 @@ class WallDrawingTool extends DrawingTool {
 }
 
 class RoomDrawingTool extends DrawingTool {
-    constructor(canvas, floorPlan) {
-        super(canvas, floorPlan);
+    constructor(canvas, floorPlan, drawnObjectsLayer) {
+        super(canvas, floorPlan, drawnObjectsLayer);
         this.points = [];
         this.tempRoom = null;
         this.previewGraphics = null;
