@@ -1,8 +1,16 @@
 // Selection tool for the floor planner
 
-class SelectTool extends DrawingTool {
+class SelectTool {
     constructor(canvas, floorPlan, drawnObjectsLayer) {
-        super(canvas, floorPlan, drawnObjectsLayer);
+        this.canvas = canvas;
+        this.floorPlan = floorPlan;
+        this.drawnObjectsLayer = drawnObjectsLayer;
+        this.pixiApp = null;
+        this.graphics = null;
+        this.isActive = false;
+        this.snapToGrid = true;
+        this.gridSize = 20;
+        
         this.selectedObject = null;
         this.selectionGraphics = null;
         this.isDragging = false;
@@ -13,7 +21,18 @@ class SelectTool extends DrawingTool {
     }
     
     activate(pixiApp) {
-        super.activate(pixiApp);
+        this.pixiApp = pixiApp;
+        this.isActive = true;
+        
+        // Get or create graphics for this tool's permanent objects
+        if (!this.graphics) {
+            this.graphics = new PIXI.Graphics();
+            if (this.drawnObjectsLayer) {
+                this.drawnObjectsLayer.addChild(this.graphics);
+            } else {
+                this.pixiApp.stage.addChild(this.graphics);
+            }
+        }
         
         // Create selection graphics layer
         this.selectionGraphics = new PIXI.Graphics();
@@ -50,21 +69,97 @@ class SelectTool extends DrawingTool {
         // Reset cursor
         this.canvas.style.cursor = 'default';
         
-        super.deactivate();
+        this.isActive = false;
+    }
+    
+    getMousePosition(event) {
+        if (!this.pixiApp || !this.pixiApp.renderer) {
+            console.warn('No pixiApp or renderer available');
+            return { x: 0, y: 0 };
+        }
+        
+        // Get the actual PixiJS canvas
+        const pixiCanvas = this.pixiApp.view;
+        const rect = pixiCanvas.getBoundingClientRect();
+        
+        // Get mouse position relative to canvas
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // In PixiJS v7, we should use the interaction manager if available
+        // Otherwise, we need to account for resolution and any CSS scaling
+        let worldX, worldY;
+        
+        // Check if there's any CSS scaling on the canvas
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+        const resolution = this.pixiApp.renderer.resolution || 1;
+        
+        // The actual canvas size might be different from CSS size due to resolution
+        const actualWidth = pixiCanvas.width / resolution;
+        const actualHeight = pixiCanvas.height / resolution;
+        
+        // Calculate scale factors
+        const scaleX = actualWidth / cssWidth;
+        const scaleY = actualHeight / cssHeight;
+        
+        // Apply scaling
+        const scaledX = x * scaleX;
+        const scaledY = y * scaleY;
+        
+        // Now transform to world coordinates using stage transform
+        const stageTransform = this.pixiApp.stage.worldTransform;
+        
+        // If we have a world transform, use it to convert to world space
+        if (stageTransform) {
+            // Create a temporary point for transformation
+            const tempPoint = new PIXI.Point();
+            
+            // Apply the inverse transform to get world coordinates
+            stageTransform.applyInverse({x: scaledX, y: scaledY}, tempPoint);
+            
+            worldX = tempPoint.x;
+            worldY = tempPoint.y;
+        } else {
+            // Fallback: account for stage position and scale manually
+            const stageScale = this.pixiApp.stage.scale.x; // Assuming uniform scale
+            const stageX = this.pixiApp.stage.position.x;
+            const stageY = this.pixiApp.stage.position.y;
+            
+            worldX = (scaledX - stageX) / stageScale;
+            worldY = (scaledY - stageY) / stageScale;
+        }
+        
+        return this.snapPoint({
+            x: worldX,
+            y: worldY
+        });
+    }
+    
+    snapPoint(point) {
+        if (!this.snapToGrid) return point;
+        
+        return {
+            x: Math.round(point.x / this.gridSize) * this.gridSize,
+            y: Math.round(point.y / this.gridSize) * this.gridSize
+        };
     }
     
     handleMouseDown = (event) => {
         const pos = this.getMousePosition(event);
+        console.log('SelectTool mouseDown at:', pos);
         
         // Check if clicking on a handle
         const handle = this.getHandleAt(pos);
         if (handle) {
+            console.log('Clicking on handle:', handle);
             this.startHandleDrag(handle, pos);
             return;
         }
         
         // Check if clicking on selected object (to drag)
         if (this.selectedObject && this.isPointOnObject(pos, this.selectedObject)) {
+            console.log('Starting drag of selected object:', this.selectedObject);
             this.startDrag(pos);
             return;
         }
@@ -72,8 +167,10 @@ class SelectTool extends DrawingTool {
         // Otherwise, try to select an object
         const object = this.getObjectAt(pos);
         if (object) {
+            console.log('Selecting object:', object);
             this.selectObject(object);
         } else {
+            console.log('No object found at position, clearing selection');
             this.clearSelection();
         }
     }
@@ -86,15 +183,19 @@ class SelectTool extends DrawingTool {
             const dx = pos.x - this.dragStart.x;
             const dy = pos.y - this.dragStart.y;
             
+            console.log('Dragging:', { dx, dy, selectedObject: this.selectedObject });
+            
             if (this.selectedObject.type === 'wall') {
-                // Update wall position
-                this.selectedObject.a.x = this.dragOffset.a.x + dx;
-                this.selectedObject.a.y = this.dragOffset.a.y + dy;
-                this.selectedObject.b.x = this.dragOffset.b.x + dx;
-                this.selectedObject.b.y = this.dragOffset.b.y + dy;
+                // Update wall position - note we need to update the actual wall object
+                const wall = this.selectedObject.object;
+                wall.a.x = this.dragOffset.a.x + dx;
+                wall.a.y = this.dragOffset.a.y + dy;
+                wall.b.x = this.dragOffset.b.x + dx;
+                wall.b.y = this.dragOffset.b.y + dy;
             } else if (this.selectedObject.type === 'room') {
-                // Update room points
-                this.selectedObject.points.forEach((point, index) => {
+                // Update room points - note we need to update the actual room object
+                const room = this.selectedObject.object;
+                room.points.forEach((point, index) => {
                     point.x = this.dragOffset[index].x + dx;
                     point.y = this.dragOffset[index].y + dy;
                 });
@@ -317,6 +418,17 @@ class SelectTool extends DrawingTool {
     }
     
     redrawAll() {
+        console.log('Redrawing all objects');
+        
+        // Clear all children (text labels) from graphics first
+        while (this.graphics.children.length > 0) {
+            const child = this.graphics.children[0];
+            this.graphics.removeChild(child);
+            if (child.destroy) {
+                child.destroy();
+            }
+        }
+        
         // Clear the drawn objects layer
         this.graphics.clear();
         
@@ -352,8 +464,9 @@ class SelectTool extends DrawingTool {
     drawRoom(room) {
         if (room.points.length < 3) return;
         
+        // First draw the room interior (light fill)
         this.graphics.beginFill(0xf0f0f0, 0.5);
-        this.graphics.lineStyle(1, 0x999999);
+        this.graphics.lineStyle(0);
         
         this.graphics.moveTo(room.points[0].x, room.points[0].y);
         for (let i = 1; i < room.points.length; i++) {
@@ -361,6 +474,54 @@ class SelectTool extends DrawingTool {
         }
         this.graphics.closePath();
         this.graphics.endFill();
+        
+        // Draw black walls as a frame for rectangular rooms
+        const wallThickness = 15;
+        const halfThickness = wallThickness / 2;
+        
+        // For rectangular rooms, find the bounds
+        const minX = Math.min(...room.points.map(p => p.x));
+        const maxX = Math.max(...room.points.map(p => p.x));
+        const minY = Math.min(...room.points.map(p => p.y));
+        const maxY = Math.max(...room.points.map(p => p.y));
+        
+        // Draw walls as a black frame
+        this.graphics.beginFill(0x000000);
+        this.graphics.lineStyle(0);
+        
+        // Top wall
+        this.graphics.drawRect(minX - halfThickness, minY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Bottom wall
+        this.graphics.drawRect(minX - halfThickness, maxY - halfThickness, maxX - minX + wallThickness, wallThickness);
+        // Left wall
+        this.graphics.drawRect(minX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        // Right wall
+        this.graphics.drawRect(maxX - halfThickness, minY - halfThickness, wallThickness, maxY - minY + wallThickness);
+        
+        this.graphics.endFill();
+        
+        // Draw room label
+        const centroid = this.calculateCentroid(room.points);
+        const text = new PIXI.Text(room.name, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0x333333
+        });
+        text.x = centroid.x - text.width / 2;
+        text.y = centroid.y - text.height / 2;
+        this.graphics.addChild(text);
+    }
+    
+    calculateCentroid(points) {
+        let x = 0, y = 0;
+        points.forEach(point => {
+            x += point.x;
+            y += point.y;
+        });
+        return {
+            x: x / points.length,
+            y: y / points.length
+        };
     }
 }
 
