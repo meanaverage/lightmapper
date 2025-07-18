@@ -214,17 +214,29 @@ export class PlannerModal {
                 const panelName = icon.dataset.panel;
                 console.log('🔧 Sidebar icon clicked:', panelName);
                 
+                // Debug panel-content visibility
+                const panelContent = this.container.querySelector('.panel-content');
+                console.log('Panel content display:', window.getComputedStyle(panelContent).display);
+                console.log('Panel content visibility:', window.getComputedStyle(panelContent).visibility);
+                
                 // Update active states
                 sidebarIcons.forEach(i => i.classList.remove('active'));
                 icon.classList.add('active');
                 
                 // Show corresponding panel
                 const panels = this.container.querySelectorAll('.panel');
-                panels.forEach(p => p.classList.remove('active'));
+                console.log('Found panels:', panels.length);
+                panels.forEach(p => {
+                    p.classList.remove('active');
+                    console.log('Removing active from:', p.className);
+                });
+                
                 const targetPanel = this.container.querySelector(`.${panelName}-panel`);
                 if (targetPanel) {
                     targetPanel.classList.add('active');
                     console.log('✅ Panel found and activated:', panelName);
+                    console.log('Panel classes after activation:', targetPanel.className);
+                    console.log('Panel display style:', window.getComputedStyle(targetPanel).display);
                 } else {
                     console.log('❌ Panel not found:', `.${panelName}-panel`);
                 }

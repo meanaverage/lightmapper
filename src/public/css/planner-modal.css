@@ -80,7 +80,11 @@
     left: 0;
     top: 0;
     bottom: 0;
-    z-index: 10;
+    right: auto;
+    height: 100%;
+    z-index: 100;
+    background: white;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .icon-sidebar {
@@ -127,9 +131,11 @@
 
 .panel-content {
     width: 300px;
+    height: 100%;
     background: white;
     border-right: 1px solid #e0e0e0;
     overflow-y: auto;
+    position: relative;
 }
 
 .panel {
@@ -423,6 +429,7 @@
     position: relative;
     background: #f0f0f0;
     overflow: hidden;
+    margin-left: 360px; /* Width of icon-sidebar (60px) + panel-content (300px) */
 }
 
 #plannerCanvas {
