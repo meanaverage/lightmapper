@@ -201,8 +201,12 @@ export class SettingsBarComponent {
         // Planner toggle
         const plannerToggle = content.querySelector('#plannerToggle');
         plannerToggle.addEventListener('click', () => {
+            // Get the base path for ingress support
+            const basePath = window.location.pathname.replace(/\/$/, '').replace(/\/index\.html$/, '');
+            const plannerUrl = basePath ? `${basePath}/planner` : '/planner';
+            
             // Open planner in new tab
-            window.open('/planner', '_blank');
+            window.open(plannerUrl, '_blank');
             // Close settings panel
             this.hide();
         });
