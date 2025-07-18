@@ -538,42 +538,83 @@ export class PlannerModal {
         canvas.addEventListener('mousemove', (e) => {
             if (!this.pixiApp) return;
             
-            const rect = canvas.getBoundingClientRect();
+            const pixiCanvas = this.pixiApp.view;
+            const rect = pixiCanvas.getBoundingClientRect();
             
-            // Method 1: Basic calculation
-            const basicX = e.clientX - rect.left;
-            const basicY = e.clientY - rect.top;
+            // Get mouse position relative to canvas
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            // Method 2: Scaled calculation
-            const scaleX = this.pixiApp.view.width / rect.width;
-            const scaleY = this.pixiApp.view.height / rect.height;
-            const scaledX = basicX * scaleX;
-            const scaledY = basicY * scaleY;
+            // Check for any CSS scaling
+            const cssWidth = rect.width;
+            const cssHeight = rect.height;
+            const resolution = this.pixiApp.renderer.resolution || 1;
             
-            // Method 3: Using stage transform
-            const point = new PIXI.Point(scaledX, scaledY);
-            const transformed = this.pixiApp.stage.toLocal(point);
+            // The actual canvas size might be different from CSS size
+            const actualWidth = pixiCanvas.width / resolution;
+            const actualHeight = pixiCanvas.height / resolution;
+            
+            // Calculate scale factors
+            const scaleX = actualWidth / cssWidth;
+            const scaleY = actualHeight / cssHeight;
+            
+            // Apply scaling
+            const scaledX = x * scaleX;
+            const scaledY = y * scaleY;
+            
+            // Transform to world coordinates
+            let worldX, worldY;
+            const stageTransform = this.pixiApp.stage.worldTransform;
+            
+            if (stageTransform) {
+                const tempPoint = new PIXI.Point();
+                stageTransform.applyInverse({x: scaledX, y: scaledY}, tempPoint);
+                worldX = tempPoint.x;
+                worldY = tempPoint.y;
+            } else {
+                const stageScale = this.pixiApp.stage.scale.x;
+                const stageX = this.pixiApp.stage.position.x;
+                const stageY = this.pixiApp.stage.position.y;
+                worldX = (scaledX - stageX) / stageScale;
+                worldY = (scaledY - stageY) / stageScale;
+            }
+            
+            // Snap to grid for display
+            const gridSize = 20;
+            const snappedX = Math.round(worldX / gridSize) * gridSize;
+            const snappedY = Math.round(worldY / gridSize) * gridSize;
             
             // Update display
             coordsDisplay.innerHTML = `
-                Mouse: ${Math.round(basicX)}, ${Math.round(basicY)}<br>
-                Scaled: ${Math.round(scaledX)}, ${Math.round(scaledY)}<br>
-                World: ${Math.round(transformed.x)}, ${Math.round(transformed.y)}
+                Canvas: ${Math.round(x)}, ${Math.round(y)}<br>
+                World: ${Math.round(worldX)}, ${Math.round(worldY)}<br>
+                Grid: ${snappedX}, ${snappedY}
             `;
             
-            // Log for debugging
+            // Log for debugging with Shift key
             if (e.shiftKey) {
                 console.log('Coordinate Debug:', {
-                    clientX: e.clientX,
-                    clientY: e.clientY,
-                    rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-                    basic: { x: basicX, y: basicY },
+                    event: { clientX: e.clientX, clientY: e.clientY },
+                    rect: { left: rect.left, top: rect.top, width: cssWidth, height: cssHeight },
+                    canvas: { 
+                        cssWidth, 
+                        cssHeight, 
+                        actualWidth, 
+                        actualHeight,
+                        pixelWidth: pixiCanvas.width,
+                        pixelHeight: pixiCanvas.height
+                    },
+                    resolution: resolution,
+                    scale: { x: scaleX, y: scaleY },
+                    mouseRelative: { x, y },
                     scaled: { x: scaledX, y: scaledY },
-                    transformed: { x: transformed.x, y: transformed.y },
+                    world: { x: worldX, y: worldY },
+                    snapped: { x: snappedX, y: snappedY },
                     stage: {
                         position: this.pixiApp.stage.position,
                         scale: this.pixiApp.stage.scale,
-                        pivot: this.pixiApp.stage.pivot
+                        pivot: this.pixiApp.stage.pivot,
+                        transform: stageTransform ? 'available' : 'not available'
                     }
                 });
             }

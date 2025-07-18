@@ -48,35 +48,87 @@ class DrawingTool {
             return { x: 0, y: 0 };
         }
         
-        const rect = this.canvas.getBoundingClientRect();
+        // Get the actual PixiJS canvas
+        const pixiCanvas = this.pixiApp.view;
+        const rect = pixiCanvas.getBoundingClientRect();
         
         // Get mouse position relative to canvas
-        const x = (event.clientX - rect.left) * (this.canvas.width / rect.width);
-        const y = (event.clientY - rect.top) * (this.canvas.height / rect.height);
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
         
-        // Create a point and transform it using the stage's transform
-        const globalPoint = new PIXI.Point(x, y);
+        // In PixiJS v7, we should use the interaction manager if available
+        // Otherwise, we need to account for resolution and any CSS scaling
+        let worldX, worldY;
         
-        // In PixiJS v7, we need to account for the stage's transform (position, scale, etc.)
-        const localPoint = this.pixiApp.stage.toLocal(globalPoint);
+        // Check if there's any CSS scaling on the canvas
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+        const resolution = this.pixiApp.renderer.resolution || 1;
         
-        // Debug logging
-        console.log('🎯 getMousePosition debug:', {
+        // The actual canvas size might be different from CSS size due to resolution
+        const actualWidth = pixiCanvas.width / resolution;
+        const actualHeight = pixiCanvas.height / resolution;
+        
+        // Calculate scale factors
+        const scaleX = actualWidth / cssWidth;
+        const scaleY = actualHeight / cssHeight;
+        
+        // Apply scaling
+        const scaledX = x * scaleX;
+        const scaledY = y * scaleY;
+        
+        // Now transform to world coordinates using stage transform
+        const stageTransform = this.pixiApp.stage.worldTransform;
+        
+        // If we have a world transform, use it to convert to world space
+        if (stageTransform) {
+            // Create a temporary point for transformation
+            const tempPoint = new PIXI.Point();
+            
+            // Apply the inverse transform to get world coordinates
+            stageTransform.applyInverse({x: scaledX, y: scaledY}, tempPoint);
+            
+            worldX = tempPoint.x;
+            worldY = tempPoint.y;
+        } else {
+            // Fallback: account for stage position and scale manually
+            const stageScale = this.pixiApp.stage.scale.x; // Assuming uniform scale
+            const stageX = this.pixiApp.stage.position.x;
+            const stageY = this.pixiApp.stage.position.y;
+            
+            worldX = (scaledX - stageX) / stageScale;
+            worldY = (scaledY - stageY) / stageScale;
+        }
+        
+        // Debug logging - expanded
+        const debugInfo = {
             event: { clientX: event.clientX, clientY: event.clientY },
-            rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-            canvas: { width: this.canvas.width, height: this.canvas.height },
-            calculated: { x, y },
-            globalPoint: { x: globalPoint.x, y: globalPoint.y },
-            localPoint: { x: localPoint.x, y: localPoint.y },
+            rect: { left: rect.left, top: rect.top, width: cssWidth, height: cssHeight },
+            canvas: { 
+                cssWidth, 
+                cssHeight, 
+                actualWidth, 
+                actualHeight,
+                pixelWidth: pixiCanvas.width,
+                pixelHeight: pixiCanvas.height
+            },
+            resolution: resolution,
+            scale: { x: scaleX, y: scaleY },
+            mouseRelative: { x, y },
+            scaled: { x: scaledX, y: scaledY },
+            world: { x: worldX, y: worldY },
             stage: {
                 position: this.pixiApp.stage.position,
-                scale: this.pixiApp.stage.scale
+                scale: this.pixiApp.stage.scale,
+                pivot: this.pixiApp.stage.pivot
             }
-        });
+        };
+        
+        console.log('🎯 getMousePosition debug:', debugInfo);
         
         return this.snapPoint({
-            x: localPoint.x,
-            y: localPoint.y
+            x: worldX,
+            y: worldY
         });
     }
 }
@@ -166,6 +218,9 @@ class WallDrawingTool extends DrawingTool {
     
     handleKeyDown = (event) => {
         if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            
             this.startPoint = null;
             // Remove all children before clearing
             while (this.previewGraphics.children.length > 0) {
@@ -333,13 +388,6 @@ class RoomDrawingTool extends DrawingTool {
             // First click - set start corner
             this.startPoint = pos;
             console.log('📍 Room start point set:', this.startPoint);
-            
-            // Draw a debug marker at the click point
-            if (this.previewGraphics) {
-                this.previewGraphics.beginFill(0xff0000);
-                this.previewGraphics.drawCircle(pos.x, pos.y, 5);
-                this.previewGraphics.endFill();
-            }
         } else {
             // Second click - create rectangular room
             console.log('📦 Creating room from', this.startPoint, 'to', pos);
@@ -366,6 +414,9 @@ class RoomDrawingTool extends DrawingTool {
     
     handleKeyDown = (event) => {
         if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            
             this.startPoint = null;
             // Clear preview graphics properly
             while (this.previewGraphics.children.length > 0) {
