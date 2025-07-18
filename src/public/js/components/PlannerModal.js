@@ -292,6 +292,21 @@ export class PlannerModal {
                     }
                     break;
                 case 'select':
+                    try {
+                        // Use the actual PixiJS canvas element
+                        const pixiCanvas = this.pixiApp.view;
+                        this.currentTool = new window.DrawingTools.SelectTool(
+                            pixiCanvas,
+                            this.floorPlan,
+                            this.drawnObjectsLayer
+                        );
+                        this.currentTool.activate(this.pixiApp);
+                        this.setStatus('Click to select objects. Drag to move. Delete key to remove.');
+                    } catch (error) {
+                        console.error('Error activating select tool:', error);
+                        this.setStatus('Error: Could not activate select tool');
+                    }
+                    break;
                 default:
                     this.setStatus('');
                     break;
