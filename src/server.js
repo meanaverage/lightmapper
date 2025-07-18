@@ -1601,12 +1601,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Planner route
+// Move planner routes BEFORE the static middleware to handle them properly
+// Planner HTML route
 app.get('/planner', (req, res) => {
   console.log('📐 Planner page requested');
   console.log('  Request URL:', req.url);
   console.log('  Request path:', req.path);
   console.log('  Ingress mode:', isIngress);
+  console.log('  All headers:', JSON.stringify(req.headers, null, 2));
+  
   if (req.headers['x-ingress-path']) {
     console.log('  X-Ingress-Path:', req.headers['x-ingress-path']);
   }
@@ -1616,6 +1619,19 @@ app.get('/planner', (req, res) => {
   console.log('  File exists:', fs.existsSync(plannerPath));
   
   res.sendFile(plannerPath);
+});
+
+// Planner static files routes - handle CSS, JS, etc.
+app.get('/planner/css/*', (req, res) => {
+  const filename = req.params[0];
+  console.log('🎨 Planner CSS request:', filename);
+  res.sendFile(path.join(__dirname, 'public', 'planner', 'css', filename));
+});
+
+app.get('/planner/js/*', (req, res) => {
+  const filename = req.params[0];
+  console.log('📜 Planner JS request:', filename);
+  res.sendFile(path.join(__dirname, 'public', 'planner', 'js', filename));
 });
 
 // Catch-all route for ingress support - must be last!

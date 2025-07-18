@@ -201,81 +201,15 @@ export class SettingsBarComponent {
         // Planner toggle
         const plannerToggle = content.querySelector('#plannerToggle');
         plannerToggle.addEventListener('click', () => {
-            // Get the base URL for ingress support
-            let plannerUrl = '/planner';
+            // For ingress compatibility, just use a simple relative path
+            // This should work whether accessed directly or through ingress
+            const plannerUrl = 'planner';
             
-            // Check if we're running inside Home Assistant
-            const currentUrl = window.location.href;
-            const currentPath = window.location.pathname;
-            const currentOrigin = window.location.origin;
+            console.log('Opening planner with relative URL:', plannerUrl);
             
-            console.log('=== Planner Navigation Debug ===');
-            console.log('Current URL:', currentUrl);
-            console.log('Current path:', currentPath);
-            console.log('Current origin:', currentOrigin);
-            console.log('Window location:', window.location);
-            
-            // Check if we're in an iframe (typical for HA ingress)
-            const inIframe = window.parent !== window;
-            console.log('In iframe:', inIframe);
-            
-            // Try multiple methods to detect ingress
-            // Method 1: Check the referrer
-            if (document.referrer) {
-                console.log('Document referrer:', document.referrer);
-                const referrerMatch = document.referrer.match(/\/hassio\/ingress\/([^\/]+)/);
-                if (referrerMatch) {
-                    const addonId = referrerMatch[1];
-                    plannerUrl = `${currentOrigin}/hassio/ingress/${addonId}/planner`;
-                    console.log('Detected addon ID from referrer:', addonId);
-                }
-            }
-            
-            // Method 2: Check if we have the X-Ingress-Path header info stored
-            if (window.INGRESS_PATH) {
-                plannerUrl = `${window.INGRESS_PATH}/planner`;
-                console.log('Using stored ingress path:', window.INGRESS_PATH);
-            }
-            
-            // Method 3: Try to get from the iframe parent URL if we're in an iframe
-            if (inIframe) {
-                try {
-                    const parentUrl = window.parent.location.href;
-                    console.log('Parent URL:', parentUrl);
-                    const parentMatch = parentUrl.match(/\/hassio\/ingress\/([^\/]+)/);
-                    if (parentMatch) {
-                        const addonId = parentMatch[1];
-                        plannerUrl = `${currentOrigin}/hassio/ingress/${addonId}/planner`;
-                        console.log('Detected addon ID from parent:', addonId);
-                    }
-                } catch (e) {
-                    console.log('Cannot access parent URL (cross-origin):', e.message);
-                }
-            }
-            
-            // Method 4: If we're on port 8123, assume we need ingress
-            if (currentOrigin.includes(':8123') && plannerUrl === '/planner') {
-                // Try to construct ingress URL with known patterns
-                // First check if this looks like a local HA instance
-                console.log('Port 8123 detected, attempting ingress URL construction');
-                
-                // Look for any signs we're in HA
-                const isHomeAssistant = document.querySelector('home-assistant') || 
-                                       document.querySelector('ha-panel-iframe') ||
-                                       window.hassConnection;
-                
-                if (isHomeAssistant) {
-                    console.log('Home Assistant detected');
-                    // Use a relative path that might work
-                    plannerUrl = './planner';
-                }
-            }
-            
-            console.log('Final planner URL:', plannerUrl);
-            console.log('=== End Debug ===');
-            
-            // Open planner
+            // Navigate to planner using relative path
             window.location.href = plannerUrl;
+            
             // Close settings panel
             this.hide();
         });
