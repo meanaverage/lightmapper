@@ -8,6 +8,7 @@ class Wall {
         this.b = { x: endPoint.x, y: endPoint.y };     // End point
         this.thickness = thickness;
         this.height = 250; // Default wall height in cm
+        this.raiseFromFloor = 0; // Height from floor in cm
         this.openings = []; // Doors and windows
         this.material = null;
         this.color = '#ffffff';

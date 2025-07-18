@@ -71,14 +71,81 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    position: relative;
 }
 
-.planner-sidebar {
-    width: 200px;
+.planner-layout {
+    display: flex;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+}
+
+.icon-sidebar {
+    width: 60px;
     background: #f8f8f8;
     border-right: 1px solid #e0e0e0;
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+}
+
+.sidebar-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.sidebar-icon:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.sidebar-icon.active {
+    background: #0066cc;
+    color: white;
+}
+
+.sidebar-icon i {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.sidebar-icon span {
+    font-size: 10px;
+    text-align: center;
+}
+
+.panel-content {
+    width: 300px;
+    background: white;
+    border-right: 1px solid #e0e0e0;
     overflow-y: auto;
+}
+
+.panel {
+    display: none;
+    padding: 20px;
+}
+
+.panel.active {
+    display: block;
+}
+
+.panel h2 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
 }
 
 .tool-section {
@@ -137,6 +204,212 @@
 
 .checkbox-label input {
     cursor: pointer;
+}
+
+/* Wall properties */
+.wall-properties {
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.property-group {
+    margin-bottom: 16px;
+}
+
+.property-group:last-child {
+    margin-bottom: 0;
+}
+
+.property-group label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.input-with-controls {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.input-with-controls button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #0066cc;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-with-controls button:hover {
+    background: #f0f0f0;
+}
+
+.input-with-controls input {
+    flex: 1;
+    border: none;
+    background: none;
+    text-align: center;
+    font-size: 14px;
+    padding: 8px;
+}
+
+/* Upload button */
+.upload-btn {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.2s;
+    font-size: 14px;
+    color: #666;
+}
+
+.upload-btn:hover {
+    border-color: #0066cc;
+    color: #0066cc;
+}
+
+/* Tools list */
+.tools-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tool-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    color: #333;
+    text-align: left;
+}
+
+.tool-item:hover {
+    background: #f8f8f8;
+}
+
+.tool-item.active {
+    background: #e6f2ff;
+    border-color: #0066cc;
+    color: #0066cc;
+}
+
+.tool-item i {
+    width: 20px;
+    text-align: center;
+    color: #666;
+}
+
+.tool-item.active i {
+    color: #0066cc;
+}
+
+.tool-item.expandable {
+    position: relative;
+    padding-right: 32px;
+}
+
+.expand-icon {
+    position: absolute;
+    right: 12px;
+    color: #999;
+    font-size: 12px;
+}
+
+/* Right controls */
+.right-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
+}
+
+.zoom-controls {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.zoom-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    border-bottom: 1px solid #eee;
+}
+
+.zoom-btn:last-child {
+    border-bottom: none;
+}
+
+.zoom-btn:hover {
+    background: #f8f8f8;
+    color: #333;
+}
+
+.zoom-btn:active {
+    background: #e8e8e8;
+    transform: scale(0.95);
+}
+
+.view-toggle {
+    display: flex;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.view-btn {
+    padding: 8px 16px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.view-btn.active {
+    background: #0066cc;
+    color: white;
+}
+
+.view-btn:first-child {
+    border-right: 1px solid #eee;
 }
 
 .planner-canvas-container {

@@ -80,7 +80,15 @@ class WallDrawingTool extends DrawingTool {
         this.startPoint = null;
         this.tempWall = null;
         this.wallThickness = 15;
+        this.wallHeight = 274; // Default 9'
+        this.raiseFromFloor = 0;
         this.previewGraphics = null;
+    }
+    
+    setWallProperties(properties) {
+        this.wallThickness = properties.thickness || 15;
+        this.wallHeight = properties.height || 274;
+        this.raiseFromFloor = properties.raiseFromFloor || 0;
     }
     
     activate(pixiApp) {
@@ -123,6 +131,10 @@ class WallDrawingTool extends DrawingTool {
         } else {
             // Second click - create wall
             const wall = new window.FloorPlanModels.Wall(this.startPoint, pos, this.wallThickness);
+            // Set additional properties
+            wall.height = this.wallHeight;
+            wall.raiseFromFloor = this.raiseFromFloor;
+            
             this.floorPlan.addWall(wall);
             this.drawWall(wall);
             
@@ -337,6 +349,15 @@ class RoomDrawingTool extends DrawingTool {
     drawPreview(points) {
         if (!this.previewGraphics) return;
         
+        // Remove all children (text labels) before clearing
+        while (this.previewGraphics.children.length > 0) {
+            const child = this.previewGraphics.children[0];
+            this.previewGraphics.removeChild(child);
+            if (child.destroy) {
+                child.destroy();
+            }
+        }
+        
         this.previewGraphics.clear();
         
         if (points.length < 2) return;
@@ -356,6 +377,120 @@ class RoomDrawingTool extends DrawingTool {
         
         this.previewGraphics.endFill();
         
+        // Draw dimension labels for each side
+        const numSegments = points.length >= 3 ? points.length : points.length - 1;
+        
+        for (let i = 0; i < numSegments; i++) {
+            const start = points[i];
+            const end = i === points.length - 1 && points.length >= 3 ? 
+                points[0] : // Close to first point
+                points[i + 1]; // Next point
+            
+            const length = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+            if (length < 20) continue; // Skip very short segments
+            
+            // Calculate midpoint
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+            
+            // Calculate angle for text rotation
+            const angle = Math.atan2(end.y - start.y, end.x - start.x);
+            
+            // Format dimension text
+            const inches = length * 0.393701; // Convert to inches
+            const feet = Math.floor(inches / 12);
+            const remainingInches = Math.round(inches % 12);
+            const fraction = this.getInchFraction(inches % 1);
+            
+            let dimensionText;
+            if (feet > 0) {
+                if (remainingInches > 0) {
+                    dimensionText = fraction ? 
+                        `${feet}' ${Math.floor(remainingInches)} ${fraction}"` : 
+                        `${feet}' ${remainingInches}"`;
+                } else {
+                    dimensionText = `${feet}'`;
+                }
+            } else {
+                dimensionText = fraction ? 
+                    `${Math.floor(inches)} ${fraction}"` : 
+                    `${Math.round(inches)}"`;
+            }
+            
+            // Create dimension label
+            const textStyle = {
+                fontFamily: 'Arial',
+                fontSize: 12,
+                fill: 0x333333,
+                align: 'center'
+            };
+            
+            const text = new PIXI.Text(dimensionText, textStyle);
+            
+            // Position text offset from the line
+            const offsetDistance = 30;
+            const perpAngle = angle + Math.PI / 2;
+            const offsetX = Math.cos(perpAngle) * offsetDistance;
+            const offsetY = Math.sin(perpAngle) * offsetDistance;
+            
+            // Draw dimension line
+            this.previewGraphics.lineStyle(1, 0x4a90e2, 0.5);
+            
+            // Extension lines
+            const extLength = 35;
+            const extX = Math.cos(perpAngle) * extLength;
+            const extY = Math.sin(perpAngle) * extLength;
+            
+            this.previewGraphics.moveTo(start.x, start.y);
+            this.previewGraphics.lineTo(start.x + extX, start.y + extY);
+            
+            this.previewGraphics.moveTo(end.x, end.y);
+            this.previewGraphics.lineTo(end.x + extX, end.y + extY);
+            
+            // Dimension line
+            const dimLineOffset = 30;
+            const dimX = Math.cos(perpAngle) * dimLineOffset;
+            const dimY = Math.sin(perpAngle) * dimLineOffset;
+            
+            this.previewGraphics.moveTo(start.x + dimX, start.y + dimY);
+            this.previewGraphics.lineTo(end.x + dimX, end.y + dimY);
+            
+            // Create container for background and text
+            const labelContainer = new PIXI.Container();
+            
+            // Create white background
+            const padding = 4;
+            const bg = new PIXI.Graphics();
+            bg.beginFill(0xffffff, 0.9);
+            bg.drawRoundedRect(
+                -text.width / 2 - padding,
+                -text.height / 2 - padding,
+                text.width + padding * 2,
+                text.height + padding * 2,
+                3
+            );
+            bg.endFill();
+            
+            // Center the text
+            text.anchor.set(0.5);
+            
+            labelContainer.addChild(bg);
+            labelContainer.addChild(text);
+            
+            // Position the container
+            labelContainer.x = midX + offsetX;
+            labelContainer.y = midY + offsetY;
+            
+            // Rotate text to be readable
+            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+                labelContainer.rotation = angle + Math.PI;
+            } else {
+                labelContainer.rotation = angle;
+            }
+            
+            this.previewGraphics.addChild(labelContainer);
+        }
+        
         // Draw points
         points.forEach((point, index) => {
             this.previewGraphics.beginFill(0xffffff);
@@ -363,6 +498,25 @@ class RoomDrawingTool extends DrawingTool {
             this.previewGraphics.drawCircle(point.x, point.y, 4);
             this.previewGraphics.endFill();
         });
+    }
+    
+    getInchFraction(decimal) {
+        const fractions = [
+            { decimal: 0.125, str: '1/8' },
+            { decimal: 0.25, str: '1/4' },
+            { decimal: 0.375, str: '3/8' },
+            { decimal: 0.5, str: '1/2' },
+            { decimal: 0.625, str: '5/8' },
+            { decimal: 0.75, str: '3/4' },
+            { decimal: 0.875, str: '7/8' }
+        ];
+        
+        for (const f of fractions) {
+            if (Math.abs(decimal - f.decimal) < 0.0625) {
+                return f.str;
+            }
+        }
+        return '';
     }
     
     finishRoom() {

@@ -9,6 +9,23 @@ export class PlannerModal {
         this.activeTool = 'select';
         this.showGrid = true;
         
+        // Wall properties
+        this.wallProperties = {
+            thickness: 15, // cm (approximately 5 7/8")
+            height: 274,   // cm (approximately 9')
+            raiseFromFloor: 0
+        };
+        
+        // Units conversion
+        this.units = {
+            useImperial: true,
+            cmToInches: 0.393701,
+            cmToFeet: 0.0328084
+        };
+        
+        // Interaction states
+        this.isSpacePressed = false;
+        
         this.init();
     }
     
@@ -28,36 +45,116 @@ export class PlannerModal {
                     </button>
                 </div>
                 <div class="planner-body">
-                    <div class="planner-sidebar">
-                        <div class="tool-section">
-                            <h3>Drawing Tools</h3>
-                            <button class="tool-btn" data-tool="select" title="Select">
-                                <i class="fas fa-mouse-pointer"></i>
-                                <span>Select</span>
+                    <div class="planner-layout">
+                        <div class="icon-sidebar">
+                            <div class="sidebar-icon active" data-panel="build" title="Build">
+                                <i class="fas fa-hammer"></i>
+                                <span>Build</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="info" title="Info">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Info</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="objects" title="Objects">
+                                <i class="fas fa-cube"></i>
+                                <span>Objects</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="styleboards" title="Styleboards">
+                                <i class="fas fa-palette"></i>
+                                <span>Styleboards</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="finishes" title="Finishes">
+                                <i class="fas fa-paint-roller"></i>
+                                <span>Finishes</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="export" title="Export">
+                                <i class="fas fa-download"></i>
+                                <span>Exports</span>
+                            </div>
+                            <div class="sidebar-icon" data-panel="help" title="Help">
+                                <i class="fas fa-question-circle"></i>
+                                <span>Help</span>
+                            </div>
+                        </div>
+                        <div class="panel-content">
+                            <div class="panel build-panel active">
+                                <h2>Build</h2>
+                                <div class="wall-properties" style="display: none;">
+                                    <div class="property-group">
+                                        <label>Thickness</label>
+                                        <div class="input-with-controls">
+                                            <button class="decrement">−</button>
+                                            <input type="text" id="wallThickness" value="5 7/8"" readonly>
+                                            <button class="increment">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="property-group">
+                                        <label>Wall Height</label>
+                                        <div class="input-with-controls">
+                                            <button class="decrement">−</button>
+                                            <input type="text" id="wallHeight" value="9'" readonly>
+                                            <button class="increment">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="property-group">
+                                        <label>Raise From Floor</label>
+                                        <div class="input-with-controls">
+                                            <button class="decrement">−</button>
+                                            <input type="text" id="raiseFromFloor" value="0" readonly>
+                                            <button class="increment">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="upload-btn">
+                                    <span>Upload 2D floorplan</span>
+                                </button>
+                                <div class="tools-list">
+                                    <button class="tool-item" data-tool="room">
+                                        <i class="fas fa-cube"></i>
+                                        <span>Draw Room</span>
+                                    </button>
+                                    <button class="tool-item" data-tool="wall">
+                                        <i class="fas fa-vector-square"></i>
+                                        <span>Draw Wall</span>
+                                    </button>
+                                    <button class="tool-item" data-tool="surface">
+                                        <i class="fas fa-draw-polygon"></i>
+                                        <span>Draw Surface</span>
+                                    </button>
+                                    <button class="tool-item expandable">
+                                        <i class="fas fa-door-open"></i>
+                                        <span>Place Doors</span>
+                                        <i class="fas fa-chevron-right expand-icon"></i>
+                                    </button>
+                                    <button class="tool-item expandable">
+                                        <i class="fas fa-window-maximize"></i>
+                                        <span>Place Windows</span>
+                                        <i class="fas fa-chevron-right expand-icon"></i>
+                                    </button>
+                                    <button class="tool-item expandable">
+                                        <i class="fas fa-archway"></i>
+                                        <span>Place Structurals</span>
+                                        <i class="fas fa-chevron-right expand-icon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="right-controls">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" title="Zoom In">
+                                <i class="fas fa-plus"></i>
                             </button>
-                            <button class="tool-btn" data-tool="wall" title="Draw Wall">
+                            <button class="zoom-btn" title="Zoom Out">
                                 <i class="fas fa-minus"></i>
-                                <span>Wall</span>
                             </button>
-                            <button class="tool-btn" data-tool="room" title="Draw Room">
-                                <i class="fas fa-vector-square"></i>
-                                <span>Room</span>
-                            </button>
-                            <button class="tool-btn" data-tool="door" title="Place Door">
-                                <i class="fas fa-door-open"></i>
-                                <span>Door</span>
-                            </button>
-                            <button class="tool-btn" data-tool="window" title="Place Window">
-                                <i class="fas fa-window-maximize"></i>
-                                <span>Window</span>
+                            <button class="zoom-btn" title="Fit to Screen">
+                                <i class="fas fa-compress"></i>
                             </button>
                         </div>
-                        <div class="tool-section">
-                            <h3>View Options</h3>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="gridToggle" checked>
-                                <span>Show Grid</span>
-                            </label>
+                        <div class="view-toggle">
+                            <button class="view-btn active">2D</button>
+                            <button class="view-btn">3D</button>
                         </div>
                     </div>
                     <div class="planner-canvas-container">
@@ -86,23 +183,52 @@ export class PlannerModal {
         const overlay = this.container.querySelector('.planner-modal-overlay');
         overlay.addEventListener('click', () => this.hide());
         
+        // Sidebar panel switching
+        const sidebarIcons = this.container.querySelectorAll('.sidebar-icon');
+        sidebarIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                // Update active states
+                sidebarIcons.forEach(i => i.classList.remove('active'));
+                icon.classList.add('active');
+                
+                // Show corresponding panel
+                const panelName = icon.dataset.panel;
+                const panels = this.container.querySelectorAll('.panel');
+                panels.forEach(p => p.classList.remove('active'));
+                const targetPanel = this.container.querySelector(`.${panelName}-panel`);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                }
+            });
+        });
+        
         // Tool buttons
-        const toolBtns = this.container.querySelectorAll('.tool-btn');
-        toolBtns.forEach(btn => {
+        const toolItems = this.container.querySelectorAll('.tool-item[data-tool]');
+        toolItems.forEach(btn => {
             btn.addEventListener('click', () => {
                 const tool = btn.dataset.tool;
+                
+                // Update active state
+                toolItems.forEach(item => item.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Show wall properties if wall tool is selected
+                const wallProps = this.container.querySelector('.wall-properties');
+                if (tool === 'wall') {
+                    wallProps.style.display = 'block';
+                } else {
+                    wallProps.style.display = 'none';
+                }
+                
                 this.setActiveTool(tool);
             });
         });
         
-        // Grid toggle
-        const gridToggle = this.container.querySelector('#gridToggle');
-        gridToggle.addEventListener('change', (e) => {
-            this.showGrid = e.target.checked;
-            if (this.gridGraphics) {
-                this.gridGraphics.visible = this.showGrid;
-            }
-        });
+        // Wall property controls
+        this.setupWallPropertyControls();
+        
+        // Zoom controls
+        this.setupZoomControls();
         
         // ESC key to close - but only if no tool is active
         this.escapeHandler = (e) => {
@@ -117,6 +243,334 @@ export class PlannerModal {
             }
         };
         document.addEventListener('keydown', this.escapeHandler);
+    }
+    
+    setupWallPropertyControls() {
+        // Wall thickness controls
+        const thicknessInput = this.container.querySelector('#wallThickness');
+        const thicknessIncrement = thicknessInput.nextElementSibling;
+        const thicknessDecrement = thicknessInput.previousElementSibling;
+        
+        // Wall height controls
+        const heightInput = this.container.querySelector('#wallHeight');
+        const heightIncrement = heightInput.nextElementSibling;
+        const heightDecrement = heightInput.previousElementSibling;
+        
+        // Raise from floor controls
+        const raiseInput = this.container.querySelector('#raiseFromFloor');
+        const raiseIncrement = raiseInput.nextElementSibling;
+        const raiseDecrement = raiseInput.previousElementSibling;
+        
+        // Thickness increment/decrement
+        thicknessIncrement.addEventListener('click', () => {
+            this.wallProperties.thickness += 1;
+            this.updateWallPropertyDisplay('thickness', thicknessInput);
+        });
+        
+        thicknessDecrement.addEventListener('click', () => {
+            if (this.wallProperties.thickness > 5) {
+                this.wallProperties.thickness -= 1;
+                this.updateWallPropertyDisplay('thickness', thicknessInput);
+            }
+        });
+        
+        // Height increment/decrement (by 15cm / ~6")
+        heightIncrement.addEventListener('click', () => {
+            this.wallProperties.height += 15;
+            this.updateWallPropertyDisplay('height', heightInput);
+        });
+        
+        heightDecrement.addEventListener('click', () => {
+            if (this.wallProperties.height > 150) { // Minimum ~5'
+                this.wallProperties.height -= 15;
+                this.updateWallPropertyDisplay('height', heightInput);
+            }
+        });
+        
+        // Raise from floor increment/decrement
+        raiseIncrement.addEventListener('click', () => {
+            this.wallProperties.raiseFromFloor += 1;
+            this.updateWallPropertyDisplay('raise', raiseInput);
+        });
+        
+        raiseDecrement.addEventListener('click', () => {
+            if (this.wallProperties.raiseFromFloor > 0) {
+                this.wallProperties.raiseFromFloor -= 1;
+                this.updateWallPropertyDisplay('raise', raiseInput);
+            }
+        });
+        
+        // Initialize displays
+        this.updateWallPropertyDisplay('thickness', thicknessInput);
+        this.updateWallPropertyDisplay('height', heightInput);
+        this.updateWallPropertyDisplay('raise', raiseInput);
+    }
+    
+    updateWallPropertyDisplay(property, input) {
+        if (!input) return;
+        
+        if (this.units.useImperial) {
+            switch (property) {
+                case 'thickness':
+                    // Convert cm to inches and format as fraction
+                    const inches = this.wallProperties.thickness * this.units.cmToInches;
+                    input.value = this.formatInchesAsFraction(inches) + '"';
+                    break;
+                case 'height':
+                    // Convert cm to feet and inches
+                    const totalInches = this.wallProperties.height * this.units.cmToInches;
+                    const feet = Math.floor(totalInches / 12);
+                    const remainingInches = Math.round(totalInches % 12);
+                    input.value = remainingInches > 0 ? `${feet}' ${remainingInches}"` : `${feet}'`;
+                    break;
+                case 'raise':
+                    // Show in inches
+                    const raiseInches = this.wallProperties.raiseFromFloor * this.units.cmToInches;
+                    input.value = raiseInches > 0 ? Math.round(raiseInches) + '"' : '0';
+                    break;
+            }
+        } else {
+            // Metric display
+            switch (property) {
+                case 'thickness':
+                    input.value = this.wallProperties.thickness + ' cm';
+                    break;
+                case 'height':
+                    input.value = this.wallProperties.height + ' cm';
+                    break;
+                case 'raise':
+                    input.value = this.wallProperties.raiseFromFloor + ' cm';
+                    break;
+            }
+        }
+        
+        // Update the current tool if it's a wall tool
+        if (this.currentTool && this.currentTool.setWallProperties) {
+            this.currentTool.setWallProperties(this.wallProperties);
+        }
+    }
+    
+    formatInchesAsFraction(inches) {
+        const wholeInches = Math.floor(inches);
+        const fraction = inches - wholeInches;
+        
+        // Common fractions in construction
+        const fractions = [
+            { decimal: 0.125, str: '1/8' },
+            { decimal: 0.25, str: '1/4' },
+            { decimal: 0.375, str: '3/8' },
+            { decimal: 0.5, str: '1/2' },
+            { decimal: 0.625, str: '5/8' },
+            { decimal: 0.75, str: '3/4' },
+            { decimal: 0.875, str: '7/8' }
+        ];
+        
+        // Find closest fraction
+        let closestFraction = '';
+        let minDiff = 1;
+        
+        for (const f of fractions) {
+            const diff = Math.abs(fraction - f.decimal);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestFraction = f.str;
+            }
+        }
+        
+        if (minDiff < 0.0625) { // Within 1/16"
+            return wholeInches > 0 ? `${wholeInches} ${closestFraction}` : closestFraction;
+        } else {
+            return Math.round(inches).toString();
+        }
+    }
+    
+    setupZoomControls() {
+        const zoomControls = this.container.querySelector('.zoom-controls');
+        const zoomInBtn = zoomControls.children[0];
+        const zoomOutBtn = zoomControls.children[1];
+        const fitBtn = zoomControls.children[2];
+        
+        // Current zoom level
+        this.zoomLevel = 1;
+        this.minZoom = 0.25;
+        this.maxZoom = 4;
+        
+        zoomInBtn.addEventListener('click', () => {
+            this.zoom(1.2);
+        });
+        
+        zoomOutBtn.addEventListener('click', () => {
+            this.zoom(0.8);
+        });
+        
+        fitBtn.addEventListener('click', () => {
+            this.fitToScreen();
+        });
+        
+        // Mouse wheel zoom
+        if (this.container) {
+            const canvas = this.container.querySelector('#plannerCanvas');
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                this.zoom(delta);
+            });
+        }
+        
+        // Setup panning
+        this.setupPanning();
+    }
+    
+    setupPanning() {
+        if (!this.container) return;
+        
+        const canvas = this.container.querySelector('#plannerCanvas');
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+        let stageStart = { x: 0, y: 0 };
+        
+        // Middle mouse button or space + drag for panning
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 1 || (e.button === 0 && this.isSpacePressed)) {
+                e.preventDefault();
+                isPanning = true;
+                panStart = { x: e.clientX, y: e.clientY };
+                if (this.pixiApp) {
+                    stageStart = { 
+                        x: this.pixiApp.stage.position.x, 
+                        y: this.pixiApp.stage.position.y 
+                    };
+                }
+                canvas.style.cursor = 'grabbing';
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isPanning && this.pixiApp) {
+                const dx = e.clientX - panStart.x;
+                const dy = e.clientY - panStart.y;
+                
+                this.pixiApp.stage.position.x = stageStart.x + dx;
+                this.pixiApp.stage.position.y = stageStart.y + dy;
+            }
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = this.isSpacePressed ? 'grab' : 'default';
+            }
+        });
+        
+        // Track space key for pan mode
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !this.isSpacePressed && this.isVisible) {
+                e.preventDefault();
+                this.isSpacePressed = true;
+                canvas.style.cursor = 'grab';
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' && this.isSpacePressed) {
+                this.isSpacePressed = false;
+                canvas.style.cursor = 'default';
+            }
+        });
+    }
+    
+    zoom(factor) {
+        if (!this.pixiApp) return;
+        
+        const newZoom = this.zoomLevel * factor;
+        if (newZoom < this.minZoom || newZoom > this.maxZoom) return;
+        
+        this.zoomLevel = newZoom;
+        
+        // Apply zoom to the stage
+        this.pixiApp.stage.scale.x = this.zoomLevel;
+        this.pixiApp.stage.scale.y = this.zoomLevel;
+        
+        // Keep centered
+        const centerX = this.pixiApp.renderer.width / 2;
+        const centerY = this.pixiApp.renderer.height / 2;
+        
+        this.pixiApp.stage.pivot.x = centerX / this.zoomLevel - centerX;
+        this.pixiApp.stage.pivot.y = centerY / this.zoomLevel - centerY;
+        
+        // Update zoom indicator
+        this.updateZoomIndicator();
+    }
+    
+    updateZoomIndicator() {
+        // Show zoom level briefly
+        const zoomPercent = Math.round(this.zoomLevel * 100);
+        this.setStatus(`Zoom: ${zoomPercent}%`, 1000);
+    }
+    
+    fitToScreen() {
+        if (!this.pixiApp || !this.floorPlan) return;
+        
+        // Calculate bounds of all content
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+        let hasContent = false;
+        
+        // Check walls
+        this.floorPlan.walls.forEach(wall => {
+            hasContent = true;
+            minX = Math.min(minX, wall.a.x, wall.b.x);
+            minY = Math.min(minY, wall.a.y, wall.b.y);
+            maxX = Math.max(maxX, wall.a.x, wall.b.x);
+            maxY = Math.max(maxY, wall.a.y, wall.b.y);
+        });
+        
+        // Check rooms
+        this.floorPlan.rooms.forEach(room => {
+            hasContent = true;
+            room.points.forEach(point => {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            });
+        });
+        
+        if (!hasContent) {
+            // No content, reset to default
+            this.zoomLevel = 1;
+            this.pixiApp.stage.scale.set(1);
+            this.pixiApp.stage.position.set(0);
+            this.pixiApp.stage.pivot.set(0);
+            return;
+        }
+        
+        // Add padding
+        const padding = 50;
+        minX -= padding;
+        minY -= padding;
+        maxX += padding;
+        maxY += padding;
+        
+        // Calculate zoom to fit
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+        const viewWidth = this.pixiApp.renderer.width;
+        const viewHeight = this.pixiApp.renderer.height;
+        
+        const scaleX = viewWidth / contentWidth;
+        const scaleY = viewHeight / contentHeight;
+        this.zoomLevel = Math.min(scaleX, scaleY, 2); // Max zoom 2x for fit
+        
+        // Apply zoom
+        this.pixiApp.stage.scale.set(this.zoomLevel);
+        
+        // Center content
+        const contentCenterX = (minX + maxX) / 2;
+        const contentCenterY = (minY + maxY) / 2;
+        
+        this.pixiApp.stage.position.x = viewWidth / 2 - contentCenterX * this.zoomLevel;
+        this.pixiApp.stage.position.y = viewHeight / 2 - contentCenterY * this.zoomLevel;
     }
     
     initializePixi() {
@@ -268,6 +722,10 @@ export class PlannerModal {
                             this.floorPlan,
                             this.drawnObjectsLayer
                         );
+                        // Set wall properties before activating
+                        if (this.currentTool.setWallProperties) {
+                            this.currentTool.setWallProperties(this.wallProperties);
+                        }
                         this.currentTool.activate(this.pixiApp);
                         this.setStatus('Click to place wall start point. Click again to complete wall. ESC to cancel.');
                     } catch (error) {
@@ -319,10 +777,24 @@ export class PlannerModal {
         this.activeTool = toolName;
     }
     
-    setStatus(message) {
+    setStatus(message, duration = 0) {
         const statusBar = this.container.querySelector('.planner-status');
         statusBar.textContent = message;
         statusBar.style.display = message ? 'block' : 'none';
+        
+        // Clear any existing timeout
+        if (this.statusTimeout) {
+            clearTimeout(this.statusTimeout);
+            this.statusTimeout = null;
+        }
+        
+        // If duration specified, hide after that time
+        if (duration > 0 && message) {
+            this.statusTimeout = setTimeout(() => {
+                statusBar.style.display = 'none';
+                this.statusTimeout = null;
+            }, duration);
+        }
     }
     
     show() {
