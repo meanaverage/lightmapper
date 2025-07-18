@@ -2,6 +2,7 @@
 function getApiBasePath() {
     // Check if we're running through Home Assistant ingress
     const currentPath = window.location.pathname;
+    const currentUrl = window.location.href;
     
     // If path contains hassio_ingress, extract the ingress path
     if (currentPath.includes('/api/hassio_ingress/')) {
@@ -15,9 +16,40 @@ function getApiBasePath() {
     return '';
 }
 
+// Also detect the ingress path for navigation
+function getIngressPath() {
+    const currentUrl = window.location.href;
+    const referrer = document.referrer;
+    
+    console.log('🔍 Detecting ingress path...');
+    console.log('  Current URL:', currentUrl);
+    console.log('  Referrer:', referrer);
+    
+    // Check if we're in an iframe (typical for HA ingress)
+    if (window.parent !== window && referrer) {
+        // Try to extract addon ID from referrer
+        const match = referrer.match(/\/hassio\/ingress\/([^\/]+)/);
+        if (match) {
+            const addonId = match[1];
+            const ingressPath = `/hassio/ingress/${addonId}`;
+            console.log('  ✅ Detected ingress path from referrer:', ingressPath);
+            return ingressPath;
+        }
+    }
+    
+    // If we can't detect, return null
+    console.log('  ❌ Could not detect ingress path');
+    return null;
+}
+
 const API_BASE = getApiBasePath();
+const INGRESS_PATH = getIngressPath();
+
 window.API_BASE = API_BASE;
+window.INGRESS_PATH = INGRESS_PATH;
+
 console.log('🔗 API Base Path detected:', API_BASE || '(root)');
+console.log('🔗 Ingress Path detected:', INGRESS_PATH || '(none)');
 
 // ========================================
 // Entity Panel Management System

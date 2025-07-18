@@ -207,32 +207,74 @@ export class SettingsBarComponent {
             // Check if we're running inside Home Assistant
             const currentUrl = window.location.href;
             const currentPath = window.location.pathname;
+            const currentOrigin = window.location.origin;
+            
+            console.log('=== Planner Navigation Debug ===');
             console.log('Current URL:', currentUrl);
             console.log('Current path:', currentPath);
+            console.log('Current origin:', currentOrigin);
+            console.log('Window location:', window.location);
             
-            // Try to detect ingress mode and extract the addon ID
-            const ingressMatch = currentUrl.match(/\/hassio\/ingress\/([^\/]+)/);
-            const apiIngressMatch = currentPath.match(/\/api\/hassio_ingress\/([^\/]+)/);
+            // Check if we're in an iframe (typical for HA ingress)
+            const inIframe = window.parent !== window;
+            console.log('In iframe:', inIframe);
             
-            if (ingressMatch) {
-                // Standard Home Assistant ingress URL
-                const addonId = ingressMatch[1];
-                plannerUrl = `/hassio/ingress/${addonId}/planner`;
-                console.log('Home Assistant ingress mode detected, addon ID:', addonId);
-                console.log('Using URL:', plannerUrl);
-            } else if (apiIngressMatch) {
-                // API ingress pattern
-                const token = apiIngressMatch[1];
-                plannerUrl = `/api/hassio_ingress/${token}/planner`;
-                console.log('API ingress mode detected, using URL:', plannerUrl);
-            } else if (currentPath === '/' || currentPath === '/index.html') {
-                // Direct access mode (development)
-                plannerUrl = '/planner';
-                console.log('Direct access mode, using URL:', plannerUrl);
+            // Try multiple methods to detect ingress
+            // Method 1: Check the referrer
+            if (document.referrer) {
+                console.log('Document referrer:', document.referrer);
+                const referrerMatch = document.referrer.match(/\/hassio\/ingress\/([^\/]+)/);
+                if (referrerMatch) {
+                    const addonId = referrerMatch[1];
+                    plannerUrl = `${currentOrigin}/hassio/ingress/${addonId}/planner`;
+                    console.log('Detected addon ID from referrer:', addonId);
+                }
             }
             
-            // Open planner in same tab for ingress compatibility
-            console.log('Opening planner at:', plannerUrl);
+            // Method 2: Check if we have the X-Ingress-Path header info stored
+            if (window.INGRESS_PATH) {
+                plannerUrl = `${window.INGRESS_PATH}/planner`;
+                console.log('Using stored ingress path:', window.INGRESS_PATH);
+            }
+            
+            // Method 3: Try to get from the iframe parent URL if we're in an iframe
+            if (inIframe) {
+                try {
+                    const parentUrl = window.parent.location.href;
+                    console.log('Parent URL:', parentUrl);
+                    const parentMatch = parentUrl.match(/\/hassio\/ingress\/([^\/]+)/);
+                    if (parentMatch) {
+                        const addonId = parentMatch[1];
+                        plannerUrl = `${currentOrigin}/hassio/ingress/${addonId}/planner`;
+                        console.log('Detected addon ID from parent:', addonId);
+                    }
+                } catch (e) {
+                    console.log('Cannot access parent URL (cross-origin):', e.message);
+                }
+            }
+            
+            // Method 4: If we're on port 8123, assume we need ingress
+            if (currentOrigin.includes(':8123') && plannerUrl === '/planner') {
+                // Try to construct ingress URL with known patterns
+                // First check if this looks like a local HA instance
+                console.log('Port 8123 detected, attempting ingress URL construction');
+                
+                // Look for any signs we're in HA
+                const isHomeAssistant = document.querySelector('home-assistant') || 
+                                       document.querySelector('ha-panel-iframe') ||
+                                       window.hassConnection;
+                
+                if (isHomeAssistant) {
+                    console.log('Home Assistant detected');
+                    // Use a relative path that might work
+                    plannerUrl = './planner';
+                }
+            }
+            
+            console.log('Final planner URL:', plannerUrl);
+            console.log('=== End Debug ===');
+            
+            // Open planner
             window.location.href = plannerUrl;
             // Close settings panel
             this.hide();
