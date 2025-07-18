@@ -52,6 +52,7 @@ export class PlannerModal {
                     </div>
                     <div class="planner-sidebar">
                         <div class="sidebar-header">
+                            <i class="fas fa-th-large" style="font-size: 20px; color: #666; margin-bottom: 4px;"></i>
                             <div class="project-name">Project</div>
                         </div>
                         <div class="icon-sidebar">
@@ -180,22 +181,16 @@ export class PlannerModal {
                             </div>
                         </div>
                     </div>
-                    <div class="right-controls">
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" title="Zoom In">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            <button class="zoom-btn" title="Zoom Out">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <button class="zoom-btn" title="Fit to Screen">
-                                <i class="fas fa-compress"></i>
-                            </button>
-                        </div>
-                        <div class="view-toggle">
-                            <button class="view-btn active">2D</button>
-                            <button class="view-btn">3D</button>
-                        </div>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" title="Zoom In">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Zoom Out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Fit to Screen">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -770,7 +765,7 @@ export class PlannerModal {
         this.pixiApp = new PIXI.Application({
             width: width,
             height: height,
-            backgroundColor: 0xf8f8f8,
+            backgroundColor: 0xf5f5f5,
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true // This helps with high DPI displays

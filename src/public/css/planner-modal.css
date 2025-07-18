@@ -80,28 +80,29 @@
     left: 20px;
     top: 20px;
     bottom: 20px;
-    width: 60px;
+    width: 80px;
     z-index: 100;
-    background: white;
+    background: #f8f8f8;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
 .sidebar-header {
-    height: 48px;
-    background: #f8f8f8;
+    height: 60px;
+    background: white;
     border-bottom: 1px solid #e0e0e0;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 8px;
+    flex-direction: column;
 }
 
 .project-name {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: #333;
     text-align: center;
@@ -110,24 +111,24 @@
 /* Panel content - separate floating panel */
 .planner-panels {
     position: absolute;
-    left: 100px; /* 20px + 60px sidebar + 20px gap */
+    left: 120px; /* 20px + 80px sidebar + 20px gap */
     top: 20px;
     bottom: 20px;
-    width: 320px;
+    width: 360px;
     z-index: 100;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
 .icon-sidebar {
     flex: 1;
-    background: white;
+    background: #f8f8f8;
     display: flex;
     flex-direction: column;
-    padding: 8px 0;
-    gap: 4px;
+    padding: 12px 8px;
+    gap: 8px;
 }
 
 .sidebar-icon {
@@ -136,32 +137,35 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 60px;
+    height: 72px;
     cursor: pointer;
     color: #666;
     transition: all 0.2s;
     position: relative;
-    border-radius: 8px;
+    border-radius: 12px;
+    background: white;
 }
 
 .sidebar-icon:hover {
-    background: #f0f0f0;
+    background: #e8e8e8;
     color: #333;
 }
 
 .sidebar-icon.active {
-    background: #4285f4;
+    background: #4a90e2;
     color: white;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
 }
 
 .sidebar-icon i {
-    font-size: 20px;
-    margin-bottom: 4px;
+    font-size: 24px;
+    margin-bottom: 6px;
 }
 
 .sidebar-icon span {
-    font-size: 10px;
+    font-size: 11px;
     text-align: center;
+    font-weight: 500;
 }
 
 .panel-content {
@@ -175,7 +179,7 @@
 
 .panel {
     display: none;
-    padding: 20px;
+    padding: 24px;
 }
 
 .panel.active {
@@ -183,10 +187,10 @@
 }
 
 .panel h2 {
-    margin: 0 0 20px 0;
-    font-size: 24px;
+    margin: 0 0 24px 0;
+    font-size: 28px;
     font-weight: 600;
-    color: #333;
+    color: #222;
 }
 
 .panel p {
@@ -424,29 +428,23 @@
     font-size: 12px;
 }
 
-/* Right controls */
-.right-controls {
+/* Zoom controls */
+.zoom-controls {
     position: absolute;
-    top: 20px;
+    top: 68px; /* Below the sidebar header */
     right: 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
     z-index: 90;
 }
 
-.zoom-controls {
-    display: flex;
-    flex-direction: column;
-    background: white;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-}
-
 .zoom-btn {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border: none;
     background: white;
     cursor: pointer;
@@ -454,11 +452,19 @@
     align-items: center;
     justify-content: center;
     color: #666;
-    border-bottom: 1px solid #eee;
+    font-size: 20px;
+    transition: all 0.2s;
+    position: relative;
 }
 
-.zoom-btn:last-child {
-    border-bottom: none;
+.zoom-btn:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: #e0e0e0;
 }
 
 .zoom-btn:hover {
@@ -468,7 +474,6 @@
 
 .zoom-btn:active {
     background: #e8e8e8;
-    transform: scale(0.95);
 }
 
 .view-toggle {
@@ -504,7 +509,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: #f0f0f0;
+    background: #f5f5f5;
     overflow: hidden;
 }
 
@@ -537,14 +542,16 @@
     position: absolute;
     bottom: 20px;
     left: 20px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-family: monospace;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
     pointer-events: none;
     z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    line-height: 1.4;
 }
 
 /* Responsive adjustments */
