@@ -45,32 +45,31 @@ class DrawingTool {
     getMousePosition(event) {
         const rect = this.canvas.getBoundingClientRect();
         
-        // Account for any scaling that might be applied to the canvas
+        // Get the position relative to the canvas
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+        
+        // Account for canvas scaling
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
         
-        const point = {
-            x: (event.clientX - rect.left) * scaleX,
-            y: (event.clientY - rect.top) * scaleY
-        };
+        x *= scaleX;
+        y *= scaleY;
         
-        // Debug logging
-        console.log('Mouse click:', {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            rectLeft: rect.left,
-            rectTop: rect.top,
-            canvasWidth: this.canvas.width,
-            canvasHeight: this.canvas.height,
-            rectWidth: rect.width,
-            rectHeight: rect.height,
-            scaleX: scaleX,
-            scaleY: scaleY,
-            calculatedX: point.x,
-            calculatedY: point.y
-        });
+        // If we have a PixiJS app, we need to account for stage transforms
+        if (this.pixiApp && this.pixiApp.stage) {
+            // Convert screen coordinates to world coordinates
+            const globalPos = new PIXI.Point(x, y);
+            const worldPos = this.pixiApp.stage.toLocal(globalPos);
+            
+            return this.snapPoint({
+                x: worldPos.x,
+                y: worldPos.y
+            });
+        }
         
-        return this.snapPoint(point);
+        // Fallback if no PixiJS app
+        return this.snapPoint({ x, y });
     }
 }
 
@@ -367,16 +366,43 @@ class RoomDrawingTool extends DrawingTool {
             { x: start.x, y: end.y }        // Bottom-left
         ];
         
-        // Draw room preview
-        this.previewGraphics.beginFill(0x4a90e2, 0.3);
-        this.previewGraphics.lineStyle(2, 0x4a90e2);
-        
+        // Draw room with black walls (similar to the final room appearance)
+        // First draw the light fill
+        this.previewGraphics.beginFill(0xf0f0f0, 0.5);
+        this.previewGraphics.lineStyle(0);
         this.previewGraphics.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
             this.previewGraphics.lineTo(points[i].x, points[i].y);
         }
         this.previewGraphics.closePath();
         this.previewGraphics.endFill();
+        
+        // Draw black walls around the room
+        const wallThickness = 15; // Standard wall thickness
+        
+        // Draw each wall as a thick black rectangle
+        for (let i = 0; i < points.length; i++) {
+            const start = points[i];
+            const end = points[(i + 1) % points.length];
+            
+            const angle = Math.atan2(end.y - start.y, end.x - start.x);
+            const perpAngle = angle + Math.PI / 2;
+            const halfThickness = wallThickness / 2;
+            
+            const dx = Math.cos(perpAngle) * halfThickness;
+            const dy = Math.sin(perpAngle) * halfThickness;
+            
+            // Draw wall as filled rectangle
+            this.previewGraphics.beginFill(0x000000); // Black
+            this.previewGraphics.lineStyle(0);
+            
+            this.previewGraphics.moveTo(start.x - dx, start.y - dy);
+            this.previewGraphics.lineTo(end.x - dx, end.y - dy);
+            this.previewGraphics.lineTo(end.x + dx, end.y + dy);
+            this.previewGraphics.lineTo(start.x + dx, start.y + dy);
+            this.previewGraphics.closePath();
+            this.previewGraphics.endFill();
+        }
         
         // Draw dimension labels for all four sides
         const sides = [
@@ -438,8 +464,8 @@ class RoomDrawingTool extends DrawingTool {
             const offsetX = Math.cos(perpAngle) * offsetDistance;
             const offsetY = Math.sin(perpAngle) * offsetDistance;
             
-            // Draw dimension line
-            this.previewGraphics.lineStyle(1, 0x4a90e2, 0.5);
+            // Draw dimension line (lighter blue/gray)
+            this.previewGraphics.lineStyle(1, 0x999999, 0.3);
             
             // Extension lines (only for outside dimensions)
             if (index % 2 === 1) {
@@ -498,13 +524,7 @@ class RoomDrawingTool extends DrawingTool {
             this.previewGraphics.addChild(labelContainer);
         });
         
-        // Draw corner points
-        points.forEach(point => {
-            this.previewGraphics.beginFill(0xffffff);
-            this.previewGraphics.lineStyle(2, 0x4a90e2);
-            this.previewGraphics.drawCircle(point.x, point.y, 4);
-            this.previewGraphics.endFill();
-        });
+        // No corner points needed for room preview
     }
     
     getInchFraction(decimal) {
