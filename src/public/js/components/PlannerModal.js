@@ -134,7 +134,19 @@ export class PlannerModal {
             height: height,
             backgroundColor: 0xf8f8f8,
             antialias: true,
-            resolution: window.devicePixelRatio || 1
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true // This helps with high DPI displays
+        });
+        
+        // Log canvas info for debugging
+        console.log('PixiJS initialized:', {
+            width: width,
+            height: height,
+            resolution: window.devicePixelRatio || 1,
+            viewWidth: this.pixiApp.view.width,
+            viewHeight: this.pixiApp.view.height,
+            rendererWidth: this.pixiApp.renderer.width,
+            rendererHeight: this.pixiApp.renderer.height
         });
         
         canvasContainer.appendChild(this.pixiApp.view);
@@ -249,8 +261,10 @@ export class PlannerModal {
             switch (toolName) {
                 case 'wall':
                     try {
+                        // Use the actual PixiJS canvas element
+                        const pixiCanvas = this.pixiApp.view;
                         this.currentTool = new window.DrawingTools.WallDrawingTool(
-                            canvas,
+                            pixiCanvas,
                             this.floorPlan,
                             this.drawnObjectsLayer
                         );
@@ -263,8 +277,10 @@ export class PlannerModal {
                     break;
                 case 'room':
                     try {
+                        // Use the actual PixiJS canvas element
+                        const pixiCanvas = this.pixiApp.view;
                         this.currentTool = new window.DrawingTools.RoomDrawingTool(
-                            canvas,
+                            pixiCanvas,
                             this.floorPlan,
                             this.drawnObjectsLayer
                         );

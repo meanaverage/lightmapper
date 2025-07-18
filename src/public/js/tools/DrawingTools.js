@@ -44,10 +44,32 @@ class DrawingTool {
     
     getMousePosition(event) {
         const rect = this.canvas.getBoundingClientRect();
+        
+        // Account for any scaling that might be applied to the canvas
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
         const point = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY
         };
+        
+        // Debug logging
+        console.log('Mouse click:', {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            rectLeft: rect.left,
+            rectTop: rect.top,
+            canvasWidth: this.canvas.width,
+            canvasHeight: this.canvas.height,
+            rectWidth: rect.width,
+            rectHeight: rect.height,
+            scaleX: scaleX,
+            scaleY: scaleY,
+            calculatedX: point.x,
+            calculatedY: point.y
+        });
+        
         return this.snapPoint(point);
     }
 }
