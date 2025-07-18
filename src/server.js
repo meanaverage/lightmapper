@@ -1641,7 +1641,14 @@ app.get('*', (req, res) => {
   if (req.headers['x-ingress-path']) {
     console.log('🔗 Ingress path header:', req.headers['x-ingress-path']);
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  
+  // Check if this is a planner request
+  if (req.path === '/planner' || req.path.startsWith('/planner/')) {
+    console.log('📐 Planner detected in catch-all, serving planner index');
+    res.sendFile(path.join(__dirname, 'public', 'planner', 'index.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
 });
 
 // Start server

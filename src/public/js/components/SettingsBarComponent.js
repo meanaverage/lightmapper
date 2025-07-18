@@ -201,14 +201,41 @@ export class SettingsBarComponent {
         // Planner toggle
         const plannerToggle = content.querySelector('#plannerToggle');
         plannerToggle.addEventListener('click', () => {
-            // For ingress compatibility, just use a simple relative path
-            // This should work whether accessed directly or through ingress
-            const plannerUrl = 'planner';
+            // Since we're in an iframe, we need to break out to the parent
+            // and navigate to the planner as if it's a separate addon panel
+            console.log('Opening planner...');
             
-            console.log('Opening planner with relative URL:', plannerUrl);
-            
-            // Navigate to planner using relative path
-            window.location.href = plannerUrl;
+            try {
+                // First, try to detect if we're in Home Assistant
+                const inIframe = window.parent !== window;
+                
+                if (inIframe) {
+                    // We're in an iframe (ingress mode)
+                    // Try to navigate the parent window
+                    const currentUrl = window.parent.location.href;
+                    console.log('Detected iframe mode, parent URL:', currentUrl);
+                    
+                    // Extract the base HA URL and addon ID
+                    const match = currentUrl.match(/(.*\/hassio\/ingress\/)([^\/]+)/);
+                    if (match) {
+                        const baseUrl = match[1];
+                        const addonId = match[2];
+                        const plannerUrl = `${baseUrl}${addonId}/planner`;
+                        console.log('Navigating parent to:', plannerUrl);
+                        window.parent.location.href = plannerUrl;
+                    } else {
+                        // Fallback - try relative navigation
+                        window.location.href = 'planner';
+                    }
+                } else {
+                    // Direct access mode
+                    window.location.href = '/planner';
+                }
+            } catch (e) {
+                // If we can't access parent due to cross-origin, fall back to simple navigation
+                console.log('Cross-origin error, using fallback navigation:', e.message);
+                window.location.href = 'planner';
+            }
             
             // Close settings panel
             this.hide();
