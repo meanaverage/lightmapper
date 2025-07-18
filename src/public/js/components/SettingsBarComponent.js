@@ -204,23 +204,36 @@ export class SettingsBarComponent {
             // Get the base URL for ingress support
             let plannerUrl = '/planner';
             
-            // Check if we're in ingress mode by looking at the current URL
+            // Check if we're running inside Home Assistant
+            const currentUrl = window.location.href;
             const currentPath = window.location.pathname;
+            console.log('Current URL:', currentUrl);
             console.log('Current path:', currentPath);
             
-            // If the path contains /api/hassio_ingress, we're in ingress mode
-            if (currentPath.includes('/api/hassio_ingress/')) {
-                // Extract the ingress base path
-                const match = currentPath.match(/^(\/api\/hassio_ingress\/[^\/]+)/);
-                if (match) {
-                    plannerUrl = match[1] + '/planner';
-                    console.log('Ingress mode detected, using URL:', plannerUrl);
-                }
+            // Try to detect ingress mode and extract the addon ID
+            const ingressMatch = currentUrl.match(/\/hassio\/ingress\/([^\/]+)/);
+            const apiIngressMatch = currentPath.match(/\/api\/hassio_ingress\/([^\/]+)/);
+            
+            if (ingressMatch) {
+                // Standard Home Assistant ingress URL
+                const addonId = ingressMatch[1];
+                plannerUrl = `/hassio/ingress/${addonId}/planner`;
+                console.log('Home Assistant ingress mode detected, addon ID:', addonId);
+                console.log('Using URL:', plannerUrl);
+            } else if (apiIngressMatch) {
+                // API ingress pattern
+                const token = apiIngressMatch[1];
+                plannerUrl = `/api/hassio_ingress/${token}/planner`;
+                console.log('API ingress mode detected, using URL:', plannerUrl);
+            } else if (currentPath === '/' || currentPath === '/index.html') {
+                // Direct access mode (development)
+                plannerUrl = '/planner';
+                console.log('Direct access mode, using URL:', plannerUrl);
             }
             
-            // Open planner in new tab
+            // Open planner in same tab for ingress compatibility
             console.log('Opening planner at:', plannerUrl);
-            window.open(plannerUrl, '_blank');
+            window.location.href = plannerUrl;
             // Close settings panel
             this.hide();
         });
