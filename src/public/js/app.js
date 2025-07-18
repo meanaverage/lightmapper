@@ -542,7 +542,7 @@ class LayerManager {
         
         // Broadcast to other panels
         window.panelManager?.broadcast('onLayerOptionChanged', { 
-            layerId: 'lights',
+            layerId: layerId,
             optionId: 'bulbs',
             value: layer.circleVisible
         });
@@ -617,7 +617,7 @@ class LayerManager {
         
         // Broadcast to other panels
         window.panelManager?.broadcast('onLayerOptionChanged', { 
-            layerId: 'lights',
+            layerId: layerId,
             optionId: 'brightness',
             value: layer.brightnessVisible
         });
@@ -641,7 +641,7 @@ class LayerManager {
         
         // Broadcast to other panels
         window.panelManager?.broadcast('onLayerOptionChanged', { 
-            layerId: 'lights',
+            layerId: layerId,
             optionId: 'labels',
             value: layer.labelVisible
         });

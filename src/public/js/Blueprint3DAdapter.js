@@ -1014,6 +1014,33 @@ class Blueprint3DAdapter {
             this.renderer.render(this.scene, this.camera);
         }
     }
+    
+    /**
+     * Set visibility for a single light
+     * @param {string} entityId - The light entity ID
+     * @param {boolean} visible - Whether to show the light
+     */
+    setSingleLightVisibility(entityId, visible) {
+        const lightData = this.lightObjects.get(entityId);
+        if (!lightData) {
+            console.warn(`⚠️ Light not found in 3D: ${entityId}`);
+            return;
+        }
+        
+        // Hide/show both bulb and light effect
+        if (lightData.bulb) {
+            lightData.bulb.visible = visible;
+        }
+        if (lightData.light) {
+            lightData.light.visible = visible;
+        }
+        
+        console.log(`💡 3D: Set light ${entityId} visibility to ${visible}`);
+        
+        if (this.renderer) {
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
 }
 
 // Make available globally

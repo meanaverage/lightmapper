@@ -17,6 +17,7 @@ class Preview3DPanel extends BasePanel {
         this.syncWithCanvas = true;
         this.autoRotate = false;
         this.showLabels = true;
+        this.eventsInitialized = false;
         
         // Debounce timer for canvas updates
         this.updateTimer = null;
@@ -91,6 +92,13 @@ class Preview3DPanel extends BasePanel {
     }
     
     bindEvents() {
+        // Prevent multiple event bindings
+        if (this.eventsInitialized) {
+            console.log('⚠️ Preview3D events already initialized, skipping...');
+            return;
+        }
+        this.eventsInitialized = true;
+        
         // Sync toggle
         const syncBtn = document.getElementById('preview3d-sync');
         if (syncBtn) {
@@ -610,14 +618,24 @@ class Preview3DPanel extends BasePanel {
         
         console.log(`🔄 3D Preview: Layer visibility changed - ${data.layerId}: ${data.visible}`);
         
-        // When the main lights layer visibility changes, hide/show everything
-        if (data.layerId === 'lights') {
-            this.blueprint3d.setLightVisibility(data.visible, data.visible);
-            console.log(`🔄 3D Preview: Set all light elements to ${data.visible}`);
+        // Check if this is a light layer by looking at the light controller app
+        const lightApp = window.lightControllerApp;
+        if (lightApp && lightApp.layers) {
+            const layer = lightApp.layers[data.layerId];
+            if (layer && layer.objectType === 'light') {
+                // This is an individual light layer - hide/show both bulb and effect
+                this.updateSingleLightVisibility(data.layerId, data.visible);
+                return;
+            }
         }
         
-        // Handle other layers
+        // Handle special layer types
         const layerMappings = {
+            'lights': {
+                // Main lights layer - affects all lights
+                showBulbs: data.visible,
+                showLights: data.visible
+            },
             'light-labels': {
                 showLabels: data.visible
             },
@@ -629,6 +647,11 @@ class Preview3DPanel extends BasePanel {
         const mapping = layerMappings[data.layerId];
         if (!mapping) return;
         
+        if (mapping.showBulbs !== undefined || mapping.showLights !== undefined) {
+            this.blueprint3d.setLightVisibility(mapping.showBulbs, mapping.showLights);
+            console.log(`🔄 3D Preview: Set all light elements to ${data.visible}`);
+        }
+        
         if (mapping.showLabels !== undefined) {
             this.blueprint3d.setShowLightLabels(mapping.showLabels);
         }
@@ -638,32 +661,47 @@ class Preview3DPanel extends BasePanel {
         }
     }
     
+    updateSingleLightVisibility(layerId, visible) {
+        if (!this.blueprint3d) return;
+        
+        // Extract entity ID from layer ID (format: "light-light.entity_name")
+        const entityId = layerId.replace('light-', '');
+        console.log(`🔄 3D Preview: Updating single light visibility - ${entityId}: ${visible}`);
+        
+        // Update the specific light's visibility in 3D
+        this.blueprint3d.setSingleLightVisibility(entityId, visible);
+    }
+    
     onLayerOptionChanged(data) {
-        if (!this.blueprint3d || !data.layerId || data.layerId !== 'lights') return;
+        if (!this.blueprint3d || !data.layerId) return;
         
-        console.log(`🔄 3D Preview: Layer option changed - ${data.optionId}: ${data.value}`);
+        console.log(`🔄 3D Preview: Layer option changed - layer: ${data.layerId}, option: ${data.optionId}, value: ${data.value}`);
         
-        // Get the light control app instance
+        // The broadcasts come with the actual layer ID (e.g., "light-abc123"), not "lights"
+        // We need to check if this is a light layer
         const lightApp = window.lightControllerApp;
         if (!lightApp || !lightApp.layers) return;
         
-        // Find any light layer to get the current state
-        const lightLayers = Object.values(lightApp.layers).filter(layer => layer.objectType === 'light');
-        if (lightLayers.length === 0) return;
+        const layer = lightApp.layers[data.layerId];
+        if (!layer || layer.objectType !== 'light') return;
         
-        // Use the first light layer as reference (they should all have the same visibility settings)
-        const lightLayer = lightLayers[0];
+        // Get all light layers to determine overall visibility
+        const lightLayers = Object.values(lightApp.layers).filter(l => l.objectType === 'light');
         
-        // Determine what should be visible based on the layer options
-        const showBulbs = lightLayer.circleVisible !== false;
-        const showBrightnessEffects = lightLayer.brightnessVisible !== false;
-        const showLabels = lightLayer.labelVisible !== false;
+        // Check if ANY light has the option enabled (OR logic)
+        let showBulbs = false;
+        let showBrightnessEffects = false;
+        let showLabels = false;
         
-        // Apply the visibility settings based on what changed
-        if (data.optionId === 'bulbs' || data.optionId === 'brightness') {
-            this.blueprint3d.setLightVisibility(showBulbs, showBrightnessEffects);
-            console.log(`🔄 3D Preview: Updated light visibility - bulbs: ${showBulbs}, effects: ${showBrightnessEffects}`);
-        }
+        lightLayers.forEach(lightLayer => {
+            if (lightLayer.circleVisible) showBulbs = true;
+            if (lightLayer.brightnessVisible) showBrightnessEffects = true;
+            if (lightLayer.labelVisible) showLabels = true;
+        });
+        
+        // Apply the visibility settings
+        this.blueprint3d.setLightVisibility(showBulbs, showBrightnessEffects);
+        console.log(`🔄 3D Preview: Updated light visibility - bulbs: ${showBulbs}, effects: ${showBrightnessEffects}`);
         
         if (data.optionId === 'labels') {
             this.blueprint3d.setShowLightLabels(showLabels);
