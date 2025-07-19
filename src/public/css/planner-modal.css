@@ -437,6 +437,7 @@
     height: fit-content;
     z-index: 100;
     transition: transform 0.3s ease;
+    overflow: visible;
 }
 
 .zoom-controls.horizontal {
@@ -445,10 +446,43 @@
     height: var(--has-zoom-bar-width);
 }
 
-/* Remove default pseudo-elements as we'll handle them per example */
-.zoom-controls::before,
-.zoom-controls::after {
-    display: none;
+/* Zoom handle styles */
+.zoom-handle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 6px;
+    background-color: #999;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+.zoom-handle.top {
+    top: -3px;
+    cursor: grab;
+}
+
+.zoom-handle.bottom {
+    bottom: -3px;
+    cursor: pointer;
+}
+
+.zoom-controls:hover .zoom-handle {
+    opacity: 1;
+}
+
+/* DEBUG: Always show handles */
+.zoom-handle {
+    opacity: 1 !important;
+    background-color: red !important;
+}
+
+/* Override position relative on zoom-controls to ensure handles show */
+.zoom-controls {
+    position: absolute !important;
 }
 
 /* Example 1: Subtle lines */

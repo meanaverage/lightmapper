@@ -185,6 +185,7 @@ export class PlannerModal {
                     </div>
                     <!-- Example 1: Subtle lines -->
                     <div class="zoom-controls example-1" style="left: 440px;" data-label="Subtle">
+                        <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -194,10 +195,12 @@ export class PlannerModal {
                         <button class="zoom-btn" title="Fit to Screen">
                             <i class="fas fa-compress"></i>
                         </button>
+                        <div class="zoom-handle bottom"></div>
                     </div>
                     
                     <!-- Example 2: Dots -->
                     <div class="zoom-controls example-2" style="left: 500px;" data-label="Dots">
+                        <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -207,10 +210,12 @@ export class PlannerModal {
                         <button class="zoom-btn" title="Fit to Screen">
                             <i class="fas fa-compress"></i>
                         </button>
+                        <div class="zoom-handle bottom"></div>
                     </div>
                     
                     <!-- Example 3: Thick bars -->
                     <div class="zoom-controls example-3" style="left: 560px;" data-label="Thick">
+                        <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -220,10 +225,12 @@ export class PlannerModal {
                         <button class="zoom-btn" title="Fit to Screen">
                             <i class="fas fa-compress"></i>
                         </button>
+                        <div class="zoom-handle bottom"></div>
                     </div>
                     
                     <!-- Example 4: Grip pattern -->
                     <div class="zoom-controls example-4" style="left: 620px;" data-label="Grip">
+                        <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -233,10 +240,12 @@ export class PlannerModal {
                         <button class="zoom-btn" title="Fit to Screen">
                             <i class="fas fa-compress"></i>
                         </button>
+                        <div class="zoom-handle bottom"></div>
                     </div>
                     
                     <!-- Example 5: Chevrons -->
                     <div class="zoom-controls example-5" style="left: 680px;" data-label="Chevrons">
+                        <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -246,6 +255,7 @@ export class PlannerModal {
                         <button class="zoom-btn" title="Fit to Screen">
                             <i class="fas fa-compress"></i>
                         </button>
+                        <div class="zoom-handle bottom"></div>
                     </div>
                 </div>
             </div>
@@ -580,33 +590,11 @@ export class PlannerModal {
         let dragStart = { x: 0, y: 0 };
         let controlsStart = { x: 0, y: 0 };
         
-        // Create handle elements dynamically to ensure they're interactive
-        const topHandle = document.createElement('div');
-        topHandle.className = 'zoom-handle top';
-        topHandle.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 10px;
-            cursor: grab;
-            z-index: 1;
-        `;
+        // Find the handle elements
+        const topHandle = zoomControls.querySelector('.zoom-handle.top');
+        const bottomHandle = zoomControls.querySelector('.zoom-handle.bottom');
         
-        const bottomHandle = document.createElement('div');
-        bottomHandle.className = 'zoom-handle bottom';
-        bottomHandle.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 10px;
-            cursor: pointer;
-            z-index: 1;
-        `;
-        
-        zoomControls.appendChild(topHandle);
-        zoomControls.appendChild(bottomHandle);
+        if (!topHandle || !bottomHandle) return;
         
         // Dragging functionality
         topHandle.addEventListener('mousedown', (e) => {
