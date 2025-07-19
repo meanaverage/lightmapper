@@ -19,16 +19,11 @@
 
 .planner-modal-content {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    height: 90%;
-    max-width: 1400px;
-    max-height: 900px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -431,19 +426,19 @@
 /* Zoom controls */
 .zoom-controls {
     position: absolute;
-    top: 68px; /* Below the sidebar header */
-    right: 20px;
+    left: 500px; /* 120px (sidebar + gap) + 360px (panel width) + 20px gap */
+    top: 20px;
     display: flex;
-    flex-direction: column;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    z-index: 90;
+    z-index: 100;
+    height: 48px;
 }
 
 .zoom-btn {
-    width: 48px;
+    width: 80px;
     height: 48px;
     border: none;
     background: white;
@@ -452,18 +447,20 @@
     align-items: center;
     justify-content: center;
     color: #666;
-    font-size: 20px;
+    font-size: 16px;
+    font-weight: 500;
     transition: all 0.2s;
     position: relative;
+    padding: 0 16px;
 }
 
 .zoom-btn:not(:last-child)::after {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 12px;
-    right: 12px;
-    height: 1px;
+    right: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
     background: #e0e0e0;
 }
 
@@ -474,6 +471,23 @@
 
 .zoom-btn:active {
     background: #e8e8e8;
+}
+
+/* Update zoom button text/icons */
+.zoom-btn i {
+    display: none;
+}
+
+.zoom-btn[title="Zoom In"]::before {
+    content: "zoom in";
+}
+
+.zoom-btn[title="Zoom Out"]::before {
+    content: "zoom out";
+}
+
+.zoom-btn[title="Fit to Screen"]::before {
+    content: "fit";
 }
 
 .view-toggle {
@@ -556,14 +570,6 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .planner-modal-content {
-        width: 100%;
-        height: 100%;
-        max-width: none;
-        max-height: none;
-        border-radius: 0;
-    }
-    
     .planner-sidebar {
         width: 160px;
     }
