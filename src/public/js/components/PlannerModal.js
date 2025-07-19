@@ -40,9 +40,13 @@ export class PlannerModal {
             <div class="planner-modal-content">
                 <div class="planner-header">
                     <h2>Floor Planner</h2>
-                    <button class="planner-close" title="Close">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <div class="planner-header-tools">
+                        <input type="color" id="canvasColorPicker" class="canvas-color-picker" value="#f5f5f5" title="Canvas Background Color (Dev Tool)">
+                        <input type="color" id="iconColorPicker" class="icon-color-picker" value="#ffffff" title="Icon Color (Dev Tool)">
+                        <button class="planner-close" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="planner-body">
                     <div class="planner-canvas-container">
@@ -220,6 +224,14 @@ export class PlannerModal {
         // Overlay click
         const overlay = this.container.querySelector('.planner-modal-overlay');
         overlay.addEventListener('click', () => this.hide());
+        
+        // Canvas color picker
+        const colorPicker = this.container.querySelector('#canvasColorPicker');
+        colorPicker.addEventListener('change', (e) => this.changeCanvasColor(e.target.value));
+        
+        // Icon color picker
+        const iconColorPicker = this.container.querySelector('#iconColorPicker');
+        iconColorPicker.addEventListener('change', (e) => this.changeIconColor(e.target.value));
         
         // Sidebar panel switching
         const sidebarIcons = this.container.querySelectorAll('.sidebar-icon');
@@ -1104,6 +1116,33 @@ export class PlannerModal {
                 this.setActiveTool('select');
             }, 100);
         }
+    }
+    
+    changeCanvasColor(color) {
+        if (!this.pixiApp) return;
+        
+        // Convert hex color to number for PIXI
+        const hexColor = parseInt(color.replace('#', '0x'));
+        this.pixiApp.renderer.backgroundColor = hexColor;
+        
+        // Force a re-render
+        this.pixiApp.render();
+        
+        console.log('🎨 Canvas color changed to:', color);
+    }
+    
+    changeIconColor(color) {
+        // Update CSS variable for icon color
+        const root = document.documentElement;
+        root.style.setProperty('--planner-icon-color', color);
+        
+        // Also update active icon color to be the same
+        root.style.setProperty('--planner-icon-active-color', color);
+        
+        // Update zoom controls color too
+        root.style.setProperty('--planner-zoom-color', color);
+        
+        console.log('🎨 Icon color changed to:', color);
     }
     
     hide() {
