@@ -1,4 +1,9 @@
 /* Planner Modal Styles */
+:root {
+    --has-spacing: 12px;
+    --has-panel-width: 300px;
+}
+
 .planner-modal {
     position: fixed;
     top: 0;
@@ -108,7 +113,7 @@
     position: absolute;
     left: 120px; /* 20px + 80px sidebar + 20px gap */
     top: 20px;
-    width: 300px;
+    width: var(--has-side-bar-width);
     height: 408px;
     z-index: 100;
     background: white;
@@ -164,7 +169,10 @@
 }
 
 .panel-content {
-    display: block !important;
+    display: flex !important;
+    flex-flow: column nowrap;
+    gap: var(--has-container-spacing);
+    padding: var(--has-container-spacing) 0;
     width: 100%;
     height: 100%;
     background: white;
@@ -174,7 +182,7 @@
 
 .panel {
     display: none;
-    padding: 24px;
+    padding: var(--has-container-spacing) 24px;
 }
 
 .panel.active {
@@ -195,14 +203,14 @@
 }
 
 .tool-section {
-    margin-bottom: 24px;
+    margin-bottom: var(--has-container-spacing);
 }
 
 .tool-section h3 {
     font-size: 14px;
     font-weight: 600;
     color: #666;
-    margin: 0 0 12px 0;
+    margin: 0 0 var(--has-container-spacing) 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -256,12 +264,12 @@
 .wall-properties {
     background: #f8f8f8;
     border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: var(--has-container-spacing);
+    margin-bottom: var(--has-container-spacing);
 }
 
 .property-group {
-    margin-bottom: 16px;
+    margin-bottom: var(--has-container-spacing);
 }
 
 .property-group:last-child {
@@ -426,7 +434,7 @@
 /* Zoom controls */
 .zoom-controls {
     position: absolute;
-    left: 440px; /* 120px (sidebar + gap) + 300px (panel width) + 20px gap */
+    left: calc(120px + var(--has-side-bar-width) + 20px); /* sidebar + panel + gap */
     top: 20px;
     display: flex;
     flex-direction: column;
