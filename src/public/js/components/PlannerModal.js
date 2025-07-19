@@ -511,6 +511,83 @@ export class PlannerModal {
         
         // Setup coordinate tracking
         this.setupCoordinateTracking();
+        
+        // Setup zoom controls dragging and flipping
+        this.setupZoomControlsInteraction();
+    }
+    
+    setupZoomControlsInteraction() {
+        const zoomControls = this.container.querySelector('.zoom-controls');
+        if (!zoomControls) return;
+        
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let controlsStart = { x: 0, y: 0 };
+        
+        // Create handle elements dynamically to ensure they're interactive
+        const topHandle = document.createElement('div');
+        topHandle.className = 'zoom-handle top';
+        topHandle.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            cursor: grab;
+            z-index: 1;
+        `;
+        
+        const bottomHandle = document.createElement('div');
+        bottomHandle.className = 'zoom-handle bottom';
+        bottomHandle.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            cursor: pointer;
+            z-index: 1;
+        `;
+        
+        zoomControls.appendChild(topHandle);
+        zoomControls.appendChild(bottomHandle);
+        
+        // Dragging functionality
+        topHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            const rect = zoomControls.getBoundingClientRect();
+            controlsStart = { x: rect.left, y: rect.top };
+            zoomControls.classList.add('dragging');
+            topHandle.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - dragStart.x;
+            const dy = e.clientY - dragStart.y;
+            
+            zoomControls.style.left = `${controlsStart.x + dx}px`;
+            zoomControls.style.top = `${controlsStart.y + dy}px`;
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                zoomControls.classList.remove('dragging');
+                topHandle.style.cursor = 'grab';
+            }
+        });
+        
+        // Flipping functionality
+        bottomHandle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zoomControls.classList.toggle('horizontal');
+        });
     }
     
     setupPanning() {

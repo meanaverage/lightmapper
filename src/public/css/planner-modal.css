@@ -434,8 +434,64 @@
     box-shadow: var(--has-onscreen-shadow);
     border-radius: 9px;
     width: var(--has-zoom-bar-width);
-    height: 135px;
     z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+.zoom-controls.horizontal {
+    flex-direction: row;
+    width: auto;
+    height: var(--has-zoom-bar-width);
+}
+
+.zoom-controls::before,
+.zoom-controls::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 4px;
+    background-color: #ccc;
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: grab;
+}
+
+.zoom-controls::before {
+    top: 4px;
+}
+
+.zoom-controls::after {
+    bottom: 4px;
+    cursor: pointer;
+}
+
+.zoom-controls:hover::before,
+.zoom-controls:hover::after {
+    opacity: 1;
+}
+
+.zoom-controls.dragging {
+    cursor: grabbing;
+}
+
+.zoom-controls.horizontal::before,
+.zoom-controls.horizontal::after {
+    width: 4px;
+    height: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.zoom-controls.horizontal::before {
+    left: 4px;
+}
+
+.zoom-controls.horizontal::after {
+    left: auto;
+    right: 4px;
 }
 
 .zoom-btn {
