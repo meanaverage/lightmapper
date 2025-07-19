@@ -1,10 +1,15 @@
 /* Planner Modal Styles */
 :root {
-    --has-spacing: 12px;
+    --has-component-spacing: 9px;
+    --has-container-spacing: 12px;
     --has-side-bar-width: 300px;
     --has-icon-bar-offset-top: calc(60px + 12px);
     --has-icon-bar-offset-left: 12px;
     --has-icon-bar-width: 78px;
+    --has-zoom-bar-width: 45px;
+    --has-zoom-offset-top: calc(60px + 12px);
+    --has-zoom-offset-left: calc(78px + 300px + 12px + 12px * 2);
+    --has-onscreen-shadow: 0 2px 3px 1px rgba(0, 0, 0, 0.1);
 }
 
 .planner-modal {
@@ -419,36 +424,34 @@
 /* Zoom controls */
 .zoom-controls {
     position: absolute;
-    left: calc(var(--has-icon-bar-offset-left) + var(--has-icon-bar-width) + 12px + var(--has-side-bar-width) + 12px);
-    top: var(--has-icon-bar-offset-top);
+    top: var(--has-zoom-offset-top);
+    left: var(--has-zoom-offset-left);
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-    overflow: visible;
+    gap: calc(var(--has-component-spacing) / 2);
+    padding: calc(var(--has-component-spacing) / 2);
+    background-color: #fff;
+    box-shadow: var(--has-onscreen-shadow);
+    border-radius: 9px;
+    width: var(--has-zoom-bar-width);
     z-index: 100;
-    width: 40px;
 }
 
 .zoom-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border: none;
     background: transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
-    font-size: 16px;
+    color: #777;
+    font-size: 14px;
     transition: all 0.2s;
     position: relative;
     padding: 0;
-}
-
-.zoom-btn:not(:last-child) {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
 }
 
 .zoom-btn:hover {
