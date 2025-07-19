@@ -189,7 +189,7 @@ export class PlannerModal {
                             <i class="fas fa-minus"></i>
                         </button>
                         <button class="zoom-btn" title="Fit to Screen">
-                            <i class="fas fa-crosshairs"></i>
+                            <i class="fas fa-compress"></i>
                         </button>
                     </div>
                 </div>

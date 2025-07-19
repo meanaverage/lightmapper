@@ -108,8 +108,8 @@
     position: absolute;
     left: 120px; /* 20px + 80px sidebar + 20px gap */
     top: 20px;
-    bottom: 20px;
-    width: 360px;
+    width: 300px;
+    height: 408px;
     z-index: 100;
     background: white;
     border-radius: 12px;
@@ -426,7 +426,7 @@
 /* Zoom controls */
 .zoom-controls {
     position: absolute;
-    left: 500px; /* 120px (sidebar + gap) + 360px (panel width) + 20px gap */
+    left: 440px; /* 120px (sidebar + gap) + 300px (panel width) + 20px gap */
     top: 20px;
     display: flex;
     flex-direction: column;
