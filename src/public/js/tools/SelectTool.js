@@ -21,6 +21,7 @@ class SelectTool {
         this.hoverObject = null;
         this.handles = [];
         this.wallHoverType = null; // 'corner' or 'edge'
+        this.hoverGraphics = null; // For hover highlights
     }
     
     activate(pixiApp) {
@@ -64,6 +65,13 @@ class SelectTool {
             this.pixiApp.stage.removeChild(this.selectionGraphics);
             this.selectionGraphics.destroy();
             this.selectionGraphics = null;
+        }
+        
+        // Clear hover graphics
+        if (this.hoverGraphics) {
+            this.pixiApp.stage.removeChild(this.hoverGraphics);
+            this.hoverGraphics.destroy();
+            this.hoverGraphics = null;
         }
         
         // Reset cursor
@@ -157,6 +165,30 @@ class SelectTool {
             return;
         }
         
+        // Check if clicking on room edge/corner for dragging
+        if (this.selectedObject && this.selectedObject.type === 'room') {
+            const roomHover = this.getRoomHoverInfo(pos);
+            if (roomHover) {
+                console.log('Clicking on room edge/corner:', roomHover);
+                if (roomHover.type === 'corner') {
+                    // Create a handle-like object for corner dragging
+                    const handle = {
+                        id: `room-point-${roomHover.cornerIndex}`,
+                        type: 'corner'
+                    };
+                    this.startHandleDrag(handle, pos);
+                } else if (roomHover.type === 'edge') {
+                    // Create a handle-like object for edge dragging
+                    const handle = {
+                        type: 'edge',
+                        edgeIndex: roomHover.edgeIndex
+                    };
+                    this.startHandleDrag(handle, pos);
+                }
+                return;
+            }
+        }
+        
         // Check if clicking on selected object (to drag)
         if (this.selectedObject && this.isPointOnObject(pos, this.selectedObject)) {
             console.log('Starting drag of selected object:', this.selectedObject);
@@ -194,27 +226,51 @@ class SelectTool {
                 }
             } else if (this.selectedObject.type === 'room') {
                 const room = this.selectedObject.object;
-                const handleIndex = parseInt(this.dragHandle.id.split('-')[2]);
                 
-                if (!isNaN(handleIndex) && handleIndex < room.points.length) {
-                    room.points[handleIndex].x = this.dragOffset[handleIndex].x + dx;
-                    room.points[handleIndex].y = this.dragOffset[handleIndex].y + dy;
+                if (this.dragHandle.type === 'corner') {
+                    // Handle corner dragging
+                    const handleIndex = parseInt(this.dragHandle.id.split('-')[2]);
+                    if (!isNaN(handleIndex) && handleIndex < room.points.length) {
+                        room.points[handleIndex].x = this.dragOffset[handleIndex].x + dx;
+                        room.points[handleIndex].y = this.dragOffset[handleIndex].y + dy;
+                        
+                        // For rectangular rooms, maintain rectangle shape
+                        if (room.points.length === 4) {
+                            // Adjust adjacent corners to maintain rectangle
+                            if (handleIndex === 0) { // Top-left
+                                room.points[1].y = room.points[0].y;
+                                room.points[3].x = room.points[0].x;
+                            } else if (handleIndex === 1) { // Top-right
+                                room.points[0].y = room.points[1].y;
+                                room.points[2].x = room.points[1].x;
+                            } else if (handleIndex === 2) { // Bottom-right
+                                room.points[3].y = room.points[2].y;
+                                room.points[1].x = room.points[2].x;
+                            } else if (handleIndex === 3) { // Bottom-left
+                                room.points[2].y = room.points[3].y;
+                                room.points[0].x = room.points[3].x;
+                            }
+                        }
+                    }
+                } else if (this.dragHandle.type === 'edge') {
+                    // Handle edge dragging (move wall)
+                    const edgeIndex = this.dragHandle.edgeIndex;
+                    const room = this.selectedObject.object;
                     
-                    // For rectangular rooms, maintain rectangle shape
                     if (room.points.length === 4) {
-                        // Adjust adjacent corners to maintain rectangle
-                        if (handleIndex === 0) { // Top-left
-                            room.points[1].y = room.points[0].y;
-                            room.points[3].x = room.points[0].x;
-                        } else if (handleIndex === 1) { // Top-right
-                            room.points[0].y = room.points[1].y;
-                            room.points[2].x = room.points[1].x;
-                        } else if (handleIndex === 2) { // Bottom-right
-                            room.points[3].y = room.points[2].y;
-                            room.points[1].x = room.points[2].x;
-                        } else if (handleIndex === 3) { // Bottom-left
-                            room.points[2].y = room.points[3].y;
-                            room.points[0].x = room.points[3].x;
+                        // For rectangular rooms
+                        if (edgeIndex === 0) { // Top edge
+                            room.points[0].y = this.dragOffset[0].y + dy;
+                            room.points[1].y = this.dragOffset[1].y + dy;
+                        } else if (edgeIndex === 1) { // Right edge
+                            room.points[1].x = this.dragOffset[1].x + dx;
+                            room.points[2].x = this.dragOffset[2].x + dx;
+                        } else if (edgeIndex === 2) { // Bottom edge
+                            room.points[2].y = this.dragOffset[2].y + dy;
+                            room.points[3].y = this.dragOffset[3].y + dy;
+                        } else if (edgeIndex === 3) { // Left edge
+                            room.points[3].x = this.dragOffset[3].x + dx;
+                            room.points[0].x = this.dragOffset[0].x + dx;
                         }
                     }
                 }
@@ -254,19 +310,39 @@ class SelectTool {
         } else {
             // Update hover state and cursor
             const handle = this.getHandleAt(pos);
-            const wallHover = this.getWallHoverType(pos);
             
             if (handle) {
                 this.canvas.style.cursor = 'pointer';
-            } else if (wallHover) {
-                if (wallHover.type === 'corner') {
+                this.updateHoverHighlight(handle);
+            } else if (this.selectedObject && this.selectedObject.type === 'room') {
+                // Check for room edge/corner hover
+                const roomHover = this.getRoomHoverInfo(pos);
+                if (roomHover) {
+                    this.updateHoverHighlight(roomHover);
+                    if (roomHover.type === 'corner') {
+                        this.canvas.style.cursor = 'move';
+                    } else if (roomHover.type === 'edge') {
+                        this.canvas.style.cursor = roomHover.cursor;
+                    }
+                } else {
+                    this.clearHoverHighlight();
                     this.canvas.style.cursor = 'move';
-                } else if (wallHover.type === 'edge') {
-                    this.canvas.style.cursor = wallHover.direction;
+                }
+            } else if (this.selectedObject && this.selectedObject.type === 'wall') {
+                const wallHover = this.getWallHoverType(pos);
+                if (wallHover) {
+                    if (wallHover.type === 'corner') {
+                        this.canvas.style.cursor = 'move';
+                    } else if (wallHover.type === 'edge') {
+                        this.canvas.style.cursor = wallHover.direction;
+                    }
+                } else {
+                    this.canvas.style.cursor = 'move';
                 }
             } else if (this.getObjectAt(pos)) {
                 this.canvas.style.cursor = 'move';
             } else {
+                this.clearHoverHighlight();
                 this.canvas.style.cursor = 'default';
             }
         }
@@ -430,6 +506,125 @@ class SelectTool {
             }
         }
         return null;
+    }
+    
+    getRoomHoverInfo(pos) {
+        if (!this.selectedObject || this.selectedObject.type !== 'room') return null;
+        
+        const room = this.selectedObject.object;
+        const cornerRadius = 20;
+        const edgeThreshold = 15;
+        
+        // Check corners first
+        for (let i = 0; i < room.points.length; i++) {
+            const point = room.points[i];
+            const dist = Math.sqrt((pos.x - point.x) ** 2 + (pos.y - point.y) ** 2);
+            if (dist < cornerRadius) {
+                return { 
+                    type: 'corner', 
+                    cornerIndex: i,
+                    id: `room-corner-${i}`,
+                    position: point
+                };
+            }
+        }
+        
+        // Check edges
+        for (let i = 0; i < room.points.length; i++) {
+            const p1 = room.points[i];
+            const p2 = room.points[(i + 1) % room.points.length];
+            
+            const dist = this.distanceToLineSegment(pos, p1, p2);
+            if (dist < edgeThreshold) {
+                // Determine cursor based on edge orientation
+                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                const isVertical = Math.abs(Math.sin(angle)) > 0.7;
+                const isHorizontal = Math.abs(Math.cos(angle)) > 0.7;
+                
+                let cursor = 'move';
+                if (isVertical) {
+                    cursor = 'ew-resize';
+                } else if (isHorizontal) {
+                    cursor = 'ns-resize';
+                } else {
+                    cursor = Math.abs(angle) < Math.PI / 4 || Math.abs(angle) > 3 * Math.PI / 4 ? 'nesw-resize' : 'nwse-resize';
+                }
+                
+                return { 
+                    type: 'edge', 
+                    edgeIndex: i,
+                    cursor: cursor,
+                    p1: p1,
+                    p2: p2
+                };
+            }
+        }
+        
+        return null;
+    }
+    
+    updateHoverHighlight(hoverInfo) {
+        if (!this.pixiApp) return;
+        
+        // Create hover graphics if it doesn't exist
+        if (!this.hoverGraphics) {
+            this.hoverGraphics = new PIXI.Graphics();
+            this.pixiApp.stage.addChild(this.hoverGraphics);
+        }
+        
+        // Clear previous highlights
+        this.hoverGraphics.clear();
+        
+        if (hoverInfo.type === 'corner') {
+            // Draw corner highlight
+            this.hoverGraphics.lineStyle(3, 0xff6600, 1);
+            this.hoverGraphics.beginFill(0xff6600, 0.3);
+            this.hoverGraphics.drawCircle(hoverInfo.position.x, hoverInfo.position.y, 8);
+            this.hoverGraphics.endFill();
+        } else if (hoverInfo.type === 'edge') {
+            // Draw edge highlight
+            this.hoverGraphics.lineStyle(4, 0xff6600, 0.8);
+            this.hoverGraphics.moveTo(hoverInfo.p1.x, hoverInfo.p1.y);
+            this.hoverGraphics.lineTo(hoverInfo.p2.x, hoverInfo.p2.y);
+        }
+    }
+    
+    clearHoverHighlight() {
+        if (this.hoverGraphics) {
+            this.hoverGraphics.clear();
+        }
+    }
+    
+    distanceToLineSegment(point, p1, p2) {
+        const A = point.x - p1.x;
+        const B = point.y - p1.y;
+        const C = p2.x - p1.x;
+        const D = p2.y - p1.y;
+        
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+        
+        let xx, yy;
+        
+        if (param < 0) {
+            xx = p1.x;
+            yy = p1.y;
+        } else if (param > 1) {
+            xx = p2.x;
+            yy = p2.y;
+        } else {
+            xx = p1.x + param * C;
+            yy = p1.y + param * D;
+        }
+        
+        const dx = point.x - xx;
+        const dy = point.y - yy;
+        return Math.sqrt(dx * dx + dy * dy);
     }
     
     getWallHoverType(pos) {
