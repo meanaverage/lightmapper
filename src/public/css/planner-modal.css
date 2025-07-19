@@ -2,6 +2,9 @@
 :root {
     --has-spacing: 12px;
     --has-side-bar-width: 300px;
+    --has-icon-bar-offset-top: calc(60px + 12px);
+    --has-icon-bar-offset-left: 12px;
+    --has-icon-bar-width: 78px;
 }
 
 .planner-modal {
@@ -77,42 +80,26 @@
 /* Left sidebar with icons */
 .planner-sidebar {
     position: absolute;
-    left: 20px;
-    top: 20px;
-    bottom: 20px;
-    width: 80px;
-    z-index: 100;
-    background: #f8f8f8;
+    left: var(--has-icon-bar-offset-left);
+    top: var(--has-icon-bar-offset-top);
+    width: var(--has-icon-bar-width);
+    z-index: 20;
+    background: #fff;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    box-shadow: 0 2px 3px 1px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
+    gap: 3px;
+    padding: 9px;
+    justify-content: flex-start;
 }
 
-.sidebar-header {
-    height: 60px;
-    background: white;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 8px;
-    flex-direction: column;
-}
-
-.project-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
-    text-align: center;
-}
 
 /* Panel content - separate floating panel */
 .planner-panels {
     position: absolute;
-    left: 120px; /* 20px + 80px sidebar + 20px gap */
-    top: 20px;
+    left: calc(var(--has-icon-bar-offset-left) + var(--has-icon-bar-width) + 12px);
+    top: var(--has-icon-bar-offset-top);
     width: var(--has-side-bar-width);
     height: 408px;
     z-index: 100;
@@ -122,14 +109,6 @@
     overflow: hidden;
 }
 
-.icon-sidebar {
-    flex: 1;
-    background: #f8f8f8;
-    display: flex;
-    flex-direction: column;
-    padding: 12px 8px;
-    gap: 8px;
-}
 
 .sidebar-icon {
     display: flex;
@@ -137,35 +116,41 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 72px;
+    height: 60px;
     cursor: pointer;
     color: #666;
     transition: all 0.2s;
     position: relative;
-    border-radius: 12px;
-    background: white;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    padding: 8px;
 }
 
 .sidebar-icon:hover {
-    background: #e8e8e8;
+    background: rgba(0, 0, 0, 0.05);
     color: #333;
 }
 
 .sidebar-icon.active {
     background: #4a90e2;
     color: white;
-    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.sidebar-icon.bottom {
+    margin-top: auto;
 }
 
 .sidebar-icon i {
-    font-size: 24px;
-    margin-bottom: 6px;
+    font-size: 20px;
+    margin-bottom: 4px;
 }
 
 .sidebar-icon span {
-    font-size: 11px;
+    font-size: 10px;
     text-align: center;
     font-weight: 500;
+    line-height: 1;
 }
 
 .panel-content {
@@ -434,8 +419,8 @@
 /* Zoom controls */
 .zoom-controls {
     position: absolute;
-    left: calc(120px + var(--has-side-bar-width) + 20px); /* sidebar + panel + gap */
-    top: 20px;
+    left: calc(var(--has-icon-bar-offset-left) + var(--has-icon-bar-width) + 12px + var(--has-side-bar-width) + 12px);
+    top: var(--has-icon-bar-offset-top);
     display: flex;
     flex-direction: column;
     background: rgba(255, 255, 255, 0.95);

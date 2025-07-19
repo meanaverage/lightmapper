@@ -51,43 +51,45 @@ export class PlannerModal {
                         <div class="planner-coords">X: 0, Y: 0</div>
                     </div>
                     <div class="planner-sidebar">
-                        <div class="sidebar-header">
-                            <i class="fas fa-th-large" style="font-size: 20px; color: #666; margin-bottom: 4px;"></i>
-                            <div class="project-name">Project</div>
-                        </div>
-                        <div class="icon-sidebar">
-                            <div class="sidebar-icon active" data-panel="build" title="Build">
-                                <i class="fas fa-hammer"></i>
-                                <span>Build</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="info" title="Info">
-                                <i class="fas fa-info-circle"></i>
-                                <span>Info</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="objects" title="Objects">
-                                <i class="fas fa-cube"></i>
-                                <span>Objects</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="styleboards" title="Styleboards">
-                                <i class="fas fa-palette"></i>
-                                <span>Styleboards</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="finishes" title="Finishes">
-                                <i class="fas fa-paint-roller"></i>
-                                <span>Finishes</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="export" title="Export">
-                                <i class="fas fa-download"></i>
-                                <span>Exports</span>
-                            </div>
-                            <div class="sidebar-icon" data-panel="help" title="Help">
-                                <i class="fas fa-question-circle"></i>
-                                <span>Help</span>
-                            </div>
-                        </div>
+                        <button class="sidebar-icon" data-panel="project" title="Project">
+                            <i class="fas fa-th-large"></i>
+                            <span>Project</span>
+                        </button>
+                        <button class="sidebar-icon active" data-panel="build" title="Build">
+                            <i class="fas fa-hammer"></i>
+                            <span>Build</span>
+                        </button>
+                        <button class="sidebar-icon" data-panel="info" title="Info">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Info</span>
+                        </button>
+                        <button class="sidebar-icon" data-panel="objects" title="Objects">
+                            <i class="fas fa-cube"></i>
+                            <span>Objects</span>
+                        </button>
+                        <button class="sidebar-icon" data-panel="styleboards" title="Styleboards">
+                            <i class="fas fa-palette"></i>
+                            <span>Styleboards</span>
+                        </button>
+                        <button class="sidebar-icon" data-panel="finishes" title="Finishes">
+                            <i class="fas fa-paint-roller"></i>
+                            <span>Finishes</span>
+                        </button>
+                        <button class="sidebar-icon" data-panel="export" title="Export">
+                            <i class="fas fa-download"></i>
+                            <span>Exports</span>
+                        </button>
+                        <button class="sidebar-icon bottom" data-panel="help" title="Help">
+                            <i class="fas fa-question-circle"></i>
+                            <span>Help</span>
+                        </button>
                     </div>
                     <div class="planner-panels">
                         <div class="panel-content">
+                            <div class="panel project-panel">
+                                <h2>Project</h2>
+                                <p>Project settings and information will be displayed here.</p>
+                            </div>
                             <div class="panel build-panel active">
                                 <h2>Build</h2>
                                 <div class="wall-properties" style="display: none;">
