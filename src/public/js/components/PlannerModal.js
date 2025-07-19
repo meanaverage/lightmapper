@@ -183,7 +183,60 @@ export class PlannerModal {
                             </div>
                         </div>
                     </div>
-                    <div class="zoom-controls">
+                    <!-- Example 1: Subtle lines -->
+                    <div class="zoom-controls example-1" style="left: 440px;" data-label="Subtle">
+                        <button class="zoom-btn" title="Zoom In">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Zoom Out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Fit to Screen">
+                            <i class="fas fa-compress"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Example 2: Dots -->
+                    <div class="zoom-controls example-2" style="left: 500px;" data-label="Dots">
+                        <button class="zoom-btn" title="Zoom In">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Zoom Out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Fit to Screen">
+                            <i class="fas fa-compress"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Example 3: Thick bars -->
+                    <div class="zoom-controls example-3" style="left: 560px;" data-label="Thick">
+                        <button class="zoom-btn" title="Zoom In">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Zoom Out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Fit to Screen">
+                            <i class="fas fa-compress"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Example 4: Grip pattern -->
+                    <div class="zoom-controls example-4" style="left: 620px;" data-label="Grip">
+                        <button class="zoom-btn" title="Zoom In">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Zoom Out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="zoom-btn" title="Fit to Screen">
+                            <i class="fas fa-compress"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Example 5: Chevrons -->
+                    <div class="zoom-controls example-5" style="left: 680px;" data-label="Chevrons">
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -517,8 +570,11 @@ export class PlannerModal {
     }
     
     setupZoomControlsInteraction() {
-        const zoomControls = this.container.querySelector('.zoom-controls');
-        if (!zoomControls) return;
+        const zoomControlsList = this.container.querySelectorAll('.zoom-controls');
+        if (!zoomControlsList.length) return;
+        
+        // Apply to all zoom control examples
+        zoomControlsList.forEach((zoomControls) => {
         
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
@@ -587,6 +643,7 @@ export class PlannerModal {
             e.preventDefault();
             e.stopPropagation();
             zoomControls.classList.toggle('horizontal');
+        });
         });
     }
     
