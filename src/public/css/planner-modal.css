@@ -434,6 +434,7 @@
     box-shadow: var(--has-onscreen-shadow);
     border-radius: 9px;
     width: var(--has-zoom-bar-width);
+    height: fit-content;
     z-index: 100;
     transition: transform 0.3s ease;
 }

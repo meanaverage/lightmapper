@@ -1,5 +1,5 @@
 // Room Properties Panel Component
-export class RoomPropertiesPanel {
+class RoomPropertiesPanel {
     constructor(container) {
         this.container = container;
         this.selectedRoom = null;
@@ -382,5 +382,5 @@ export class RoomPropertiesPanel {
     }
 }
 
-// Initialize the room properties panel
+// Make it available globally
 window.RoomPropertiesPanel = RoomPropertiesPanel;
