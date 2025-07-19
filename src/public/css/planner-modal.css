@@ -547,9 +547,3 @@
     line-height: 1.4;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .planner-sidebar {
-        width: 160px;
-    }
-}
