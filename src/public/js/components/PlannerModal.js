@@ -183,68 +183,7 @@ export class PlannerModal {
                             </div>
                         </div>
                     </div>
-                    <!-- Example 1: Subtle lines -->
-                    <div class="zoom-controls example-1" style="left: 440px;" data-label="Subtle">
-                        <div class="zoom-handle top"></div>
-                        <button class="zoom-btn" title="Zoom In">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Zoom Out">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Fit to Screen">
-                            <i class="fas fa-compress"></i>
-                        </button>
-                        <div class="zoom-handle bottom"></div>
-                    </div>
-                    
-                    <!-- Example 2: Dots -->
-                    <div class="zoom-controls example-2" style="left: 500px;" data-label="Dots">
-                        <div class="zoom-handle top"></div>
-                        <button class="zoom-btn" title="Zoom In">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Zoom Out">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Fit to Screen">
-                            <i class="fas fa-compress"></i>
-                        </button>
-                        <div class="zoom-handle bottom"></div>
-                    </div>
-                    
-                    <!-- Example 3: Thick bars -->
-                    <div class="zoom-controls example-3" style="left: 560px;" data-label="Thick">
-                        <div class="zoom-handle top"></div>
-                        <button class="zoom-btn" title="Zoom In">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Zoom Out">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Fit to Screen">
-                            <i class="fas fa-compress"></i>
-                        </button>
-                        <div class="zoom-handle bottom"></div>
-                    </div>
-                    
-                    <!-- Example 4: Grip pattern -->
-                    <div class="zoom-controls example-4" style="left: 620px;" data-label="Grip">
-                        <div class="zoom-handle top"></div>
-                        <button class="zoom-btn" title="Zoom In">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Zoom Out">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <button class="zoom-btn" title="Fit to Screen">
-                            <i class="fas fa-compress"></i>
-                        </button>
-                        <div class="zoom-handle bottom"></div>
-                    </div>
-                    
-                    <!-- Example 5: Chevrons -->
-                    <div class="zoom-controls example-5" style="left: 680px;" data-label="Chevrons">
+                    <div class="zoom-controls">
                         <div class="zoom-handle top"></div>
                         <button class="zoom-btn" title="Zoom In">
                             <i class="fas fa-plus"></i>
@@ -559,7 +498,7 @@ export class PlannerModal {
             this.fitToScreen();
         });
         
-        // Mouse wheel zoom
+        // Mouse wheel zoom (also zooms from center)
         if (this.container) {
             const canvas = this.container.querySelector('#plannerCanvas');
             canvas.addEventListener('wheel', (e) => {
@@ -601,9 +540,16 @@ export class PlannerModal {
             e.preventDefault();
             e.stopPropagation();
             isDragging = true;
+            
+            // Get the current computed position
+            const computedStyle = window.getComputedStyle(zoomControls);
+            const currentLeft = parseInt(computedStyle.left, 10) || 0;
+            const currentTop = parseInt(computedStyle.top, 10) || 0;
+            
+            // Calculate the offset from the mouse position to the element's position
             dragStart = { x: e.clientX, y: e.clientY };
-            const rect = zoomControls.getBoundingClientRect();
-            controlsStart = { x: rect.left, y: rect.top };
+            controlsStart = { x: currentLeft, y: currentTop };
+            
             zoomControls.classList.add('dragging');
             topHandle.style.cursor = 'grabbing';
         });
@@ -614,6 +560,7 @@ export class PlannerModal {
             const dx = e.clientX - dragStart.x;
             const dy = e.clientY - dragStart.y;
             
+            // Apply the new position
             zoomControls.style.left = `${controlsStart.x + dx}px`;
             zoomControls.style.top = `${controlsStart.y + dy}px`;
         });
@@ -791,18 +738,26 @@ export class PlannerModal {
         const newZoom = this.zoomLevel * factor;
         if (newZoom < this.minZoom || newZoom > this.maxZoom) return;
         
+        // Get the center of the canvas
+        const centerX = this.pixiApp.renderer.width / 2;
+        const centerY = this.pixiApp.renderer.height / 2;
+        
+        // Get the world position at the center before zoom
+        const worldCenterBefore = {
+            x: (centerX - this.pixiApp.stage.position.x) / this.zoomLevel,
+            y: (centerY - this.pixiApp.stage.position.y) / this.zoomLevel
+        };
+        
+        // Update zoom level
         this.zoomLevel = newZoom;
         
         // Apply zoom to the stage
         this.pixiApp.stage.scale.x = this.zoomLevel;
         this.pixiApp.stage.scale.y = this.zoomLevel;
         
-        // Keep centered
-        const centerX = this.pixiApp.renderer.width / 2;
-        const centerY = this.pixiApp.renderer.height / 2;
-        
-        this.pixiApp.stage.pivot.x = centerX / this.zoomLevel - centerX;
-        this.pixiApp.stage.pivot.y = centerY / this.zoomLevel - centerY;
+        // Calculate new position to keep the same world point at the center
+        this.pixiApp.stage.position.x = centerX - worldCenterBefore.x * this.zoomLevel;
+        this.pixiApp.stage.position.y = centerY - worldCenterBefore.y * this.zoomLevel;
         
         // Update zoom indicator
         this.updateZoomIndicator();

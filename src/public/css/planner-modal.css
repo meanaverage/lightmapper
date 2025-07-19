@@ -36,7 +36,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: #fff;
+    background: #8B5CF6;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -89,7 +89,9 @@
     top: var(--has-icon-bar-offset-top);
     width: var(--has-icon-bar-width);
     z-index: 20;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
     box-shadow: 0 2px 3px 1px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -123,7 +125,7 @@
     width: 100%;
     height: 60px;
     cursor: pointer;
-    color: #666;
+    color: rgba(255, 255, 255, 0.7);
     transition: all 0.2s;
     position: relative;
     border-radius: 8px;
@@ -133,13 +135,14 @@
 }
 
 .sidebar-icon:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #333;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
 }
 
 .sidebar-icon.active {
-    background: #4a90e2;
+    background: rgba(255, 255, 255, 0.2);
     color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-icon.bottom {
@@ -430,8 +433,10 @@
     flex-direction: column;
     gap: calc(var(--has-component-spacing) / 2);
     padding: calc(var(--has-component-spacing) / 2);
-    background-color: #fff;
-    box-shadow: var(--has-onscreen-shadow);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border-radius: 9px;
     width: var(--has-zoom-bar-width);
     height: fit-content;
@@ -475,11 +480,11 @@
     opacity: 1;
 }
 
-/* Example 1: Subtle lines */
-.zoom-controls.example-1 .zoom-handle {
+/* Default zoom handle style */
+.zoom-handle {
     width: 24px;
-    height: 4px;
-    background-color: #ccc;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 2px;
 }
 
@@ -845,12 +850,12 @@
     width: 36px;
     height: 36px;
     border: none;
-    background-color: #f4f4f4;
+    background: rgba(255, 255, 255, 0.1);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #777;
+    color: rgba(255, 255, 255, 0.8);
     font-size: 14px;
     transition: all 0.2s;
     position: relative;
@@ -859,12 +864,12 @@
 }
 
 .zoom-btn:hover {
-    background-color: #e8e8e8;
-    color: #333;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
 }
 
 .zoom-btn:active {
-    background-color: #ddd;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Show icons instead of text */
@@ -926,8 +931,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: #f5f5f5;
+    background: rgba(255, 255, 255, 0.95);
     overflow: hidden;
+    margin: 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 #plannerCanvas {
