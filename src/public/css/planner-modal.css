@@ -1,7 +1,7 @@
 /* Planner Modal Styles */
 :root {
     --has-spacing: 12px;
-    --has-panel-width: 300px;
+    --has-side-bar-width: 300px;
 }
 
 .planner-modal {
