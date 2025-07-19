@@ -434,6 +434,7 @@
     box-shadow: var(--has-onscreen-shadow);
     border-radius: 9px;
     width: var(--has-zoom-bar-width);
+    height: 135px;
     z-index: 100;
 }
 
@@ -441,7 +442,7 @@
     width: 36px;
     height: 36px;
     border: none;
-    background: transparent;
+    background-color: #f4f4f4;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -451,16 +452,16 @@
     transition: all 0.2s;
     position: relative;
     padding: 0;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .zoom-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background-color: #e8e8e8;
     color: #333;
 }
 
 .zoom-btn:active {
-    background: rgba(0, 0, 0, 0.1);
+    background-color: #ddd;
 }
 
 /* Show icons instead of text */
